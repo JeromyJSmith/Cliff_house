@@ -1,0 +1,15 @@
+{
+  "audit_path": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/initial-survey-v001/source-audit.json",
+  "audit_sha256": "41db8d1a0217eb2e381cf7cf1b1f193ec99ae0507fd53756e186c97a4ed61b69",
+  "inventory_files": 1180,
+  "point_cloud_files": 10,
+  "stored_point_records": 239347625,
+  "media_artifacts": 11,
+  "all_media_probes_succeeded": true,
+  "all_root_cloud_payloads_match": true,
+  "sampled_nonfinite_records": 0,
+  "raw_files_fully_hashed": false,
+  "source_changes": false,
+  "point_cloud_registration_performed": false,
+  "user_selected_model_state": "present-day building first"
+}
