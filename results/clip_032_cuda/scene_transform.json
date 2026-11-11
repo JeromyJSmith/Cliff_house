@@ -1,0 +1,86 @@
+{
+  "format": "spirula-scene-transform",
+  "version": 1,
+  "readme": [
+    "p_train = train_from_world.scale * train_from_world.rotation.matrix_3x3 @ p_world + train_from_world.translation, for a column vector p.",
+    "train_from_world is the ACTIVE transform taking a point of the dataset's own frame (world) into the frame the splats were trained in (train); read passively, it gives a fixed point's train coordinates from its world coordinates. world_from_train is its inverse.",
+    "matrix_4x4 acts on column vectors [x, y, z, 1]. matrix_4x4_flat_row_major lists it row by row; matrix_4x4_flat_column_major column by column, which is also the row-major layout of its transpose, the matrix that acts on row vectors [x, y, z, 1] @ M^T.",
+    "rotation.matrix_3x3 acts on column vectors. quaternion_wxyz is (w, x, y, z) and quaternion_xyzw is (x, y, z, w), the same unit quaternion. axis_angle is a unit axis with a right-handed angle; rotation_vector is axis * angle_rad.",
+    "euler.intrinsic.abc = [a1, a2, a3] means R = R_a(a1) @ R_b(a2) @ R_c(a3): rotate about the body axis a, then the new b, then the new c. euler.extrinsic.abc = [a1, a2, a3] means R = R_c(a3) @ R_b(a2) @ R_a(a1): rotate about the fixed axis a, then b, then c. So extrinsic.xyz = [roll about X, pitch about Y, yaw about Z] applied in that order, and intrinsic.zyx = [yaw, pitch, roll]. Every entry is given in radians and in degrees.",
+    "translation is applied AFTER the rotation and scale (p_out = s R p + t). translation_before_rotation is the equivalent shift applied first (p_out = s R (p + t_pre)); for train_from_world it is minus centering.center_world.",
+    "georeference, present when the dataset was fitted to GPS, places the world frame on Earth: x east, y north and z up, in metres from the point at origin_lat, origin_lon (WGS-84 degrees) and origin_alt (metres, the height as alt_source recorded it; absent when the fixes carried none)."
+  ],
+  "centering": {"mode": "none", "center_world": [0, 0, 0]},
+  "train_from_world": {
+    "scale": 1,
+    "translation": [0, 0, 0],
+    "translation_before_rotation": [0, 0, 0],
+    "rotation": {
+      "matrix_3x3": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      "matrix_3x3_flat_row_major": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      "matrix_3x3_flat_column_major": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      "quaternion_wxyz": [1, 0, 0, 0],
+      "quaternion_xyzw": [0, 0, 0, 1],
+      "axis_angle": {"axis": [0, 0, 1], "angle_rad": 0, "angle_deg": 0},
+      "rotation_vector": [0, 0, 0],
+      "euler": {
+        "intrinsic": {
+          "xyz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "xzy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yxz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yzx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zxy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zyx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]}
+        },
+        "extrinsic": {
+          "xyz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "xzy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yxz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yzx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zxy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zyx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]}
+        }
+      }
+    },
+    "matrix_4x4": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+    "matrix_4x4_flat_row_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    "matrix_4x4_flat_column_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    "matrix_3x4_flat_row_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
+  },
+  "world_from_train": {
+    "scale": 1,
+    "translation": [0, 0, 0],
+    "translation_before_rotation": [0, 0, 0],
+    "rotation": {
+      "matrix_3x3": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      "matrix_3x3_flat_row_major": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      "matrix_3x3_flat_column_major": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+      "quaternion_wxyz": [1, 0, 0, 0],
+      "quaternion_xyzw": [0, 0, 0, 1],
+      "axis_angle": {"axis": [0, 0, 1], "angle_rad": 0, "angle_deg": 0},
+      "rotation_vector": [0, 0, 0],
+      "euler": {
+        "intrinsic": {
+          "xyz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "xzy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yxz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yzx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zxy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zyx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]}
+        },
+        "extrinsic": {
+          "xyz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "xzy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yxz": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "yzx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zxy": {"radians": [0, 0, 0], "degrees": [0, 0, 0]},
+          "zyx": {"radians": [0, 0, 0], "degrees": [0, 0, 0]}
+        }
+      }
+    },
+    "matrix_4x4": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+    "matrix_4x4_flat_row_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    "matrix_4x4_flat_column_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    "matrix_3x4_flat_row_major": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
+  }
+}
