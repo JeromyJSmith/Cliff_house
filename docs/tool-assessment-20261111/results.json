@@ -1,0 +1,226 @@
+{
+  "evidence_root": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001",
+  "cloudcompare_bundle_version": "2.14.0",
+  "native_cli_qualified_by": "two-real-scan rigid ICP pilot",
+  "cloudcompy_installed_in_checked_environment": false,
+  "cloudcompy_needed_for_pilot": false,
+  "blender_version": "5.3.0 Beta",
+  "blender_build": "873fa9640966",
+  "spirula_used": false,
+  "raw_sources_modified": false,
+  "all_ten_registered": false,
+  "physical_scale_verified": false,
+  "pilot_execution": {
+    "data_scan": 7,
+    "reference_scan": 6,
+    "command": [
+      "/Users/jero/.local/bin/CloudCompare",
+      "-SILENT",
+      "-AUTO_SAVE",
+      "OFF",
+      "-O",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/data-train.ply",
+      "-O",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/reference-train.ply",
+      "-ICP",
+      "-ITER",
+      "40",
+      "-OVERLAP",
+      "80",
+      "-RANDOM_SAMPLING_LIMIT",
+      "200000"
+    ],
+    "returncode": 0,
+    "seconds": 4.565424919128418,
+    "training_records_each": 150000,
+    "holdout_records_each": 50000,
+    "rigid_only": true,
+    "adjust_scale": false,
+    "overlap_parameter_percent": 80,
+    "overlap_parameter_is_estimate": true,
+    "source_report": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/overlap.json",
+    "raw_sources_modified": false,
+    "new_files": [
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/data-train_REGISTRATION_MATRIX_2026-11-11_03h08_30_511.txt",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/data-holdout.ply",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/cloudcompare.log",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/data-train.ply",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/reference-holdout.ply",
+      "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/reference-train.ply"
+    ]
+  },
+  "pilot_verification": {
+    "matrix_path": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/icp-pilot-scan7-to6/data-train_REGISTRATION_MATRIX_2026-11-11_03h08_30_511.txt",
+    "matrix_sha256": "19da9ef3419b68f695c919b122c95df672b0ea3f345b0ce7ae51b4358790d297",
+    "matrix_data_to_reference": [
+      [
+        0.999597251415,
+        0.010654309765,
+        0.026302386075,
+        0.282462775707
+      ],
+      [
+        -0.010517938994,
+        0.999930560589,
+        -0.005317647476,
+        -0.036857325584
+      ],
+      [
+        -0.026357214898,
+        0.005038859323,
+        0.999639868736,
+        0.049825254828
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "rotation_determinant": 0.9999999926642021,
+    "rotation_orthogonality_max_error": 3.9945555418974266e-08,
+    "translation_source_units": [
+      0.282462775707,
+      -0.036857325584,
+      0.049825254828
+    ],
+    "rotation_degrees": 1.6530373523115618,
+    "held_out_data_points": 50000,
+    "held_out_reference_points": 50000,
+    "before": {
+      "median": 0.04650399661276943,
+      "p90": 0.12083933707740323,
+      "p95": 0.14772021085612438,
+      "rms": 0.07853113919990726
+    },
+    "after": {
+      "median": 0.033805582548127745,
+      "p90": 0.07676949330902856,
+      "p95": 0.10003024771816436,
+      "rms": 0.05926796206511656
+    },
+    "reverse_before": {
+      "median": 0.06893480844702722,
+      "p90": 1.1914580983859313,
+      "p95": 1.6055817667426127,
+      "rms": 0.6984148631421953
+    },
+    "reverse_after": {
+      "median": 0.06884001725237006,
+      "p90": 1.1906864841408342,
+      "p95": 1.601512268320991,
+      "rms": 0.6982074761308801
+    },
+    "fixed_before_overlap_mask": {
+      "definition": "before distance <=0.25 unverified source units",
+      "points": 49451,
+      "before": {
+        "median": 0.04598245529941314,
+        "p90": 0.11619578517897611,
+        "p95": 0.14144378120254422,
+        "rms": 0.06932039051132301
+      },
+      "after": {
+        "median": 0.033524268627715376,
+        "p90": 0.07415275244115617,
+        "p95": 0.09312327852581397,
+        "rms": 0.04918396359277055
+      }
+    },
+    "measured_physical_accuracy": "unverified",
+    "note": "Held-out source-order samples test the local fit, not independent survey control. Dense neighboring samples and shared sensor drift can remain correlated. Scale is unchanged. No full-resolution merge or scene registration to images was performed."
+  },
+  "source_fingerprints": [
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_1.ply",
+      "source_sha256": "3973d41d7979fbaaa898bd0f69bf9ac47d05a536f8e829919bff9c934003c2a7",
+      "bytes": 358897359,
+      "source_mtime_ns": 1791681029000000000,
+      "source_vertices": 23926476,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_1-sample.ply",
+      "sample_sha256": "04ae1b1f9e108c47d949f85aa8fb8ae61a49a0004582936081ccc27b46dded0e"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_2.ply",
+      "source_sha256": "b66d84d2a23e2faab0fb970f5f839e583a1face362f019af5fe999cbb2ef6a20",
+      "bytes": 358824249,
+      "source_mtime_ns": 1791681051000000000,
+      "source_vertices": 23921602,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_2-sample.ply",
+      "sample_sha256": "63659f9b81471e077de7f04d41c28a8199c77fd3d120e59b01d9e17f29e5455a"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_3.ply",
+      "source_sha256": "3c654341ac1a0d345ba496c6f99326bf9351913d004e4b9a99c5d88d4e2cc54a",
+      "bytes": 359028744,
+      "source_mtime_ns": 1791681071000000000,
+      "source_vertices": 23935235,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_3-sample.ply",
+      "sample_sha256": "7bab5e9ec4ccb4d94449a92bcc69e13a8ae8558cb7edcaff89f3b24bfce14a8a"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_4.ply",
+      "source_sha256": "f29e40e6ee32c8b9e99b5e8ea9d4eb366532535532239b2a36f7e511427ab8cc",
+      "bytes": 358942794,
+      "source_mtime_ns": 1791681094000000000,
+      "source_vertices": 23929505,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_4-sample.ply",
+      "sample_sha256": "dc65fc400e66835c6833749fcd23ed95ca0aa29d1c98157399bfb971a038d14d"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_5.ply",
+      "source_sha256": "448b69e20590dd24bfe8ab15ab320246b55a6edc19a721c6365ae679d2a3f2bb",
+      "bytes": 359222994,
+      "source_mtime_ns": 1791681120000000000,
+      "source_vertices": 23948185,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_5-sample.ply",
+      "sample_sha256": "4e99b70627dfdbff0f751ebc6d69a99c5cacfd621146e6a260ecb92bc5970d94"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_6.ply",
+      "source_sha256": "cb8ca4ddd6e2249a7416b472f3a844aa143cf31a2cdbd9d093c3fa332c916e40",
+      "bytes": 359147154,
+      "source_mtime_ns": 1791681149000000000,
+      "source_vertices": 23943129,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_6-sample.ply",
+      "sample_sha256": "0ad4aa4d87cbd894b47483260afd61bdf085944d62303dc369dc03882fcc6565"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_7.ply",
+      "source_sha256": "bda46cf90c2182ebc74167697d6e3d8e9d9eebe42b662fc8f1b6a81197d749fb",
+      "bytes": 358976919,
+      "source_mtime_ns": 1791681179000000000,
+      "source_vertices": 23931780,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_7-sample.ply",
+      "sample_sha256": "59fd35365cb2e740e6717f08fd33d3fe5b8906a4ea1b57da5765f90c13d38e56"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_8.ply",
+      "source_sha256": "9d20f879d7b51d2437ff14f98725e1054149cddbf97afdda05f29a357e7370af",
+      "bytes": 359003304,
+      "source_mtime_ns": 1791681207000000000,
+      "source_vertices": 23933539,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_8-sample.ply",
+      "sample_sha256": "a5a88672867f049b3bdd8a1a4491b7549808458ce3561e4969a38ff1a4b2d3a8"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_9.ply",
+      "source_sha256": "fd2eb0bc25dc785712aef1776c7a82d2aa09f3b4002b73b3fc7475938a6f7a35",
+      "bytes": 359076609,
+      "source_mtime_ns": 1791681235000000000,
+      "source_vertices": 23938426,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_9-sample.ply",
+      "sample_sha256": "357e34e157cbaf820fe1e9e948425a7d6b3e76295629087389a2797e51a63659"
+    },
+    {
+      "source": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_10.ply",
+      "source_sha256": "75720bee79bcb04705c0b9b8d1e68219cc8909a159f9f3b8e2f9e7dc72267bfa",
+      "bytes": 359096439,
+      "source_mtime_ns": 1791681267000000000,
+      "source_vertices": 23939748,
+      "sample": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/cloudcompare-assessment-v001/point-cloud-audit/Scan_at_19.10_10-sample.ply",
+      "sample_sha256": "c32cf49689cd2d9621d5379296aa9b02601587fd9a463d4ace3ef22a5c0085ff"
+    }
+  ]
+}
