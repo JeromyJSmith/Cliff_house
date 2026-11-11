@@ -1,3 +1,5 @@
+> **Source correction, November 11:** the ten October 10 PLYs discussed below belong to the 401 Pearl capture inventory, not Cliff House. They were removed to Trash at the owner’s request. All derived alignments are excluded from Cliff House. Use November 9–10 captures only; see `docs/source-correction-20261111/CORRECTION.md`.
+
 # Ten-scan registration: merge withheld after quality checks
 
 Owner requested all ten PLY scans aligned in CloudCompare, overlap checks, merge only once alignment looks right, then Pascal. Present-day capture; no Spirula. This run is **partial**, not an accepted registered master.

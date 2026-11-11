@@ -1,0 +1,57 @@
+{
+  "all_ten_match_401_inventory": [
+    {
+      "filename": "Scan at 19.10_1.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_2.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_3.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_4.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_5.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_6.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_7.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_8.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_9.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    },
+    {
+      "filename": "Scan at 19.10_10.ply",
+      "401_inventory_point_count_size_mtime_all_match": true,
+      "still_in_cliff_source_root": false
+    }
+  ],
+  "syntax": "all source scripts parsed",
+  "four_pipeline_source_rejection_guards": "passed",
+  "videos_images": "not mutated by correction"
+}

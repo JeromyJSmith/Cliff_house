@@ -1,0 +1,92 @@
+{
+  "reason": "Owner identified 401 Pearl, requires Nov 9\u201310 captures, explicitly requested deleting misfiled October 10 PLYs; moved to recoverable Trash",
+  "moves": [
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_1.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_1.ply",
+      "source_sha256": "3973d41d7979fbaaa898bd0f69bf9ac47d05a536f8e829919bff9c934003c2a7",
+      "bytes": 358897359
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_2.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_2.ply",
+      "source_sha256": "b66d84d2a23e2faab0fb970f5f839e583a1face362f019af5fe999cbb2ef6a20",
+      "bytes": 358824249
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_3.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_3.ply",
+      "source_sha256": "3c654341ac1a0d345ba496c6f99326bf9351913d004e4b9a99c5d88d4e2cc54a",
+      "bytes": 359028744
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_4.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_4.ply",
+      "source_sha256": "f29e40e6ee32c8b9e99b5e8ea9d4eb366532535532239b2a36f7e511427ab8cc",
+      "bytes": 358942794
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_5.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_5.ply",
+      "source_sha256": "448b69e20590dd24bfe8ab15ab320246b55a6edc19a721c6365ae679d2a3f2bb",
+      "bytes": 359222994
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_6.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_6.ply",
+      "source_sha256": "cb8ca4ddd6e2249a7416b472f3a844aa143cf31a2cdbd9d093c3fa332c916e40",
+      "bytes": 359147154
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_7.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_7.ply",
+      "source_sha256": "bda46cf90c2182ebc74167697d6e3d8e9d9eebe42b662fc8f1b6a81197d749fb",
+      "bytes": 358976919
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_8.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_8.ply",
+      "source_sha256": "9d20f879d7b51d2437ff14f98725e1054149cddbf97afdda05f29a357e7370af",
+      "bytes": 359003304
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_9.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_9.ply",
+      "source_sha256": "fd2eb0bc25dc785712aef1776c7a82d2aa09f3b4002b73b3fc7475938a6f7a35",
+      "bytes": 359076609
+    },
+    {
+      "from": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_10.ply",
+      "trash": "/Users/jero/.Trash/Misfiled 401 Pearl PLYs from Cliff House 2026-11-11/Scan at 19.10_10.ply",
+      "source_sha256": "75720bee79bcb04705c0b9b8d1e68219cc8909a159f9f3b8e2f9e7dc72267bfa",
+      "bytes": 359096439
+    }
+  ],
+  "videos_images_untouched": true,
+  "pascal": {
+    "id": "e23412a87765",
+    "projectId": "e23412a87765",
+    "name": "Cliff House \u2014 present-day scan reference",
+    "editorUrl": "http://pascal.localhost:3004/scene/e23412a87765",
+    "url": "http://pascal.localhost:3004/scene/e23412a87765",
+    "ownerId": null,
+    "thumbnailUrl": null,
+    "publishedVersion": 5,
+    "latestVersion": 5,
+    "draftVersion": null,
+    "browserVisibleVersion": 5,
+    "version": 5,
+    "isEmpty": false,
+    "sizeBytes": 922,
+    "nodeCount": 3,
+    "graphHash": "06272d7ba141e6e32df0b269bd0b1b0b062b900a6716aa7624f625f3f353812e",
+    "createdAt": "2026-11-11T10:17:30.829Z",
+    "updatedAt": "2026-11-11T10:59:26.999Z",
+    "nextStep": "Open editorUrl or continue editing, then save_scene again.",
+    "levelIds": [
+      "level_ynuowz3diyxjh3xu"
+    ],
+    "defaultLevelId": "level_ynuowz3diyxjh3xu"
+  },
+  "remaining_scan_nodes": 0
+}

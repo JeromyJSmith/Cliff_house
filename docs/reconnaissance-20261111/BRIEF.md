@@ -1,3 +1,5 @@
+> **Source correction, November 11:** the ten October 10 PLYs discussed below belong to the 401 Pearl capture inventory, not Cliff House. They were removed to Trash at the owner’s request. All derived alignments are excluded from Cliff House. Use November 9–10 captures only; see `docs/source-correction-20261111/CORRECTION.md`.
+
 # Cliff House, Morrison — present-day mapping baseline
 
 2026-11-11. Owner selected **present-day building first**. Source root: `/Users/jero/Desktop/frasier/Cliff House`. Reuse the existing repository and reconstruction work; preserve all originals, checkpoints, failed attempts and logs. No model generation, training or source edits were performed during this reconnaissance.
