@@ -1,0 +1,40 @@
+{
+  "release": "https://github.com/cdcseacave/openMVS/releases/tag/v2.4.0",
+  "asset": {
+    "url": "https://api.github.com/repos/cdcseacave/openMVS/releases/assets/343135051",
+    "id": 343135051,
+    "node_id": "RA_kwDOAiKnuc4Uc9NL",
+    "name": "OpenMVS_macOS_arm64.zip",
+    "label": null,
+    "uploader": {
+      "login": "cdcseacave",
+      "id": 2802670,
+      "node_id": "MDQ6VXNlcjI4MDI2NzA=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2802670?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/cdcseacave",
+      "html_url": "https://github.com/cdcseacave",
+      "followers_url": "https://api.github.com/users/cdcseacave/followers",
+      "following_url": "https://api.github.com/users/cdcseacave/following{/other_user}",
+      "gists_url": "https://api.github.com/users/cdcseacave/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/cdcseacave/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/cdcseacave/subscriptions",
+      "organizations_url": "https://api.github.com/users/cdcseacave/orgs",
+      "repos_url": "https://api.github.com/users/cdcseacave/repos",
+      "events_url": "https://api.github.com/users/cdcseacave/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/cdcseacave/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "content_type": "application/zip",
+    "state": "uploaded",
+    "size": 68347008,
+    "digest": "sha256:3d4c616c97031b1ab6e2eecb0ddd5614fb99513c0782a32c9350602faf38799b",
+    "download_count": 2003,
+    "created_at": "2026-01-20T05:52:17Z",
+    "updated_at": "2026-01-20T06:29:16Z",
+    "browser_download_url": "https://github.com/cdcseacave/openMVS/releases/download/v2.4.0/OpenMVS_macOS_arm64.zip"
+  },
+  "verified_sha256": "3d4c616c97031b1ab6e2eecb0ddd5614fb99513c0782a32c9350602faf38799b"
+}

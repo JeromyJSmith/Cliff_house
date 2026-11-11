@@ -1,0 +1,91 @@
+{
+  "registered_images": 90,
+  "cameras": [
+    {
+      "camera_id": 1,
+      "parameters": [
+        1084.2887373968222,
+        1085.2194984253201,
+        1920.0,
+        1920.0,
+        0.0351482794695409,
+        -0.001845092209483496,
+        -0.0009055362230815402,
+        -0.0006528515186778531
+      ],
+      "focal_fraction_drift": [
+        -0.016341535055432344,
+        -0.013601552941319928
+      ],
+      "radial_derivative_minimum": {
+        "1.5707963267948966": 0.8911939990790918,
+        "1.75": 0.538310923957118,
+        "1.8": 0.38237521277921915,
+        "1.9": -0.03568055315591789
+      },
+      "first_nonpositive_angle": 1.8930419921875
+    },
+    {
+      "camera_id": 2,
+      "parameters": [
+        1080.1034170571847,
+        1080.8182470543684,
+        1920.0,
+        1920.0,
+        0.03625312784516431,
+        -0.006381813271224621,
+        0.0013097168905640418,
+        -0.0009544138864614202
+      ],
+      "focal_fraction_drift": [
+        -0.028911615774784294,
+        -0.026506018525060515
+      ],
+      "radial_derivative_minimum": {
+        "1.5707963267948966": 0.8936104785286706,
+        "1.75": 0.5423857853234081,
+        "1.8": 0.38333948600847223,
+        "1.9": -0.050744630969441484
+      },
+      "first_nonpositive_angle": 1.8902587890625
+    }
+  ],
+  "points": 16969,
+  "cross_lens_tracks": 463,
+  "track_length_median": 3.0,
+  "track_length_p95": 8.0,
+  "reprojection_error_median": 1.2167503075915505,
+  "reprojection_error_p95": 2.202929325159544,
+  "same_timestamp_pairs": 45,
+  "estimated_lens_center_separation": {
+    "median": 0.04820361373515782,
+    "p05": 0.030791652380039176,
+    "p95": 0.06572345351689697,
+    "coefficient_of_variation": 0.26770537148072016
+  },
+  "camera_paths": {
+    "1": {
+      "bounds": [
+        4.465579551906803,
+        9.478338455719648,
+        1.4638067856656445
+      ],
+      "median_step": 0.2887901126281646,
+      "max_step": 0.32879812453276175,
+      "total_path": 11.937007312115563
+    },
+    "2": {
+      "bounds": [
+        4.422194464416922,
+        9.455366049754225,
+        1.4791479213031131
+      ],
+      "median_step": 0.2886901373689763,
+      "max_step": 0.3304024504484372,
+      "total_path": 12.007518828579071
+    }
+  },
+  "physical_units": "unverified arbitrary SfM units",
+  "new_fit_performed": false,
+  "decision": "Use only valid angular domains. Do not extrapolate fitted radial maps beyond monotonic range; parent derives <=90deg virtual views. No forced prior-calibration refit."
+}

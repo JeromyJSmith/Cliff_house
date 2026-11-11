@@ -28,4 +28,19 @@ Apple RealityKit PhotogrammetrySession is installed and reports support on this 
 - `toolchain/`: reviewed Swift runner executable, compile/capability verification and persistent compiler storage
 - `object-capture-exterior-v001/`: launch receipt, progress/console logs, checkpoints and requested output directory
 
-Status at this checkpoint: image alignment is actively running. No successful reconstructed mesh or new Pascal import is claimed yet. Inspect the run's exit/progress reports and review actual output geometry before export/import.
+## Alignment recovery
+
+The first Apple run failed at image alignment with `processError`, native error -15. The complete logs/checkpoints remain under `object-capture-exterior-v001/`; no mesh was produced. A second run, `object-capture-clip035-v002/`, restricted inputs to the continuous exterior clip035 and recorded known generated-camera focal metadata in new image copies. It failed with the same error. Neither failure justifies treating any output as a successful model.
+
+Independent native COLMAP reconstruction uses the 158 original fisheye frame derivatives, per-lens OPENCV_FISHEYE intrinsics, and geometrically verified candidate matches in `colmap-exterior-v001/`. Its points and camera registration must be inspected before surface reconstruction. No metric baseline has been invented.
+
+OpenMVS v2.4.0 official macOS arm64 binary is installed at `/Users/jero/Developer/tools/openmvs/v2.4.0`, with release metadata and SHA256 verification against the GitHub release asset digest. This provides an independent dense-reconstruction path after a valid camera solve; it is not Spirula or Gaussian training.
+
+No successful reconstructed mesh or new Pascal import is claimed at this checkpoint. The Cliff House Pascal scaffold remains separate from all 401 Pearl projects.
+
+
+## Targeted lodge registration
+
+The broad four-second sampling produced four fragmented sparse components (the lodge-containing one had only494points). A new run uses90native fisheye frames from clip035 at140–162seconds, every0.5seconds, preserving both lenses and the exact source timestamps. `colmap-lodge-v002/` registered all90images in one component:16,969points,65,809observations, mean track length3.878, mean native reprojection error1.232pixels. This is internal image consistency, not surveyed dimensional accuracy.
+
+`prepare_mvs_virtual_views.py` transfers solved poses into pinhole views without re-solving or rescaling. It retains original observation visibility, requires two original images per retained point, and masks extrapolation outside a monotonic lens projection. QA caught and preserved a folded wide-angle projection attempt; folded images are excluded. Surface generation uses OpenMVS with no automatic hole filling and retains depth maps and all execution logs.
