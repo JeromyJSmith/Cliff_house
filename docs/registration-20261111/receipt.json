@@ -1,0 +1,62 @@
+{
+  "status": "merge_withheld_quality_gate",
+  "evidence_root": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/ten-scan-registration-v001",
+  "native_cloudcompare_fits": 44,
+  "raw_hash_checks": [
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_1.ply",
+      "sha256": "3973d41d7979fbaaa898bd0f69bf9ac47d05a536f8e829919bff9c934003c2a7",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_2.ply",
+      "sha256": "b66d84d2a23e2faab0fb970f5f839e583a1face362f019af5fe999cbb2ef6a20",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_3.ply",
+      "sha256": "3c654341ac1a0d345ba496c6f99326bf9351913d004e4b9a99c5d88d4e2cc54a",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_4.ply",
+      "sha256": "f29e40e6ee32c8b9e99b5e8ea9d4eb366532535532239b2a36f7e511427ab8cc",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_5.ply",
+      "sha256": "448b69e20590dd24bfe8ab15ab320246b55a6edc19a721c6365ae679d2a3f2bb",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_6.ply",
+      "sha256": "cb8ca4ddd6e2249a7416b472f3a844aa143cf31a2cdbd9d093c3fa332c916e40",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_7.ply",
+      "sha256": "bda46cf90c2182ebc74167697d6e3d8e9d9eebe42b662fc8f1b6a81197d749fb",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_8.ply",
+      "sha256": "9d20f879d7b51d2437ff14f98725e1054149cddbf97afdda05f29a357e7370af",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_9.ply",
+      "sha256": "fd2eb0bc25dc785712aef1776c7a82d2aa09f3b4002b73b3fc7475938a6f7a35",
+      "matches_original": true
+    },
+    {
+      "path": "/Users/jero/Desktop/frasier/Cliff House/Scan at 19.10_10.ply",
+      "sha256": "75720bee79bcb04705c0b9b8d1e68219cc8909a159f9f3b8e2f9e7dc72267bfa",
+      "matches_original": true
+    }
+  ],
+  "pascal_project_url": "http://127.0.0.1:3004/project/e23412a87765",
+  "pascal_imported": false,
+  "merged": false,
+  "source_syntax_check": "passed",
+  "comparison_summary_print_error": "Fixed optional field handling after numerical outputs had been saved; outputs independently inspected."
+}
