@@ -1,0 +1,127 @@
+{
+  "saved": {
+    "id": "e23412a87765",
+    "name": "Cliff House \u2014 present-day scan reference",
+    "projectId": null,
+    "thumbnailUrl": null,
+    "version": 7,
+    "createdAt": "2026-11-11T10:17:30.829Z",
+    "updatedAt": "2026-11-11T12:15:03.146Z",
+    "ownerId": null,
+    "sizeBytes": 1301,
+    "nodeCount": 4,
+    "editorUrl": "http://pascal.localhost:3004/scene/e23412a87765",
+    "url": "http://pascal.localhost:3004/scene/e23412a87765",
+    "published": true,
+    "isDraft": false,
+    "saveMode": "checkpoint",
+    "graphHash": "b24eb036b8901dc9cc206f5598b64ea7f5338c1f1c4197fa898a79e1f05feb0c",
+    "levelIds": [
+      "level_ynuowz3diyxjh3xu"
+    ],
+    "defaultLevelId": "level_ynuowz3diyxjh3xu"
+  },
+  "status": {
+    "id": "e23412a87765",
+    "projectId": "e23412a87765",
+    "name": "Cliff House \u2014 present-day scan reference",
+    "editorUrl": "http://pascal.localhost:3004/scene/e23412a87765",
+    "url": "http://pascal.localhost:3004/scene/e23412a87765",
+    "ownerId": null,
+    "thumbnailUrl": null,
+    "publishedVersion": 7,
+    "latestVersion": 7,
+    "draftVersion": null,
+    "browserVisibleVersion": 7,
+    "version": 7,
+    "isEmpty": false,
+    "sizeBytes": 1301,
+    "nodeCount": 4,
+    "graphHash": "b24eb036b8901dc9cc206f5598b64ea7f5338c1f1c4197fa898a79e1f05feb0c",
+    "createdAt": "2026-11-11T10:17:30.829Z",
+    "updatedAt": "2026-11-11T12:15:03.146Z",
+    "nextStep": "Open editorUrl or continue editing, then save_scene again.",
+    "levelIds": [
+      "level_ynuowz3diyxjh3xu"
+    ],
+    "defaultLevelId": "level_ynuowz3diyxjh3xu"
+  },
+  "scan": {
+    "object": "node",
+    "id": "scan_owi9e2ukys5rhdz1",
+    "type": "scan",
+    "name": "Cliff-House-Nov10-partial-reference",
+    "parentId": "level_ynuowz3diyxjh3xu",
+    "visible": true,
+    "metadata": {},
+    "url": "asset://498zvpg1fcl182im",
+    "captureSession": null,
+    "layers": {
+      "deviceMotion": true,
+      "model": true
+    },
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "opacity": 100
+  },
+  "verification": {
+    "ok": true,
+    "valid": true,
+    "levelCount": 1,
+    "occupiedStoryCount": 1,
+    "supportLevelCount": 0,
+    "roofLevelIds": [],
+    "activeLevelId": null,
+    "levels": [
+      {
+        "levelId": "level_ynuowz3diyxjh3xu",
+        "levelName": "Ground floor",
+        "floorIndex": 0,
+        "role": "occupied",
+        "metadataRole": null,
+        "isOccupiedStory": true,
+        "isSupportLevel": false,
+        "referenceLevelId": null,
+        "isActive": false,
+        "isEmpty": true,
+        "content": {
+          "walls": 0,
+          "zones": 0,
+          "doors": 0,
+          "windows": 0,
+          "items": 0,
+          "slabs": 0,
+          "ceilings": 0,
+          "roofs": 0,
+          "stairs": 0
+        },
+        "spaces": 0
+      }
+    ],
+    "emptyLevelIds": [
+      "level_ynuowz3diyxjh3xu"
+    ],
+    "issues": [
+      {
+        "type": "empty_levels",
+        "message": "1 empty level(s): Ground floor (level_ynuowz3diyxjh3xu)"
+      }
+    ],
+    "hasIssues": true,
+    "checkpoints": [
+      "start"
+    ],
+    "activeSceneId": "e23412a87765"
+  },
+  "source": "VerifiedNov10clip035t140\u2013162, partialreference, physicalscaleunverified",
+  "other_projects_modified": false
+}

@@ -1,0 +1,29 @@
+{
+  "blender": "5.3.0 Beta",
+  "filtered_components": [
+    {
+      "object": "textured-v002",
+      "removed_vertices": 3681,
+      "criterion": "Disconnected components fewer than1000faces; originalunfilteredmesh retained"
+    }
+  ],
+  "mesh_objects": 1,
+  "vertices": 146812,
+  "polygons": 292592,
+  "bounds_blender": [
+    [
+      -33.7165641784668,
+      -15.424180030822754,
+      -3.2914695739746094
+    ],
+    [
+      11.97022533416748,
+      31.824277877807617,
+      12.805460929870605
+    ]
+  ],
+  "scale": "unverified arbitrary SfM units",
+  "coverage": "clip035 t140\u2013162; not complete building",
+  "material": "unlit captured photographic texture for diagnostic reference",
+  "export": "/Users/jero/Desktop/frasier/Cliff House/Mapping Evidence/2026-11-11/november-capture-reconstruction-v001/lodge-reference-review-v002/Cliff-House-Nov10-partial-reference.glb"
+}

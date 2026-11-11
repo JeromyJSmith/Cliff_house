@@ -44,3 +44,20 @@ No successful reconstructed mesh or new Pascal import is claimed at this checkpo
 The broad four-second sampling produced four fragmented sparse components (the lodge-containing one had only494points). A new run uses90native fisheye frames from clip035 at140–162seconds, every0.5seconds, preserving both lenses and the exact source timestamps. `colmap-lodge-v002/` registered all90images in one component:16,969points,65,809observations, mean track length3.878, mean native reprojection error1.232pixels. This is internal image consistency, not surveyed dimensional accuracy.
 
 `prepare_mvs_virtual_views.py` transfers solved poses into pinhole views without re-solving or rescaling. It retains original observation visibility, requires two original images per retained point, and masks extrapolation outside a monotonic lens projection. QA caught and preserved a folded wide-angle projection attempt; folded images are excluded. Surface generation uses OpenMVS with no automatic hole filling and retains depth maps and all execution logs.
+
+
+## Delivered partial reference — 2026-11-11
+
+OpenMVS reconstructed1,235,242densepoints and a298,900-triangle mesh. CloudCompare successfully compared the cloud with the mesh in unchanged arbitrary SfM coordinates: median absolute distance0.001225,p95=0.008834,p99=0.055967. These are internal approximation distances, not independently verified metres or surveyaccuracy. Original PLY list attributes required a standard XYZRGB interoperability copy; all originalfields/files remain preserved.
+
+TextureMesh's optional seam-blending stage crashed. Reusing the existing geometry with global/local seam leveling disabled succeeded, producing three4096pixel photographic texture atlases in `openmvs-lodge-v002/textured-v002.obj` and relatedfiles. No depthor meshreconstruction was repeated for that repair.
+
+Blender5.3 reviewed the mesh from a registered capturecamera and an overview. The façade and courtyard are recognizable, but substantial holes, occlusions, incompletecoverage and some erroneous sky/tree-connected surfaces remain. This does NOT pass as a completed architecturalmodel or presentation-ready photorealisticbuilding. A viewingcopy omits disconnectedcomponents smaller than1000faces; full unfiltered data remains intact. No missingroof, wall or opening was invented. Orientation follows the average upward-lensaxis, not a surveyedgravitydatum. Scale remains arbitrary and must not be interpreted as physicalmetres in Pascal.
+
+The filtered partialreference GLB and Blenderfile are in `lodge-reference-review-v002/`, alongwith `upright-capture-view.png`, `capture-matched.png`, `overview.png` and `pascal-import.png`. The GLB was imported into only the dedicated local **Cliff House — present-day scan reference** project, ID `e23412a87765`. Scan node `scan_owi9e2ukys5rhdz1`, asset `asset://498zvpg1fcl182im`. Checkpoint version7,4nodes, graphhash `b24eb036b8901dc9cc206f5598b64ea7f5338c1f1c4197fa898a79e1f05feb0c`. Native verify_scene reports a validgraph and an expectedempty architecturallevel: no editablewalls/rooms have yet been authored. OtherPascalprojects were not modified.
+
+Authoritative editorURL returnedbyPascal: http://pascal.localhost:3004/scene/e23412a87765 . The actual localbrowser import was verified at http://127.0.0.1:3004/project/e23412a87765 .
+
+### Remaining work
+
+The complete present-day model and plan-to-render presentation are unfinished. Extend high-overlap sampling to the other verifiedNovemberexterior/interior passes; mask sky/movingpeople before furtherdense reconstruction; register independentlyverifiedcomponents via sharedstonewall/doorway/corner geometry; verify physicalscale from availablecapturecalibration; then construct editablearchitecturalelements in Pascal and detailed renderinglayers in Blender5.3. The firstpass proves the correct-source path andprovides a provisional reference only. Do not merge the rejectedOctober/401Pearl scans or claim this short22secondpass covers the wholebuilding.

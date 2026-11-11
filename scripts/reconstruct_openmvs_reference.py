@@ -11,6 +11,6 @@ def main():
  run('InterfaceCOLMAP',['-i',views,'--image-folder',views/'images','-o',out/'scene.mvs'])
  run('DensifyPointCloud',['-i',out/'scene.mvs','-o',out/'dense.mvs','--resolution-level','1','--max-resolution','1280','--min-resolution','640','--number-views','5','--number-views-fuse','3','--ignore-mask-label','0','--tower-mode','0','--remove-dmaps','0','--estimate-roi','0','--crop-to-roi','0'])
  run('ReconstructMesh',['-i',out/'dense.mvs','-o',out/'mesh.mvs','--close-holes','0','--smooth','0','--crop-to-roi','0','--target-face-num','300000'])
- run('TextureMesh',['-i',out/'mesh.mvs','-o',out/'textured.mvs','--export-type','obj','--close-holes','0','--ignore-mask-label','0','--max-texture-size','4096'])
+ run('TextureMesh',['-i',out/'dense.mvs','--mesh-file',out/'mesh.ply','-o',out/'textured.mvs','--export-type','obj','--close-holes','0','--ignore-mask-label','0','--max-texture-size','4096','--global-seam-leveling','0','--local-seam-leveling','0'])
  (out/'result.json').write_text(json.dumps({'status':'completed; visual and geometric review required before import','views':str(views),'physical_scale':'unverified','automatic_hole_filling':False,'outputs':[str(x) for x in out.iterdir() if x.is_file()]},indent=2))
 if __name__=='__main__':main()

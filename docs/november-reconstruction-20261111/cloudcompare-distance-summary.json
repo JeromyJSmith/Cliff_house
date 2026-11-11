@@ -1,0 +1,13 @@
+{
+  "points": 1235242,
+  "absolute_distance_quantiles": {
+    "50": 0.001224899897351861,
+    "90": 0.0052736437879502855,
+    "95": 0.008834461402148008,
+    "99": 0.0559669129550458
+  },
+  "mean_absolute": 0.005654382985085249,
+  "units": "arbitrary SfM coordinateunits, notverifiedmetres",
+  "meaning": "Approximation ofreconstructedcloud byderivedmesh; notexternalaccuracy",
+  "source_scalar": "scalar_C2M_signed_distances"
+}
