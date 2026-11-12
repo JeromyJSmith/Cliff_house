@@ -8,8 +8,16 @@ factory per-lens calibration. This stage turns one clip into typed tables plus a
 Outputs per clip, under `stages/telemetry/<fingerprint>/<clip>/`:
   gps.parquet      one row per fix: UTC time, lat/lon (WGS84 degrees), altitude (m), reported speed (m/s), track
   imu.parquet      one row per sample: t_ms (clip time), gyro deg/s, accel m/s^2 — normalized by the parser
+  exposure.parquet one row per exposure record: t_s (clip time), exposure_s (shutter time)
   lens.json        the parser's Lens/Data and Lens/Rig records (calibration as written by the camera)
+  rig.json         per lens (lens0 = stream 0:v:0, lens1 = 0:v:1): intrinsics, factory extrinsics, lens0←lens1
+                   relative pose, measured IMU→lens rotation and the IMU-vs-video clock check (cliff_house.imu_camera)
+  motion.parquet   per IMU sample: angular speed over the exposure, predicted rotation blur and weight per lens
+  gravity.parquet  per video frame time: gravity (down) unit vector in each lens frame, accel norm, quasi_static
   summary.json     derived checks: fix rate, path length, implied vs reported speed, IMU rate, device identity
+
+`manifest.parquet` at the stage root lists exactly one row per clip: the current fingerprint. Older fingerprint
+folders (earlier stage versions) are kept, never overwritten, and are not current.
 
 GPS on this camera is a consumer fix: indoors or near buildings it drifts, so path length and speed are evidence
 for review, not survey measurements. Nothing here sets reconstruction scale.
@@ -24,8 +32,10 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
+from cliff_house import imu_camera
+
 STAGE = "telemetry"
-STAGE_VERSION = 2  # 2: GPS speed converted from the parser's km/h to m/s
+STAGE_VERSION = 4  # 2: GPS km/h -> m/s. 3: exposure.parquet. 4: rig.json, motion.parquet, gravity.parquet
 EARTH_RADIUS_M = 6_371_008.8  # IUGG mean radius
 
 GPS_SCHEMA = pl.Schema({
@@ -100,6 +110,12 @@ def imu_frame(normalized_imu: list[dict]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=IMU_SCHEMA).sort("t_ms")
 
 
+def exposure_frame(telemetry: list[dict]) -> pl.DataFrame:
+    rows = [{"t_s": r["t"], "exposure_s": r["v"]} for r in (_tags(telemetry).get("Exposure/Data") or [])
+            if isinstance(r, dict) and "t" in r and "v" in r]
+    return pl.DataFrame(rows, schema={"t_s": pl.Float64, "exposure_s": pl.Float64}).sort("t_s")
+
+
 def haversine_m(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Great-circle distance in metres between consecutive points."""
     p, lam = np.radians(lat), np.radians(lon)
@@ -145,7 +161,7 @@ def decode(path: Path) -> dict:
     return {
         "camera": tp.camera, "model": tp.model,
         "serial_number": meta.get("serial_number"), "firmware": meta.get("fw_version"),
-        "gps": gps_frame(telemetry), "imu": imu_frame(tp.normalized_imu()),
+        "gps": gps_frame(telemetry), "imu": imu_frame(tp.normalized_imu()), "exposure": exposure_frame(telemetry),
         "lens": {"data": tags.get("Lens/Data"), "rig": tags.get("Lens/Rig")},
     }
 
@@ -161,13 +177,62 @@ def process(path: Path, out_root: Path, source_sha256: str | None = None) -> dic
     result = decode(path)
     result["gps"].write_parquet(clip_dir / "gps.parquet")
     result["imu"].write_parquet(clip_dir / "imu.parquet")
+    result["exposure"].write_parquet(clip_dir / "exposure.parquet")
     (clip_dir / "lens.json").write_text(json.dumps(result["lens"], indent=2, default=str))
+    rig = rig_record(path, result["lens"], result["imu"])
+    (clip_dir / "rig.json").write_text(json.dumps(rig, indent=2))
+    ppr = {lens: rig["lenses"][lens]["px_per_rad"] for lens in imu_camera.LENSES}
+    imu_camera.motion_table(result["imu"], result["exposure"], ppr).write_parquet(clip_dir / "motion.parquet")
+    frame_ms = np.arange(rig["video"]["frames"]) * 1001 / 30
+    cam_from_imu = {lens: np.array(rig["lenses"][lens]["cam_from_imu"], dtype=float) for lens in imu_camera.LENSES}
+    imu_camera.gravity_table(result["imu"], cam_from_imu, frame_ms).write_parquet(clip_dir / "gravity.parquet")
     summary = {"clip": path.stem, "source_sha256": sha, "fingerprint": fp, "stage_version": STAGE_VERSION,
                "parser": f"telemetry-parser {parser_version()}", "camera": result["camera"],
                "model": result["model"], "serial_number": result["serial_number"], "firmware": result["firmware"],
                **summarize(result["gps"], result["imu"])}
     (clip_dir / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     return summary
+
+
+def rig_record(path: Path, lens: dict, imu: pl.DataFrame) -> dict:
+    """Lens ↔ stream mapping, calibration and extrinsics from the camera, plus the measured IMU→lens geometry."""
+    from scipy.spatial.transform import Rotation
+
+    from cliff_house.remux import video_streams
+
+    streams = video_streams(path)
+    cams = lens["rig"]["projection"]["kind"]["Rig"]["cameras"]
+    q = [Rotation.from_quat([c["rotation"][k] for k in "xyzw"]) for c in cams]
+    t = [np.array(c["translation"], dtype=float) for c in cams]
+    out = {"conventions": {
+        "lens_frame": "+x right, +y down, +z out of the lens (telemetry-parser Lens/Rig)",
+        "q_rig_from_cam": "quaternion [x, y, z, w] rotating lens-frame vectors into the rig frame (factory)",
+        "translation_m": "lens origin in the rig frame, metres (factory)",
+        "cam_from_imu": "3x3 rotation taking normalized-IMU vectors (gyro, accel) into the lens frame",
+        "imu_clock": "imu.parquet t_ms is video-stream time in ms from the first frame; lag_ms = measured offset "
+                     "(gyro sampled at t_video + lag matches image motion), not applied"},
+        "video": {"fps": streams[0]["r_frame_rate"], "frames": int(streams[0]["nb_frames"]),
+                  "width": streams[0]["width"], "height": streams[0]["height"]},
+        "lenses": {}}
+    for i, cam in enumerate(cams):
+        stream = cam["picture"]["input"]
+        name = f"lens{stream}"  # named by video stream, as molab's frames stage names them
+        ppr = imu_camera.pixels_per_radian(cam)
+        rate, tv = imu_camera.camera_rates(path, stream, ppr)
+        fit = imu_camera.fit_sync(rate, tv, imu)
+        constant = imu_camera.A1_CAM_FROM_IMU[name].astype(int).tolist()
+        out["lenses"][name] = {
+            "stream": stream, "ffmpeg_map": f"0:v:{stream}", "px_per_rad": ppr,
+            "intrinsics": cam["intrinsics"], "calib_to_picture": cam["calib_to_picture"],
+            "image_circle": cam.get("image_circle"), "fov_limit_rad": cam.get("fov_limit"), "mirror": cam.get("mirror"),
+            "q_rig_from_cam": [float(c) for c in q[i].as_quat()], "translation_m": t[i].tolist(),
+            "cam_from_imu": constant, "sync_fit": fit | {"agrees_with_cam_from_imu": fit["cam_from_imu"] == constant}}
+    r01 = (q[0].inv() * q[1])
+    out["lens0_from_lens1"] = {"R": r01.as_matrix().tolist(), "rotation_deg": float(np.degrees(r01.magnitude())),
+                               "t_m": q[0].inv().apply(t[1] - t[0]).tolist(),
+                               "baseline_m": float(np.linalg.norm(t[1] - t[0]))}
+    out["readout_ms"] = (lens.get("data") or {}).get("frame_readout_time")
+    return out
 
 
 def _sanitize(value):
