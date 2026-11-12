@@ -21944,6 +21944,7 @@ packages:
   - huggingface-hub>=1.0
   - fsspec>=2024.6
   - requests>=2.32
+  - pyyaml>=6.0
   - trimesh>=4.5
   - plyfile>=1.1
   - laspy>=2.5

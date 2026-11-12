@@ -6,8 +6,8 @@ It states the decisions, the theory the notebook is built on, each stage's contr
 idea comes from.
 
 - Repository (public): <https://github.com/JeromyJSmith/Cliff_house>
-- Workbench notebook: [`notebooks/cliff_house.py`](../notebooks/cliff_house.py) — open in molab at
-  <https://molab.marimo.io/github/JeromyJSmith/Cliff_house/blob/main/notebooks/cliff_house.py>
+- Workbench notebook: [`notebooks/workbench.py`](../notebooks/workbench.py) — open in molab at
+  <https://molab.marimo.io/github/JeromyJSmith/Cliff_house/blob/main/notebooks/workbench.py>
 - Sources (private, versioned): `hf://datasets/ojeromyo/frasier-cliff-house`
 - Outputs (private, mutable): `hf://buckets/ojeromyo/frasier-cliff-house`
 - Research inputs: [`docs/research/`](research/) (paper survey, harvested notebook cells)
@@ -98,7 +98,7 @@ Each stage: inputs → outputs (bucket path + Pixeltable table) → acceptance c
 |---|---|---|---|---|
 | 0 | **Bootstrap** — token, manifest, Pixeltable `sources` | HF dataset | `sources` table; `sessions/<id>/sources_by_kind.parquet` | row count == manifest rows (implemented, tested) |
 | 1 | **Toolchain** — pixi in the session installs the locked native tools (COLMAP, OpenMVS, ffmpeg, PDAL) | repo `pyproject.toml` + `pixi.lock` | `.pixi/envs/default/bin` path handed to later cells | each tool runs; pixi binary SHA-256 matches the pinned release digest |
-| 2 | **Frames** — synchronized per-lens extraction (`spirula sam extract --sync`, so both lenses form one rig) with sharpness/overlap scoring and a reliability weight per frame | `.insv` | `stages/frames/<fp>/<clip>/<lens>/*.jpg` + frame table (clip, lens, t, sharpness, weight) | every frame traceable to (clip SHA, stream, timestamp); no duplicate timestamps (the earlier non-precise extractor produced 11/58 duplicates) |
+| 2 | **Frames** — `cliff_house.frames` (implemented): ffprobe describes each file (streams, size, HLG vs SDR); one pass decodes all streams in lockstep at 4 candidate fps and keeps 1 frame/s, choosing per window the candidate whose *least* sharp stream is sharpest (Laplacian variance), so A1 lenses stay rig-paired; iPhone HLG is tone-mapped to BT.709 in NumPy (BT.2100 inverse OETF → BT.2020→709 → Reinhard → BT.709 OETF). Fingerprint = source SHA-256 + module code + parameters, computable before download | `.insv`, iPhone `.MOV` | `stages/frames/<fp>/<clip>/<lensN>/<frame>.jpg` + `frames.parquet`; Pixeltable `frames` table | every frame traceable to (clip SHA, stream, t_ms); rig frames share t_ms across lenses (tested) |
 | 3 | **Masks** — **SAM 3** (`facebook/sam3`, gated; access confirmed for the project account) with text prompts (`person`, plus prompts for any visible drone/grip parts), video-tracking mode for frame-to-frame consistency, run per lens on the raw fisheye frames and on the iPhone frames; Pixeltable computed column (harvested cells C13/C14) | frames | `stages/masks/<fp>/…png` + mask table | mask coverage per frame; operator masked on the lens that sees the operator (~8 % of cam0 on clip 041); spot-check near the fisheye rim where distortion is strongest |
 | 4 | **Poses** — `spirula sfm auto` with the dual-fisheye rig and `thin-prism-fisheye` model; baseline COLMAP `OPENCV_FISHEYE`; scale kept unknown (`--sensor-gauge up --metric-gps none`) | frames, masks | `stages/poses/<fp>/sparse/0` | judged by **points and inlier ratio, not the "registered" line**; per-lens focal ≈ 1,100 px (≈ 920 px means a broken >230° fit); clip 041 calibration is the reference |
 | 5 | **Splat** — Spirula `train` (preset `360-camera`, `--disable-viewer 1`, camera optimizer on, depth weight > 0, quality `high` = 3M splats / 50k steps); GOFish FIORD config (Insta360 dual 200°) as the fisheye-native comparison; `partition` for the whole site | poses, frames, masks, depth/normals | `stages/splat/<fp>/…ply` + metrics; checkpoints uploaded as they appear | held-out PSNR/SSIM/LPIPS per segment (training-step averages are not evidence) |

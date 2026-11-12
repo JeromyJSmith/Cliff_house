@@ -16,6 +16,8 @@ dependencies = [
   # The notebook reads the repository through fsspec's GitHub filesystem (needs requests).
   "fsspec>=2024.6",
   "requests>=2.32",
+  # Reads pixi.lock to fingerprint cached native builds.
+  "pyyaml>=6.0",
   "trimesh>=4.5",
   "plyfile>=1.1",
   "laspy>=2.5",
