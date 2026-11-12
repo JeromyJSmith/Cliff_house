@@ -1,0 +1,40 @@
+# Resolve pipeline config for one project. The code under src/cliff_house/resolve/ reads only this file for anything
+# project-specific; a new project gets a new file, never a code change. See docs/resolve-pipeline.md.
+
+[project]
+# Resolve project name. Stage paths never contain it: they are keyed by fingerprint, as every other stage is.
+name = "frasier-cliff-house"
+# Every file Resolve writes for this project lives under this directory: cache, optimized media, render cache,
+# gallery stills and project media (proxies, AI-generated media). It must be the first Media Storage location.
+storage_root = "/Volumes/2TB/CliffHouse/DaVinci"
+# Project library (database) that holds the project. "" means the library Resolve currently has open.
+# A library can only be added in Project Manager (no scripting call creates one); the bootstrap then switches to it.
+library = ""
+
+[stages]
+# Local mirror of the bucket layout: stages/<stage>/<fingerprint>/… exists identically here and in the bucket.
+local_root = "/Volumes/2TB/CliffHouse/stages"
+bucket = "hf://buckets/ojeromyo/frasier-cliff-house"
+# Remux stage manifest whose per-lens MP4s are the Resolve inputs (Resolve does not read .insv).
+remux_manifest = "/Volumes/2TB/CliffHouse/stages/remux/manifest.parquet"
+
+# Project settings applied before any media is imported, then read back. Values are strings as Resolve takes them.
+# "{storage_root}" is substituted. Timeline resolution and frame rate are set here, once, before media exists:
+# Resolve locks the frame rate after the first clip is added to a timeline.
+[settings]
+timelineResolutionWidth = "3840"
+timelineResolutionHeight = "3840"
+timelinePixelAspectRatio = "square"
+timelineFrameRate = "29.97"
+timelineOutputResMatchTimelineRes = "1"
+timelineInputResMismatchBehavior = "scaleToFit"
+perfCacheClipsLocation = "{storage_root}/CacheClip"
+colorGalleryStillsLocation = "{storage_root}/.gallery"
+# No background caching: passes are rendered explicitly, so cache work would only compete for the GPU.
+perfRenderCacheMode = "none"
+perfAutoRenderCacheEnable = "0"
+# Generated proxies would be a second, unfingerprinted copy of the inputs.
+perfProxyMediaMode = "0"
+perfOptimisedMediaOn = "0"
+# Unmanaged YRGB: analysis passes see the decoded Rec.709 pixels unchanged (the remuxed lenses are bt709 SDR).
+colorScienceMode = "davinciYRGB"
