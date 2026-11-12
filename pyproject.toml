@@ -24,11 +24,14 @@ dependencies = [
   "pyarrow>=20",
   "shapely>=2.1",
   "pyproj>=3.7",
+  # Decodes the Insta360 .insv trailer (GPS, IMU, exposure, per-lens calibration); handles the Antigravity A1 layout.
+  "telemetry-parser>=0.4.0",
 ]
 
 [project.scripts]
 cliff-house-manifest = "cliff_house.source_manifest:main"
 cliff-house-verify-upload = "cliff_house.verify_upload:main"
+cliff-house-telemetry = "cliff_house.insv_telemetry:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
