@@ -26,6 +26,13 @@ dependencies = [
   "pyproj>=3.7",
 ]
 
+[project.scripts]
+cliff-house-manifest = "cliff_house.source_manifest:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [dependency-groups]
 dev = ["pytest>=8.3"]
 
@@ -62,6 +69,9 @@ pyarrow = "*"
 open3d = "*"
 pdal = "*"
 git-lfs = ">=3.8"
+
+[tool.pixi.pypi-dependencies]
+cliff-house = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { features = ["dev"], solve-group = "main" }
