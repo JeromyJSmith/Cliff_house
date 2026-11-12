@@ -238,7 +238,16 @@ coarse ceiling map described in §6.2.
 | `magic_mask` cam0 (earlier single-click pass, before the mask classes), click on the jacket (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
 | **landing gear, static** (`static_mask`) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
 | landing gear, tracked (`mask_landing_gear_tracked`, 2 clicks on the feet) cam0 | `29f3d7580cc357aa` | **365 / 365** | ok by its own check (mask on every frame), but see the comparison below | 729 s | ≈ 70 MB | 32 GB |
-| **people** (`mask_people`, 4 clicks: jacket, trousers, boots, head) cam0 | — | — | **not run yet**: held while Resolve restarts to load a new OFX plugin; runs next | ≈ 25 min expected | | ≈ 64 GB expected |
+| people, Resolve cross-check (`mask_people`, 4 clicks: jacket, trousers, boots, head) cam0 | `17ec183c3b0fb611` | **365 / 365** | ok by its band: mask on every frame, median coverage 4.6 % (3.7–6.7 %), inside 4–15 %, but **visibly incomplete** (below) | 1427 s | ≈ 80 MB | 64 GB |
+
+People, Resolve cross-check, checked by eye on frames 0, 165 and 300. The four tracked clicks give jacket,
+trousers and part of the head, but they leave the black tool belt between jacket and trousers, holes for the chest
+strap and the device on it, the hands and keys, one boot on frames 0 and 300, and a dark sleeve on frame 300.
+Filling enclosed holes plus a 61 px closing fixes the strap and device holes and part of the belt (coverage
+4.5 % → 4.8 %), but it cannot add parts no click selected. Its acceptance band passed although the mask is
+incomplete, so a coverage band alone is not enough: SAM 3's acceptance must also include the visual check of
+those parts. This is why SAM 3 `person` is the primary people mask. Review image:
+`_proof/2026-11-12/041-cam0-mask_people-17ec183c3b0fb611-raw-vs-closed.jpg`.
 
 Landing gear, static vs tracked, per frame over all 365 frames of clip 041 cam0 (static mask as reference,
 `compare_with_tracked`): IoU median 0.13 (p05 0.03, p95 0.29); recall median 0.13; tracked mask outside the gear
