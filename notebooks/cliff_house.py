@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#     "marimo>=0.25",
+#     "marimo[recommended,lsp,mcp,otel]>=0.25",
 #     "pixeltable>=0.7",
 #     "polars>=1.30",
 #     "duckdb>=1.3",
