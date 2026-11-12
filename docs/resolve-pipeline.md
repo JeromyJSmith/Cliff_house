@@ -60,10 +60,12 @@ The bucket is the interface. Resolve reads the remux stage's lossless per-lens M
 
 ## 2a. What feeds molab, and how
 
-Only `magic_mask` (`use = reconstruction`) crosses into molab's reconstruction stages:
+Only the mask classes (§6.1) cross into molab's reconstruction stages:
 
-- **Path:** `stages/resolve/magic_mask/<fp>/<clip>/<lens>/` with `frames.parquet` and `pass.json`. molab reads
-  only fingerprints whose `pass.json` has `acceptance.ok = true`.
+- **Paths:** people: `stages/resolve/mask_people/<fp>/<clip>/<lens>/` (per frame, `frames.parquet`, `pass.json`).
+  Landing gear: `stages/static_mask/<fp>/<lens>/mask.png` (one image for every frame of that lens, with
+  `static_mask.json`). molab reads only fingerprints whose `acceptance.ok` is true. The final ignore-mask for a
+  frame is the union of the people mask for that frame and the static mask of its lens.
 - **Join:** a molab frame (clip, lens, `t_ms`) maps to the Resolve frame `round(t_ms · 30 / 1001)` at 29.97 fps.
   Both index source frames from 0, and the lens names are the remux's `cam0`/`cam1`.
 - **Convention:** 255 = subject, 0 = keep. COLMAP's mask images are the opposite (black = ignored), so molab inverts
@@ -140,32 +142,53 @@ Insta360 I-Log colour management, VR180/360 immersive timelines, scripted Intell
 ## 6. Passes
 
 All passes run per (clip, lens) with
-`pixi run python -m cliff_house.resolve.passes configs/resolve/<project>.toml <pass> <clip> <lens> [--click f,u,v]`.
+`pixi run python -m cliff_house.resolve.passes configs/resolve/<project>.toml <pass> <clip> <lens>`. Mask passes
+read their clicks from the config's `[prompts.<pass>]`, never from the command line, so every run can be rebuilt
+from the config and the code.
 
-### 6.1 `magic_mask` — person/operator matte (`use = reconstruction`)
+### 6.1 Mask classes (`use = reconstruction`)
 
-- **Input:** remux lens MP4 + one **click** `(source frame, u, v)` on the subject (`u, v` from the top-left, 0–1).
-- **Recipe:** author a Magic Mask 2 grade holding that click from a captured template (MIT `magic-mask-author.js`,
-  samuelgursky/davinci-resolve-mcp `resolve-advanced/vendor/drx-codec`, commit `331f769`) → `ApplyGradeFromDRX`
-  (gradeMode 0) → `CreateMagicMask("BI")` tracks the whole clip → render twice: the masked region forced to black
-  (CDL slope 0, offset 0) and to "white" (offset 1). Resolve clamps the offset at ~0.5 of full scale, so the white
-  level is **measured** from the renders (B − A in the fully masked core). The matte is
-  **m = (white − black) / level**, exact for any pixel because the node mixes `m·corrected + (1−m)·input`. With 8-bit
-  renders and level ≈ 0.5 the matte has ~7 bits of precision. A unit test proves the recovery, soft edges included.
-- **Params in the fingerprint:** click, track direction, render depth, author + template hashes.
+The owner's targets are two named classes, each with its own prompts, method and acceptance check in the project
+config:
+
+| Class | What | Method | Prompts | Acceptance (config `[acceptance.<pass>]`) |
+|---|---|---|---|---|
+| **people** (`mask_people`) | every person, the operator included | Magic Mask, several clicks unioned (below) | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
+| **landing gear** (`static_mask landing_gear`) | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | **one static mask per lens**, derived once from all clips ([`static_mask.py`](../src/cliff_house/static_mask.py)) | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`) | the mask is present and whiter than its surroundings in **every** clip's median; per-frame check on 24 frames per clip; empty on the absent lens |
+
+**Recommendation for the landing gear: the static per-lens mask, not tracking.** The gear is bolted to the camera,
+so its pixels do not move. Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was worse on every
+count. It recovered a median 13 % of the static mask (IoU 0.13), usually only the feet, never the full struts. It
+varied from frame to frame (0.14–1.5 % coverage) and lost the right foot entirely on some frames. At the 95th
+percentile, 10 % of its mask spilled onto nearby walls and pictures. The static mask is one 3840² PNG per lens. It
+needs no Resolve and no model, costs about 10 minutes per rig, and is checked against all 8 clips. It must be
+re-derived only if the rig changes (another drone, camera re-mounted, gear replaced), and its fingerprint covers
+every input file, so a new clip set gives a new mask beside the old one. Not covered yet: the aircraft's **dark**
+body arc at the top rim of both lenses. It is rigid too, but not white, so it needs the same static method with a
+darkness criterion as its own class.
+
+**People via Magic Mask.** Recipe per click: author a Magic Mask 2 grade holding the click from a captured template
+(MIT `magic-mask-author.js`, samuelgursky/davinci-resolve-mcp `resolve-advanced/vendor/drx-codec`, commit
+`331f769`) → `ApplyGradeFromDRX` (gradeMode 0) on that click's own timeline (`<pass>-<fp>-<lens>-k<i>`; applying
+a grade replaces the whole node graph, so clicks cannot share an item) → `CreateMagicMask("BI")` tracks the whole
+clip → render twice, the masked region forced to black (CDL slope 0, offset 0) and to "white" (offset 1). Resolve
+clamps the offset at ~0.5 of full scale, so the white level is **measured** from the renders (B − A in the fully
+masked core). Matte = (white − black) / level, which is exact because the node mixes `m·corrected + (1−m)·input`.
+The 8-bit renders at level ≈ 0.5 give ~7 bits of precision. Then the union (per-pixel max) is taken over clicks. A
+unit test proves the matte recovery, soft edges included.
+
+- **Why several clicks:** one Magic Mask click selects the *object under the click*. The first proof click on the
+  operator's jacket masked the jacket on every frame (2.8 % of the frame), but not the trousers, boots, hands, face
+  or yellow strap. The click author handles one click per grade, so each click is tracked separately (cost scales
+  with the number of clicks). Multi-click authoring inside one grade would cut that cost and is the next
+  engineering step.
+- **Params in the fingerprint:** the clicks, track direction, render depth, author and template hashes.
 - **Output:** `000000.png…` 8-bit L, 255 = subject; `frames.parquet` with per-frame coverage.
-- **Acceptance:** frame count = remux packet count; every frame has a non-empty mask; coverage within the
-  expected band for the subject (owner sets the band per project after the first review; ~8 % of cam0 for the
-  operator on clip 041 per SPEC stage 3).
-- **Known limit (live finding):** one click selects the *object under the click*, not the whole person. The proof
-  click on the operator's jacket masked the jacket on every frame, but not the trousers, boots, hands, face or the
-  yellow strap (§7). A whole-person matte needs several positive clicks. The author handles exactly one, so
-  multi-click authoring (decoding more stroke entries in the grade) is the next engineering step. Until then,
-  **SAM 3 in molab (SPEC stage 3) stays the primary SfM mask.** Resolve's matte is a second opinion to union with
-  or check against it, and the review layer.
-- **Where clicks come from:** for now a human picks one frame per clip/lens (it is data in the run's parameters,
-  not a code change). Proposed later: take the click from molab's SAM 3 detection (the centroid of the `person` mask
-  on the sharpest frame), which removes the human step.
+- **Where clicks come from:** today a person picks them on one frame per clip/lens; they are config data, not code.
+  Proposed: derive them from molab's SAM 3 `person` detections (one click per connected part on the sharpest
+  frame), which removes the human step.
+- **Relation to SAM 3:** SAM 3 in molab (SPEC stage 3) stays the primary person mask. Resolve's matte is a
+  cross-check and can be unioned with it; a union only removes more pixels from SfM.
 
 ### 6.2 `depth_map` — relative depth (`use = analysis`)
 
@@ -188,6 +211,7 @@ All passes run per (clip, lens) with
 | `normals_relight` | Fusion `Relight`, `OutputSurfaceMap=1` | 16-bit RGB | count; spot-check |
 | `false_color` | DCTL or ResolveFX False Color (defaults only) | 8-bit RGB | exposure review only |
 | `stills_review` | `ExportFrame` at molab's selected `t_ms` for a contact sheet | JPEG | one per selected frame |
+| `splat_render_qa` | the cliffhouse "Gaussian Splat" OFX generator (`com.cliffhouse.GaussianSplat`, Metal; source `~/Developer/resolve-splat-ofx`) renders molab's 3DGS `.ply` from a keyframed camera matched to a source frame, on a timeline beside that frame | 8-bit RGB pairs or a split-screen render | side-by-side with footage for review; presentation/QA only, never an input to reconstruction. Waits for molab's splats and for the plugin's parameters to be scriptable (OFX parameters are not settable by script on 21.2, G4) |
 | `intellisearch_index` | `Folder.AnalyzeForIntellisearch(identifyFaces=False, isBetterMode=False)` on `inputs/` | Resolve DB only (no export API) | job completes; owner searches in the GUI |
 
 ## 7. Proof on clip 041 (2026-11-12)
@@ -201,9 +225,20 @@ coarse ceiling map described in §6.2.
 | Pass | Fingerprint | Frames out | Acceptance | Time | Output size | Render intermediates |
 |---|---|---|---|---|---|---|
 | `depth_map` cam0 | `64f681af1176a76e` | **365 / 365**, 3840×3840 16-bit L | ok: every frame non-constant | 160 s | 5.3 GB | 8.3 GB |
-| `magic_mask` cam0, click (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
+| `magic_mask` cam0 (earlier single-click pass, before the mask classes), click on the jacket (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
+| **landing gear, static** (`static_mask`) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
+| landing gear, tracked (`mask_landing_gear_tracked`, 2 clicks on the feet) cam0 | `29f3d7580cc357aa` | **365 / 365** | ok by its own check (mask on every frame), but see the comparison below | 729 s | ≈ 70 MB | 32 GB |
+| **people** (`mask_people`, 4 clicks: jacket, trousers, boots, head) cam0 | — | — | **not run yet**: held while Resolve restarts to load a new OFX plugin; runs next | ≈ 25 min expected | | ≈ 64 GB expected |
 
-Outputs: `/Volumes/2TB/CliffHouse/stages/resolve/{depth_map/64f681af1176a76e,magic_mask/dd36a6b20c25e55a}/VID_20261110_132328_041/cam0/`.
+Landing gear, static vs tracked, per frame over all 365 frames of clip 041 cam0 (static mask as reference,
+`compare_with_tracked`): IoU median 0.13 (p05 0.03, p95 0.29); recall median 0.13; tracked mask outside the gear
+("leak") median 0, p95 0.105; tracked coverage 0.14–1.5 % against a static 4.65 %. On the frames I checked by eye
+(0, 120, 165, 250, 364), the static mask covers both struts and feet on every frame. The tracked mask covers mostly
+the feet, misses the right foot on frame 364, and on frame 250 sits on a picture on the wall.
+
+Outputs: `/Volumes/2TB/CliffHouse/stages/resolve/{depth_map/64f681af1176a76e,magic_mask/dd36a6b20c25e55a,mask_landing_gear_tracked/29f3d7580cc357aa}/VID_20261110_132328_041/cam0/`
+and `/Volumes/2TB/CliffHouse/stages/static_mask/{379006cbe2bfcc41,62a3985973ae0d83}/` (superseded first run:
+`c5f1b625916a7a3e`, `989295cbb9a3b548`, same masks but `NaN` in the JSON).
 Contact sheets I checked by eye (they show footage, so they stay off the public repo):
 `/Volumes/2TB/CliffHouse/stages/resolve/_proof/2026-11-12/`.
 
@@ -232,9 +267,11 @@ bucket (waits for approval), and any of the §6.3 passes.
 ## 8. Open decisions for the owner
 
 1. **Approve the rule and the layout** in §1–2 (analysis layers never enter reconstruction; per-fingerprint paths).
-2. **Magic Mask's role:** keep SAM 3 as the SfM mask and Resolve Magic Mask as a cross-check (recommended until
-   multi-click authoring exists), or invest now in multi-click authoring.
-3. **Clicks:** a human-picked click per clip/lens, or clicks derived from molab's SAM 3 detections.
+2. **Mask classes:** approve "people" (Magic Mask, several clicks unioned, cross-check to SAM 3) and "landing gear"
+   (static per-lens mask, recommended over tracking per §6.1/§7), and the per-class coverage bands.
+3. **Clicks for people:** picked by a person per clip/lens, or derived from molab's SAM 3 detections. Also decide
+   whether multi-click authoring inside one grade is worth building, since today each click costs one track and
+   two renders.
 4. **Render intermediates** (`resolve/_render/…`) are reproducible from the fingerprint, but large: 16 GB per
    lens-clip for a matte pass and 8.3 GB for depth, all at 3840² for 365 frames. The proof left **56 GB**
    (including the two kept failed attempts) on the 2TB drive. Keep them, or delete them after acceptance?

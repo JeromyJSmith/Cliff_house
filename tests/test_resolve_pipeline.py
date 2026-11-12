@@ -39,8 +39,16 @@ def test_settings_match_compares_frame_rate_numerically():
 
 
 def test_only_masks_may_feed_reconstruction():
-    assert passes.PASSES["magic_mask"].use == "reconstruction"
-    assert {p.name for p in passes.PASSES.values() if p.use == "reconstruction"} == {"magic_mask"}
+    reconstruction = {p.name for p in passes.PASSES.values() if p.use == "reconstruction"}
+    assert reconstruction == {"mask_people"}
+    assert all(passes.PASSES[n].params.get("method") == "magic_mask" for n in reconstruction)
+
+
+def test_clicks_come_from_config_by_full_name_or_suffix():
+    cfg = config.load(CONFIG_DIR / "frasier-cliff-house.toml")
+    by_suffix = cfg.clicks("mask_people", "VID_20261110_132328_041", "cam0")
+    assert len(by_suffix) >= 1 and all(len(c) == 3 for c in by_suffix)
+    assert cfg.clicks("mask_people", "VID_20261110_132328_041", "cam1") == []
 
 
 def test_fingerprint_changes_with_source_and_parameters():
@@ -54,9 +62,9 @@ def test_fingerprint_changes_with_source_and_parameters():
 
 @pytest.mark.skipif(not passes.MM_AUTHOR.exists(), reason="Magic Mask click author not installed")
 def test_magic_mask_fingerprint_includes_the_click():
-    spec = passes.PASSES["magic_mask"]
-    one = passes.fingerprint("a" * 64, spec, {"click": {"frame": 1, "u": 0.5, "v": 0.1}})
-    two = passes.fingerprint("a" * 64, spec, {"click": {"frame": 2, "u": 0.5, "v": 0.1}})
+    spec = passes.PASSES["mask_people"]
+    one = passes.fingerprint("a" * 64, spec, {"clicks": [{"frame": 1, "u": 0.5, "v": 0.1}]})
+    two = passes.fingerprint("a" * 64, spec, {"clicks": [{"frame": 2, "u": 0.5, "v": 0.1}]})
     assert one != two
 
 

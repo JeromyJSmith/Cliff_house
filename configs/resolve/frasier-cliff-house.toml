@@ -38,3 +38,40 @@ perfProxyMediaMode = "0"
 perfOptimisedMediaOn = "0"
 # Unmanaged YRGB: analysis passes see the decoded Rec.709 pixels unchanged (the remuxed lenses are bt709 SDR).
 colorScienceMode = "davinciYRGB"
+
+# ---------------------------------------------------------------- mask classes
+# Prompts are data: one entry per "<clip suffix>/<lens>", each a list of [source_frame, u, v] clicks
+# (u, v in 0..1 from the top-left of the 3840² fisheye frame). Each click is tracked on its own and the mattes are
+# unioned, because one Magic Mask click selects one object (a jacket), not a whole person.
+
+# Class "people": every person, operator included (cam0 looks down and sees the operator on every frame).
+[prompts.mask_people]
+"041/cam0" = [
+  [165, 0.488, 0.124],  # jacket
+  [165, 0.508, 0.254],  # trousers
+  [165, 0.532, 0.400],  # boots
+  [165, 0.547, 0.024],  # head (chin at the top rim)
+]
+
+# Class "landing gear", tracked with Magic Mask: comparison only. The reconstruction mask for the gear is the static
+# per-lens mask (cliff_house.static_mask), because the gear is rigid with respect to the lens.
+[prompts.mask_landing_gear_tracked]
+"041/cam0" = [
+  [165, 0.039, 0.576],  # left foot
+  [165, 0.952, 0.566],  # right foot
+]
+
+# Per-class acceptance. coverage = [min, max] of the median per-frame coverage (fraction of the frame > 50 %).
+[acceptance.mask_people]
+every_frame = true
+coverage = [0.04, 0.15]   # SPEC stage 3: the operator is ~8 % of cam0 on clip 041
+[acceptance.mask_landing_gear_tracked]
+every_frame = true
+
+# Class "landing gear" as a static per-lens mask (cliff_house.static_mask): the gear is bolted to the camera, so it
+# is one mask per lens, derived once from every clip and checked against each. It also keeps the other white rigid
+# parts it finds on the rim (the lens-guard edge). Parameters default in the code; override under .params.
+[static_masks.landing_gear]
+lenses = ["cam0"]          # the downward lens sees both struts and feet on its left and right rim
+absent_lenses = ["cam1"]   # the upward lens never sees the gear: the derivation must find nothing there
+full_size = 3840

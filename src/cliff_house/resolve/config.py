@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REQUIRED_SETTINGS = ("timelineResolutionWidth", "timelineResolutionHeight", "timelineFrameRate")
@@ -17,6 +17,18 @@ class ProjectConfig:
     bucket: str
     remux_manifest: Path
     settings: dict[str, str]
+    # {pass: {"<clip or clip suffix>/<lens>": [[source_frame, u, v], ...]}}: the subject clicks of each mask class.
+    prompts: dict[str, dict[str, list[list[float]]]] = field(default_factory=dict)
+    # {pass: {"every_frame": bool, "coverage": [min, max]}}: per-class acceptance, owner-set after review.
+    acceptance: dict[str, dict] = field(default_factory=dict)
+
+    def clicks(self, pass_name: str, clip: str, lens: str) -> list[list[float]]:
+        """Clicks for one clip/lens; keys may use the full clip name or its suffix after the last '_'."""
+        table = self.prompts.get(pass_name, {})
+        for key in (f"{clip}/{lens}", f"{clip.rsplit('_', 1)[-1]}/{lens}"):
+            if key in table:
+                return table[key]
+        return []
 
     @property
     def fps(self) -> float:
@@ -35,7 +47,8 @@ def load(path: str | Path) -> ProjectConfig:
         raise ValueError(f"settings must set {missing} before media exists")
     return ProjectConfig(name=project["name"], storage_root=storage_root, library=project.get("library", ""),
                          local_stage_root=Path(stages["local_root"]), bucket=stages["bucket"],
-                         remux_manifest=Path(stages["remux_manifest"]), settings=settings)
+                         remux_manifest=Path(stages["remux_manifest"]), settings=settings,
+                         prompts=raw.get("prompts", {}), acceptance=raw.get("acceptance", {}))
 
 
 def settings_match(wanted: dict[str, str], actual: dict) -> dict[str, tuple[str, object]]:
