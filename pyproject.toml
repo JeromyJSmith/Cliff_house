@@ -28,6 +28,7 @@ dependencies = [
 
 [project.scripts]
 cliff-house-manifest = "cliff_house.source_manifest:main"
+cliff-house-verify-upload = "cliff_house.verify_upload:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
