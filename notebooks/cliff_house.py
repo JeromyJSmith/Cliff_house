@@ -6,6 +6,7 @@
 #     "polars>=1.30",
 #     "duckdb>=1.3",
 #     "pyarrow>=20",
+#     "opencv-python-headless>=5.0",
 #     "huggingface-hub>=1.0",
 #     "fsspec>=2024.6",
 #     "requests>=2.32",
