@@ -160,7 +160,7 @@ def _():
     # toolchain. Tests point this at file:// on the working tree so they exercise the code under test, not main.
     repo_fs, REPO_ROOT = fsspec.core.url_to_fs(
         os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"))
-    TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src")
+    TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src", "tools")
 
     def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -201,11 +201,52 @@ def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ROOT, TOOLCHAIN_FILES, WORK, fetch_v
     subprocess.run([str(pixi), "install", "--frozen", "--manifest-path", str(repo_dir / "pyproject.toml")], check=True)
     native_prefix = repo_dir / ".pixi" / "envs" / "default"
     mo.md(f"pixi {PIXI_VERSION} installed the locked toolchain into `{native_prefix}`")
-    return (native_prefix,)
+    return native_prefix, pixi, repo_dir
 
 
 @app.cell
-def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, native_prefix, os, zipfile):
+def _(BUCKET, HF_STORAGE, WORK, capture, mo, pixi, repo_dir, subprocess):
+    import hashlib as _hashlib
+
+    from huggingface_hub import HfFileSystem as _HfFileSystem
+    from huggingface_hub import batch_bucket_files as _batch_bucket_files
+
+    # Spirula's release builds are Vulkan-only, and molab's NVIDIA Vulkan driver cannot create an instance
+    # (llvmpipe only). Its CUDA backend built without the GUI needs no display, GL or Vulkan, so it is compiled here
+    # once per (commit, GPU architecture, recipe) and cached in the bucket; later sessions only download it.
+    SPIRULA_COMMIT = "667e353bca3941303a4d93e93aa8ae3f2c202712"  # tag v2026.11.12
+    _caps = capture(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"])
+    cuda_archs = sorted({line.strip().replace(".", "") for line in _caps.get("output", "").splitlines()
+                         if line.strip()} if _caps.get("returncode") == 0 else set())
+    _recipe = (repo_dir / "tools" / "build_spirula_cuda.sh").read_bytes() + (repo_dir / "pixi.lock").read_bytes()
+    _fs = _HfFileSystem(token=HF_STORAGE["token"])
+    _manifest = str(repo_dir / "pyproject.toml")
+
+    spirula_cuda = {}
+    for _arch in cuda_archs:
+        _fp = _hashlib.sha256(f"{SPIRULA_COMMIT}|sm_{_arch}|".encode() + _recipe).hexdigest()[:16]
+        _remote = f"toolchain/spirula-cuda/{_fp}"
+        _local = WORK / "spirula-cuda" / _fp
+        if not _fs.exists(f"buckets/{BUCKET}/{_remote}/spirula"):
+            subprocess.run([str(pixi), "run", "--frozen", "-e", "spirula-build", "--manifest-path", _manifest,
+                            str(repo_dir / "tools" / "build_spirula_cuda.sh"), SPIRULA_COMMIT, _arch, str(_local)],
+                           check=True)
+            _batch_bucket_files(BUCKET, add=[(str(_local / n), f"{_remote}/{n}") for n in ("spirula", "BUILD_INFO")])
+        _fs.get(f"buckets/{BUCKET}/{_remote}/", str(_local) + "/", recursive=True)
+        (_local / "spirula").chmod(0o755)
+        spirula_cuda[_arch] = _local / "spirula"
+
+    # The runtime environment is Linux-only, and needed exactly where a CUDA binary exists.
+    for _env in ["spirula-run"] if spirula_cuda else []:
+        subprocess.run([str(pixi), "install", "--frozen", "-e", _env, "--manifest-path", _manifest], check=True)
+    spirula_run_prefix = repo_dir / ".pixi" / "envs" / "spirula-run"
+    mo.md(f"Spirula CUDA binaries: {', '.join(f'sm_{a}' for a in spirula_cuda) or 'none (no NVIDIA GPU on this host)'}")
+    return spirula_cuda, spirula_run_prefix
+
+
+@app.cell
+def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, native_prefix, os, spirula_cuda,
+      spirula_run_prefix, zipfile):
     import glob
 
     _native_env = os.environ | {
@@ -235,6 +276,9 @@ def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, 
         "colmap": capture(["colmap", "-h"], env=_native_env),
         "ffmpeg": capture(["ffmpeg", "-version"], env=_native_env),
         "spirula": {"version": SPIRULA_VERSION, **spirula_run},
+        "spirula_cuda": {f"sm_{a}": capture([str(b), "train", "--help"],
+                                            env=os.environ | {"LD_LIBRARY_PATH": str(spirula_run_prefix / "lib")})
+                         for a, b in spirula_cuda.items()},
     }
     mo.ui.table([{"check": k, "result": str(v)[:300]} for k, v in probe.items()])
     return (probe, spirula)
