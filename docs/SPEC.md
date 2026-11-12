@@ -83,7 +83,7 @@ camera's IMU/upward lens axis is an estimate, not a survey datum.
 
 | Input | Location | Facts |
 |---|---|---|
-| Insta360 `.insv` video (8 clips, 2026-11-10; 1 clip 2026-11-09 kept with an earlier Spirula run) | `frasier/cliff-house/source/video/<date>/` | Two H.264 video streams per file, one per fisheye lens, **3840×3840 at 29.97 fps**, plus a `mov_text` stream. Embedded `creation_time` is authoritative; filename clock is off by an hour on at least one clip. |
+| **Insta360 X5** `.insv` video (8 clips, 2026-11-10; 1 clip 2026-11-09 kept with an earlier Spirula run) | `frasier/cliff-house/source/video/<date>/` | One file holds both lenses: two H.264 video streams, one per fisheye lens, **3840×3840 at 29.97 fps**, plus a `mov_text` stream; gyro/accelerometer and exposure records in the Insta360 trailer. Embedded `creation_time` is authoritative; filename clock is off by an hour on at least one clip. |
 | Prior evidence (registrations, COLMAP/OpenMVS runs, contact sheets) | `frasier/cliff-house/evidence/2026-11-11/` | Produced on the MacBook; symlinks repointed relative. See repo `docs/*-20261111/`. |
 | Spirula runs (excluded from the new workflow, retained) | `frasier/cliff-house/runs/spirula/` | Contains per-lens fisheye calibration from the clip 041 solve. |
 | Unqualified OBJ | `frasier/cliff-house/reconstructions/meshes/unqualified-processed-model/` | No capture provenance; never building authority. |
@@ -97,12 +97,12 @@ Each stage: inputs → outputs (bucket path + Pixeltable table) → acceptance c
 |---|---|---|---|---|
 | 0 | **Bootstrap** — token, manifest, Pixeltable `sources` | HF dataset | `sources` table; `sessions/<id>/sources_by_kind.parquet` | row count == manifest rows (implemented, tested) |
 | 1 | **Toolchain** — pixi in the session installs the locked native tools (COLMAP, OpenMVS, ffmpeg, PDAL) | repo `pyproject.toml` + `pixi.lock` | `.pixi/envs/default/bin` path handed to later cells | each tool runs; pixi binary SHA-256 matches the pinned release digest |
-| 2 | **Frames** — per-lens frame extraction with sharpness and overlap selection | `.insv` | `stages/frames/<fp>/<clip>/<lens>/*.jpg` + frame table (clip, lens, t, sharpness) | every selected frame traceable to (clip SHA, stream, timestamp); no frame below sharpness floor |
-| 3 | **Masks** — people/sky/camera-operator masks | frames, SAM 2.1 | `stages/masks/<fp>/…png` | mask coverage stats per frame |
-| 4 | **Poses** — SfM on fisheye frames (`OPENCV_FISHEYE`, one camera per lens) | frames, masks | `stages/poses/<fp>/sparse/0` (COLMAP model) | registered-image ratio, mean reprojection error, single connected component per segment |
-| 5 | **Splat** — fisheye-native Gaussian splatting | poses, frames, masks (optionally depth/normals) | `stages/splat/<fp>/…ply` + metrics | held-out PSNR/SSIM/LPIPS per segment |
-| 6 | **Geometry** — dense points / meshes; depth-normal supervised variants | poses, frames | `stages/geometry/<fp>/…` (PLY, GLB) | cloud↔mesh distance distribution; no invented surfaces |
-| 7 | **Registration & scale** — LiDAR ↔ reconstruction ICP; marker/control scale | geometry, LiDAR PLYs | transform records (GeoParquet/Parquet) | held-out residuals; scale flagged *unknown* unless constrained |
+| 2 | **Frames** — synchronized per-lens extraction (`spirula sam extract --sync`, so both lenses form one rig) with sharpness/overlap scoring and a reliability weight per frame | `.insv` | `stages/frames/<fp>/<clip>/<lens>/*.jpg` + frame table (clip, lens, t, sharpness, weight) | every frame traceable to (clip SHA, stream, timestamp); no duplicate timestamps (the earlier non-precise extractor produced 11/58 duplicates) |
+| 3 | **Masks** — person / operator / border masks (`spirula sam` with SAM 2.1 text prompts; Pixeltable SAM 3 cookbook as alternative) | frames | `stages/masks/<fp>/…png` | mask coverage per frame; operator mask present on the lens that sees the operator (~8 % of cam0 on clip 041) |
+| 4 | **Poses** — `spirula sfm auto` with the dual-fisheye rig and `thin-prism-fisheye` model; baseline COLMAP `OPENCV_FISHEYE`; scale kept unknown (`--sensor-gauge up --metric-gps none`) | frames, masks | `stages/poses/<fp>/sparse/0` | judged by **points and inlier ratio, not the "registered" line**; per-lens focal ≈ 1,100 px (≈ 920 px means a broken >230° fit); clip 041 calibration is the reference |
+| 5 | **Splat** — Spirula `train` (preset `360-camera`, `--disable-viewer 1`, camera optimizer on, depth weight > 0, quality `high` = 3M splats / 50k steps); GOFish FIORD config (Insta360 dual 200°) as the fisheye-native comparison; `partition` for the whole site | poses, frames, masks, depth/normals | `stages/splat/<fp>/…ply` + metrics; checkpoints uploaded as they appear | held-out PSNR/SSIM/LPIPS per segment (training-step averages are not evidence) |
+| 6 | **Geometry** — Spirula `mesh` (`meshing` preset), GOFish / MILo mesh extraction, DN-Splatter-style depth/normal supervision | poses, frames, splats | `stages/geometry/<fp>/…` (PLY, GLB) | cloud↔mesh distance; precision/recall/F at 5/10/25 cm against LiDAR where it overlaps (GOFish metrics); no invented surfaces |
+| 7 | **Registration & scale** — rough manual alignment, then `spirula lidar --mode refine` against the SiteScape scans; Open3D ICP as cross-check; ArUco/control distances when available | geometry, LiDAR PLYs | transform records (Parquet/GeoParquet) | held-out residuals; scale stays *unknown* until one of these constrains it |
 | 8 | **Export** — Blender-ready GLB/PLY, GeoParquet footprints | all above | `stages/export/<fp>/…` | files open in Blender (checked on the MacBook) |
 
 ## 6. Toolchain
@@ -119,15 +119,70 @@ Each stage: inputs → outputs (bucket path + Pixeltable table) → acceptance c
 
 ## 7. Research
 
-### 7.1 Papers (video → Gaussian splats and geometry)
+### 7.1 Spirula Studio — primary trainer
 
-_Filled from the 2026-11-12 survey — see [`research/`](research/)._
+[harry7557558/spirula-studio](https://github.com/harry7557558/spirula-studio) (GPL-3.0; we call the unmodified
+binary, so our code and outputs stay ours). Full flag reference with sources:
+[`research/spirula-settings-2026-11-12.md`](research/spirula-settings-2026-11-12.md). What our earlier runs taught:
+[`research/spirula-local-runs-2026-11-12.md`](research/spirula-local-runs-2026-11-12.md).
 
-### 7.2 Notebooks and cells to adopt
+- **Platforms:** release v2026.11.12 ships Vulkan builds only — `ubuntu-vulkan-x86_64` (molab), `macos-vulkan-arm64`
+  (the MacBook Pro), Windows. No Intel-Mac binary.
+- **molab requirements (untested):** glibc ≥ 2.38, `libvulkan`, `libOpenGL`, and the NVIDIA Vulkan ICD inside the
+  container. Stage 1 must prove the binary starts before anything depends on it.
+- **Headless rules:** `--disable-viewer 1` (otherwise the process never exits); `--accept-license <family>=yes` every
+  session (acceptance is not persisted); resumable checkpoints are written on **SIGINT**, not SIGTERM — stop
+  training with SIGINT and upload each ~1 GB checkpoint to the bucket; resume with `spirula train --resume`.
+- **Pipeline:** `sam extract --sync` → `sam` masks → `sfm auto --rig dual-fisheye=… --camera-model thin-prism-fisheye
+  --sensor-gauge up --metric-gps none` → optional `dense` (RoMa v2) → `train` → `partition` (large site) → `mesh` →
+  `lidar --mode refine` for metric scale. Exact spellings marked unconfirmed in the settings reference are verified
+  against `--help` in stage 1.
+- **Lessons from our runs:** the earlier config cut `high` quality to 30k steps, loaded depth with weight 0 (unused),
+  left the camera optimizer off, trained only the largest SfM component, and hit the 3M cap by step ~6k. SIFT beat
+  LoMa on the same frames. The `.insv` IMU gave the only scale estimate (0.2467 ± 1.83 %) — not trusted until
+  confirmed by a measured distance.
 
-_Filled from the 2026-11-12 cell harvest — see [`research/cell-harvest-2026-11-12.md`](research/cell-harvest-2026-11-12.md)._
+### 7.2 Insta360 tooling (camera: X5)
 
-### 7.3 Projects verified 2026-11-12
+- **Official MediaSDK** — [Insta360Develop/Desktop-MediaSDK-Cpp](https://github.com/Insta360Develop/Desktop-MediaSDK-Cpp).
+  The repo holds docs and demo code only; the SDK itself is obtained by applying at
+  <https://www.insta360.com/sdk/apply>. Supported: Ubuntu 22.04 x86_64 (CUDA; a reference Dockerfile uses
+  `nvidia/cuda:12.1.1-devel-ubuntu22.04` with an NVIDIA Vulkan ICD) and Windows. X5 material uses the **v2** AI
+  stitching model. The demo CLI (`Demo/Linux/Media SDK/main.cc`) takes `-inputs -output -output_size -bitrate
+  -stitch_type -ai_stitching_model -enable_flowstate -enable_directionlock -enable_denoise -image_denoise_model
+  -enable_colorplus -colorplus_model -enable_deflicker -deflicker_model -enable_stitchfusion -camera_accessory_type
+  -image_sequence_dir -image_type -export_frame_index -disable_cuda -enable_soft_decode -enable_soft_encode`.
+  Uses for us: gyro-stabilized (FlowState) equirectangular exports, and **exporting chosen frame indices as an image
+  sequence** for the equirectangular paths (Spirula `360-camera` on ERP, GGPS, ODGS). The SDK's license terms are
+  Insta360's: never commit its binaries to the public repo — keep them in the private bucket.
+- **Raw per-lens fisheye frames** (our primary path) still come from synchronized extraction
+  (`spirula sam extract --sync` or ffmpeg per stream); the SDK stitches, it does not replace per-lens SfM.
+- **Gyro/exposure decoding:** [insta360-rs](https://pypi.org/project/insta360-rs/) (reads indexed gyro and exposure
+  records; needs FFmpeg) and [gyroflow](https://github.com/gyroflow/gyroflow) (GPL-3.0, reads `.insv` motion data)
+  — candidates for the IMU-based scale/gravity hints; license and X5 support to verify before use.
+- **Other stitchers (third-party):** [rgryta/insta360-stitch](https://github.com/rgryta/insta360-stitch) (Rust CLI and
+  Python bindings, Linux x64), [syncom/insta360-cli-utils](https://github.com/syncom/insta360-cli-utils) (MIT, older
+  SDK). Reference only until tested on X5 files.
+
+### 7.3 Papers (video → Gaussian splats and geometry)
+
+25 verified papers with code licenses: [`research/paper-survey-2026-11-12.md`](research/paper-survey-2026-11-12.md).
+Headline methods: 3DGUT/gsplat (fisheye-native), GOFish (full-FoV fisheye splats + meshes, CC BY-NC), GGPS
+(Insta360 panoramic partitioning, CC BY-NC-SA), MapAnything (feed-forward metric poses), SpotLessSplats and
+WildGaussians (transients, exposure), DN-Splatter and PlanarGS (depth/normal/planar geometry), MILo (meshes).
+
+### 7.4 Notebooks and cells to adopt
+
+[`research/cell-harvest-2026-11-12.md`](research/cell-harvest-2026-11-12.md): C01–C25 from MIT/Apache notebooks and
+N01–N22 from non-commercial repos, copied verbatim with commit SHAs, license notices and adaptation notes. Cells
+marked **[SA]** (GGPS, PGSR) must stay under their share-alike terms — keep them in their own module.
+
+- **Gaps no source covers (we write these):** `.insv` stream split / synchronized dual-lens extraction outside
+  Spirula; sharpness-and-overlap frame selection; computing the LiDAR alignment (GOFish only *scores* one).
+- **Environment rule:** the research trainers pin incompatible Python/torch/CUDA versions; each gets its own pixi
+  environment and runs as a subprocess from the notebook. Spirula needs none (single binary).
+
+### 7.5 Projects verified 2026-11-12
 
 | Project | License | Use |
 |---|---|---|
