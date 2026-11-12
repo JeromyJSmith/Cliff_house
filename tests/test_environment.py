@@ -35,6 +35,7 @@ def test_all_python_modules_load_together_without_duplicate_native_classes():
 
 
 @pytest.mark.parametrize(("command", "marker"), NATIVE_TOOLS, ids=[c[0] for c, _ in NATIVE_TOOLS])
-def test_native_tool_runs(command, marker):
-    result = subprocess.run(command, capture_output=True, text=True)
+def test_native_tool_runs(command, marker, tmp_path):
+    # OpenMVS writes a log into its working directory even for --help.
+    result = subprocess.run(command, capture_output=True, text=True, cwd=tmp_path)
     assert marker in result.stdout + result.stderr, (command, result.returncode, result.stderr[-2000:])
