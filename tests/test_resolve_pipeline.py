@@ -60,15 +60,17 @@ def test_magic_mask_fingerprint_includes_the_click():
     assert one != two
 
 
-def test_matte_is_recovered_exactly_from_black_and_white_renders(tmp_path):
+@pytest.mark.parametrize("level", [1.0, 0.499753])  # Resolve clamps the CDL offset to ~0.5 (live readback)
+def test_matte_is_recovered_from_black_and_white_renders(tmp_path, level):
     rng = np.random.default_rng(0)
     image = rng.integers(0, 256, (32, 32, 3)).astype(np.float64)
     m = np.zeros((32, 32))
     m[8:24, 8:24] = 1.0
     m[8:24, 7] = 0.5  # a soft edge
     inside_black = (1 - m)[..., None] * image
-    inside_white = m[..., None] * 255 + (1 - m)[..., None] * image
+    inside_white = m[..., None] * 255 * level + (1 - m)[..., None] * image
     for name, img in (("a.png", inside_black), ("b.png", inside_white)):
         cv2.imwrite(str(tmp_path / name), img.round().astype(np.uint8))
-    matte = passes._matte(tmp_path / "a.png", tmp_path / "b.png")
-    assert np.abs(matte.astype(int) - (m * 255).round()).max() <= 1
+    matte = passes._matte(tmp_path / "a.png", tmp_path / "b.png", level)
+    # 8-bit renders: one rounding step per render, amplified by 1/level.
+    assert np.abs(matte.astype(int) - (m * 255).round()).max() <= np.ceil(1 / level) + 1

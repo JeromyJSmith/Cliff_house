@@ -185,7 +185,7 @@ def author_click_drx(click: Click, out: Path) -> Path:
     return out
 
 
-def run_magic_mask(project, resolve, timeline, click: Click, work: Path) -> list[np.ndarray]:
+def run_magic_mask(project, resolve, timeline, click: Click, work: Path) -> tuple[list[np.ndarray], dict]:
     resolve.OpenPage("color")
     project.SetCurrentTimeline(timeline)
     item = timeline.GetItemListInTrack("video", 1)[0]
@@ -195,25 +195,41 @@ def run_magic_mask(project, resolve, timeline, click: Click, work: Path) -> list
     # CreateMagicMask blocks until the track is done (minutes at 3840²); it is the slow step.
     if not item.CreateMagicMask("BI"):
         raise RuntimeError("CreateMagicMask returned False (no click in the grade?)")
-    renders = {}
+    renders, readback = {}, {}
+    # Resolve clamps the CDL: slope ≥ 0.0005, and the offset tops out at ~0.5 of full scale (setting 1 or more
+    # reads back 0.499753; smaller settings map non-linearly, 0.5 → 0.000999). So "white" is not 1.0. The level
+    # it really reached is measured from the renders, where a fully masked pixel gives B − A = level exactly.
     for variant, offset in (("inside_black", "0 0 0"), ("inside_white", "1 1 1")):
-        # Slope bottoms out at 0.001, so inside_black is ≤ 0.001 of the input: below one 8-bit step.
         if not item.SetCDL({"NodeIndex": "1", "Slope": "0 0 0", "Offset": offset, "Power": "1 1 1",
                             "Saturation": "1"}):
             raise RuntimeError(f"SetCDL {variant} failed")
+        readback[variant] = item.GetCDL(1)["Offset"]
         renders[variant] = render(project, timeline, work / variant, "RGB8")
     if len(renders["inside_black"]) != len(renders["inside_white"]):
         raise RuntimeError("the two matte renders differ in frame count")
-    return [_matte(a, b) for a, b in zip(renders["inside_black"], renders["inside_white"])]
+    pairs = list(zip(renders["inside_black"], renders["inside_white"]))
+    level = max(_core_level(a, b) for a, b in pairs[:: max(1, len(pairs) // 24)])
+    if level < 0.25:
+        raise RuntimeError(f"inside_white reached only {level:.3f} of full scale; the matte would be too coarse")
+    frames = [_matte(a, b, level) for a, b in pairs]
+    return frames, {"cdl_offset_readback": readback, "white_level_measured": round(level, 5)}
 
 
-def _matte(black: Path, white: Path) -> np.ndarray:
-    a = cv2.imread(str(black), cv2.IMREAD_UNCHANGED).astype(np.int16)
-    b = cv2.imread(str(white), cv2.IMREAD_UNCHANGED).astype(np.int16)
-    return np.clip((b - a).mean(axis=2), 0, 255).round().astype(np.uint8)
+def _core_level(black: Path, white: Path) -> float:
+    """B − A in the fully masked core of one frame (99.9th percentile, so soft edges and noise do not count)."""
+    a = cv2.imread(str(black), cv2.IMREAD_UNCHANGED).astype(np.float32)
+    b = cv2.imread(str(white), cv2.IMREAD_UNCHANGED).astype(np.float32)
+    return float(np.percentile((b - a).mean(axis=2), 99.9)) / 255
 
 
-def run_depth_map(project, resolve, timeline, params: dict, work: Path) -> list[np.ndarray]:
+def _matte(black: Path, white: Path, level: float = 1.0) -> np.ndarray:
+    """Matte from renders with the masked region forced to 0 (black) and to `level` (white), level in 0..1."""
+    a = cv2.imread(str(black), cv2.IMREAD_UNCHANGED).astype(np.float32)
+    b = cv2.imread(str(white), cv2.IMREAD_UNCHANGED).astype(np.float32)
+    return np.clip((b - a).mean(axis=2) / level, 0, 255).round().astype(np.uint8)
+
+
+def run_depth_map(project, resolve, timeline, params: dict, work: Path) -> tuple[list[np.ndarray], dict]:
     item = timeline.GetItemListInTrack("video", 1)[0]
     comp = item.GetFusionCompByIndex(1) if item.GetFusionCompCount() else item.AddFusionComp()
     media_in, media_out = comp.FindTool("MediaIn1"), comp.FindTool("MediaOut1")
@@ -224,7 +240,7 @@ def run_depth_map(project, resolve, timeline, params: dict, work: Path) -> list[
     media_out.ConnectInput("Input", depth)
     files = render(project, timeline, work / "map", "RGB16")
     # The map is grey (R = G = B); keep one channel.
-    return [cv2.imread(str(f), cv2.IMREAD_UNCHANGED)[:, :, 2] for f in files]
+    return [cv2.imread(str(f), cv2.IMREAD_UNCHANGED)[:, :, 2] for f in files], {}
 
 
 # ---------------------------------------------------------------- outputs and acceptance
@@ -284,11 +300,11 @@ def run(config_path: Path, pass_name: str, clip: str, lens: str, click: Click | 
     timeline = timeline_for(project, source, f"{spec.name}-{fp}-{lens}")
     started = time.time()
     if spec.name == "magic_mask":
-        frames = run_magic_mask(project, resolve, timeline, click, work)
+        frames, details = run_magic_mask(project, resolve, timeline, click, work)
     else:
-        frames = run_depth_map(project, resolve, timeline, spec.params, work)
+        frames, details = run_depth_map(project, resolve, timeline, spec.params, work)
     record = {"resolve_version": resolve.GetVersionString(), "timeline": timeline.GetName(),
-              "render_dir": str(work), "seconds": round(time.time() - started, 1), **extra}
+              "render_dir": str(work), "seconds": round(time.time() - started, 1), **extra, **details}
     meta = write_outputs(frames, source, spec, fp, out, record)
     resolve.GetProjectManager().SaveProject()
     return meta | {"output_dir": str(out)}

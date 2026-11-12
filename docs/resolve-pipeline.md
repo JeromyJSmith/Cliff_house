@@ -58,6 +58,20 @@ The bucket is the interface. Resolve reads the remux stage's lossless per-lens M
 - **Upload** (after acceptance): `hf` upload of the fingerprint directory to the bucket path above. Never
   `hf sync --delete`. Outputs are additive.
 
+## 2a. What feeds molab, and how
+
+Only `magic_mask` (`use = reconstruction`) crosses into molab's reconstruction stages:
+
+- **Path:** `stages/resolve/magic_mask/<fp>/<clip>/<lens>/` with `frames.parquet` and `pass.json`. molab reads
+  only fingerprints whose `pass.json` has `acceptance.ok = true`.
+- **Join:** a molab frame (clip, lens, `t_ms`) maps to the Resolve frame `round(t_ms · 30 / 1001)` at 29.97 fps.
+  Both index source frames from 0, and the lens names are the remux's `cam0`/`cam1`.
+- **Convention:** 255 = subject, 0 = keep. COLMAP's mask images are the opposite (black = ignored), so molab inverts
+  and thresholds (`colmap_mask = 255 if m < 128 else 0`) when it writes COLMAP masks. Unioned with SAM 3's person
+  mask, it can only remove more pixels from SfM, never add any.
+- Every other pass (`use = analysis`) is for this Mac's CAD-tracing and review tools, and molab must not read it.
+  The `use` field in `pass.json` is the machine-readable form of this rule.
+
 ## 3. Machine setup (once per Mac) — verified 2026-11-12
 
 | Setting | Required | How verified | Result |
@@ -134,8 +148,10 @@ All passes run per (clip, lens) with
 - **Recipe:** author a Magic Mask 2 grade holding that click from a captured template (MIT `magic-mask-author.js`,
   samuelgursky/davinci-resolve-mcp `resolve-advanced/vendor/drx-codec`, commit `331f769`) → `ApplyGradeFromDRX`
   (gradeMode 0) → `CreateMagicMask("BI")` tracks the whole clip → render twice: the masked region forced to black
-  (CDL slope 0, offset 0) and to white (offset 1). The matte is **m = white − black**, exact for any pixel because
-  the node mixes `m·corrected + (1−m)·input`. A unit test proves the recovery, soft edges included.
+  (CDL slope 0, offset 0) and to "white" (offset 1). Resolve clamps the offset at ~0.5 of full scale, so the white
+  level is **measured** from the renders (B − A in the fully masked core). The matte is
+  **m = (white − black) / level**, exact for any pixel because the node mixes `m·corrected + (1−m)·input`. With 8-bit
+  renders and level ≈ 0.5 the matte has ~7 bits of precision. A unit test proves the recovery, soft edges included.
 - **Params in the fingerprint:** click, track direction, render depth, author + template hashes.
 - **Output:** `000000.png…` 8-bit L, 255 = subject; `frames.parquet` with per-frame coverage.
 - **Acceptance:** frame count = remux packet count; every frame has a non-empty mask; coverage within the
@@ -182,7 +198,36 @@ frames, and both SHA-256 values match the remux manifest. Both lenses were impor
 **cam0**, the lens that carries the operator and the room geometry. A one-frame Depth Map check on cam1 showed the
 coarse ceiling map described in §6.2.
 
-PROOF_RESULTS
+| Pass | Fingerprint | Frames out | Acceptance | Time | Output size | Render intermediates |
+|---|---|---|---|---|---|---|
+| `depth_map` cam0 | `64f681af1176a76e` | **365 / 365**, 3840×3840 16-bit L | ok: every frame non-constant | 160 s | 5.3 GB | 8.3 GB |
+| `magic_mask` cam0, click (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
+
+Outputs: `/Volumes/2TB/CliffHouse/stages/resolve/{depth_map/64f681af1176a76e,magic_mask/dd36a6b20c25e55a}/VID_20261110_132328_041/cam0/`.
+Contact sheets I checked by eye (they show footage, so they stay off the public repo):
+`/Volumes/2TB/CliffHouse/stages/resolve/_proof/2026-11-12/`.
+
+What the frames show:
+
+- **Depth** (frames 0, 165, 364): the operator, the nearby sofa and the walls read near (bright), and the floor and
+  far room read far. Relative ordering is plausible. The black area outside the fisheye circle reads "near", as
+  §6.2 expects, so the area outside the image circle must be ignored by anything that reads this layer.
+- **Magic Mask** (frames 0, 120, 165, 250, 364): one click on the operator's jacket gives a tracked matte of the
+  jacket and sleeves on every frame, with a soft edge (values 1–254 sit on the ~4 % of pixels around the operator;
+  the background is exactly 0). It excludes the yellow strap, the belt pack, the trousers, the boots and the head,
+  so it is **not** a whole-operator mask (SPEC expects ~8 % of cam0 for the whole operator). This confirms §6.1's limit.
+
+Two earlier attempts are kept, as the never-overwrite rule requires, and are recorded here so nobody reads them as
+results:
+
+- `magic_mask/ced16b9544c8ecb3`: **failed acceptance** (45 empty frames, median coverage 0.002 %). The "white"
+  render had reached only ~0.5 of full scale, because Resolve clamps the CDL offset. The fix: the white level is
+  now measured from the renders (0.5007 here; read-back 0.499753), and the matte is (B − A) / level.
+- `_render/magic_mask/f08e9e89d062e6d9`: stopped by the new guard before producing outputs. An offset of 0.5 reads
+  back as 0.000999, because the offset mapping is non-linear below the clamp.
+
+Not done in the proof: cam1 passes (cam1 only had the one-frame depth check), the other clips, upload to the
+bucket (waits for approval), and any of the §6.3 passes.
 
 ## 8. Open decisions for the owner
 
@@ -190,12 +235,20 @@ PROOF_RESULTS
 2. **Magic Mask's role:** keep SAM 3 as the SfM mask and Resolve Magic Mask as a cross-check (recommended until
    multi-click authoring exists), or invest now in multi-click authoring.
 3. **Clicks:** a human-picked click per clip/lens, or clicks derived from molab's SAM 3 detections.
-4. **Render intermediates** (`resolve/_render/…`, two 8-bit renders per matte pass; ~4–10 GB per lens-clip at
-   3840²) are reproducible from the fingerprint. Keep them, or delete them after acceptance?
-5. **Project library on the 2TB drive (G1):** add it once in Project Manager, then set `project.library` in the
+4. **Render intermediates** (`resolve/_render/…`) are reproducible from the fingerprint, but large: 16 GB per
+   lens-clip for a matte pass and 8.3 GB for depth, all at 3840² for 365 frames. The proof left **56 GB**
+   (including the two kept failed attempts) on the 2TB drive. Keep them, or delete them after acceptance?
+5. **Which frames to render.** Measured on clip 041: Magic Mask 0.93 s/frame and Depth Map 0.44 s/frame, per lens.
+   All 8 clips are 21,689 frames per lens (12.1 min). At full frame rate, both lenses: Magic Mask ≈ 11 h,
+   Depth ≈ 5.3 h, depth outputs ≈ 630 GB, and renders ≈ 2.9 TB. The 2TB drive has 171 GB free. **Recommended:**
+   track Magic Mask over the full clip (tracking needs every frame), but render and keep only the frames molab's
+   frames stage selected (1 fps ≈ 1,450 lens-frames in total, ≈ 21 GB of depth). Full-rate review layers, if
+   wanted, would be half resolution. This needs a `frames` input to the pass (render ranges from
+   `frames.parquet` `t_ms`), not built yet.
+6. **Project library on the 2TB drive (G1):** add it once in Project Manager, then set `project.library` in the
    config. Today the project lives in the "Local Database" library on the internal disk. Its media, caches,
    stills and backups are already on 2TB.
-6. **Full run scope:** all 8 clips × 2 lenses × which passes, and whether depth runs on fisheye or rectilinear
+7. **Full run scope:** all 8 clips × 2 lenses × which passes, and whether depth runs on fisheye or rectilinear
    views.
 
 ## 9. GUI-only gaps (no 21.2 scripting call does these)
