@@ -12,8 +12,8 @@ a new config file, run through the same commands in the same order.
 
 | Machine | Owns |
 |---|---|
-| This MacBook (Resolve Studio 21.2, licensed) | telemetry, remux, **everything Resolve** (this document) |
-| molab (cloud GPU) | frames, SfM masks (SAM 3), poses, splats, meshes — `stages/frames/` onward |
+| This MacBook (Resolve Studio 21.2, licensed; Apple M3 Max, 128 GB) | telemetry, remux, **everything Resolve** (this document), and **SAM 3 masks** (owner direction, 2026-11-12) |
+| molab (cloud GPU) | frames, poses, splats, meshes — `stages/frames/` onward, reading the masks from the bucket |
 
 The bucket is the interface. Resolve reads the remux stage's lossless per-lens MP4s (`stages/remux/<fp>/<clip>/cam0.mp4`,
 `cam1.mp4`; Resolve does not read `.insv`) and writes `stages/resolve/<pass>/<fingerprint>/<clip>/<lens>/…`.
@@ -153,7 +153,7 @@ config:
 
 | Class | What | Method | Prompts | Acceptance (config `[acceptance.<pass>]`) |
 |---|---|---|---|---|
-| **people** (`mask_people`) | every person, the operator included | Magic Mask, several clicks unioned (below) | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
+| **people** | every person, the operator included | **primary: SAM 3 with the text prompt `person`, run on this Mac** (owner decisions, 2026-11-12: SAM 3 primary; SAM 3 runs locally, not in molab). Secondary: Resolve `mask_people` (Magic Mask, several clicks unioned, below), a cross-check whose union with SAM 3 can only remove more pixels | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
 | **landing gear** (`static_mask landing_gear`) | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | **one static mask per lens**, derived once from all clips ([`static_mask.py`](../src/cliff_house/static_mask.py)) | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`) | the mask is present and whiter than its surroundings in **every** clip's median; per-frame check on 24 frames per clip; empty on the absent lens |
 
 **Recommendation for the landing gear: the static per-lens mask, not tracking.** The gear is bolted to the camera,
@@ -167,7 +167,17 @@ every input file, so a new clip set gives a new mask beside the old one. Not cov
 body arc at the top rim of both lenses. It is rigid too, but not white, so it needs the same static method with a
 darkness criterion as its own class.
 
-**People via Magic Mask.** Recipe per click: author a Magic Mask 2 grade holding the click from a captured template
+**People: SAM 3 primary, run on this Mac; Magic Mask as cross-check.** Owner decisions, 2026-11-12: a whole person
+is masked in one step by a text-prompted segmenter, and it runs here, not in molab. **Not set up yet:** the
+project's pixi environment has no PyTorch or SAM 3, and the gated `facebook/sam3` weights are not downloaded (the
+project account has access). Following SPEC §7.4, it gets its own pixi environment, not changes to the default
+one, and runs on the M3 Max GPU (PyTorch MPS). It writes `stages/masks/<fp>/<clip>/<lens>/…` like every other
+stage. SAM 3 with `person` returns the full silhouette (clothes, belt, hands, anything
+carried) and picks up anyone else who walks into frame, with no clicks. From a script, Resolve's Magic Mask takes
+points only. Each point selects one object, so a person built from clicks has seams at belts, straps, hands and
+accessories (measured in §7). The Resolve pass stays as a review layer and an optional union.
+
+**Resolve `mask_people` (Magic Mask).** Recipe per click: author a Magic Mask 2 grade holding the click from a captured template
 (MIT `magic-mask-author.js`, samuelgursky/davinci-resolve-mcp `resolve-advanced/vendor/drx-codec`, commit
 `331f769`) → `ApplyGradeFromDRX` (gradeMode 0) on that click's own timeline (`<pass>-<fp>-<lens>-k<i>`; applying
 a grade replaces the whole node graph, so clicks cannot share an item) → `CreateMagicMask("BI")` tracks the whole
@@ -185,10 +195,10 @@ unit test proves the matte recovery, soft edges included.
 - **Params in the fingerprint:** the clicks, track direction, render depth, author and template hashes.
 - **Output:** `000000.png…` 8-bit L, 255 = subject; `frames.parquet` with per-frame coverage.
 - **Where clicks come from:** today a person picks them on one frame per clip/lens; they are config data, not code.
-  Proposed: derive them from molab's SAM 3 `person` detections (one click per connected part on the sharpest
+  Proposed: derive them from the SAM 3 `person` masks made on this Mac (one click per connected part on the sharpest
   frame), which removes the human step.
-- **Relation to SAM 3:** SAM 3 in molab (SPEC stage 3) stays the primary person mask. Resolve's matte is a
-  cross-check and can be unioned with it; a union only removes more pixels from SfM.
+- **Relation to SAM 3:** SAM 3 is the primary person mask (decided). Resolve's matte is a cross-check and can be
+  unioned with it; a union only removes more pixels from SfM.
 
 ### 6.2 `depth_map` — relative depth (`use = analysis`)
 
@@ -267,9 +277,10 @@ bucket (waits for approval), and any of the §6.3 passes.
 ## 8. Open decisions for the owner
 
 1. **Approve the rule and the layout** in §1–2 (analysis layers never enter reconstruction; per-fingerprint paths).
-2. **Mask classes:** approve "people" (Magic Mask, several clicks unioned, cross-check to SAM 3) and "landing gear"
-   (static per-lens mask, recommended over tracking per §6.1/§7), and the per-class coverage bands.
-3. **Clicks for people:** picked by a person per clip/lens, or derived from molab's SAM 3 detections. Also decide
+2. **Mask classes:** decided 2026-11-12: "people" = SAM 3 `person` (primary, **run on this Mac**), with Resolve
+   Magic Mask as a cross-check. Still open: "landing gear" as the static per-lens mask (recommended over tracking per §6.1/§7),
+   and the per-class coverage bands.
+3. **Clicks for people:** picked by a person per clip/lens, or derived from the local SAM 3 masks. Also decide
    whether multi-click authoring inside one grade is worth building, since today each click costs one track and
    two renders.
 4. **Render intermediates** (`resolve/_render/…`) are reproducible from the fingerprint, but large: 16 GB per
