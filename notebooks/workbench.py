@@ -10,6 +10,9 @@
 #     "huggingface-hub>=1.0",
 #     "fsspec>=2024.6",
 #     "requests>=2.32",
+#     "torch>=2.8",
+#     "torchvision>=0.23",
+#     "transformers>=5.0",
 #     "pyyaml>=6.0",
 # ]
 # ///
@@ -96,7 +99,7 @@ def _(PXT_DIR, manifest):
         if_exists="replace",
     )
     sources.insert(manifest.to_dicts())
-    return (sources,)
+    return pxt, sources
 
 
 @app.cell
@@ -289,6 +292,12 @@ def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, 
 
 
 @app.cell
+def _():
+    from huggingface_hub import HfFileSystem, hf_hub_download, sync_bucket
+    return HfFileSystem, hf_hub_download, sync_bucket
+
+
+@app.cell
 def _(mo):
     mo.md("""
     ## Stage 2 — frames
@@ -301,14 +310,10 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_REPO, HF_STORAGE, PXT_DIR, WORK, manifest, mo, native_prefix, os, pl, repo_dir, shutil):
+def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download, manifest, mo, native_prefix, os,
+      pl, pxt, repo_dir, shutil, sync_bucket):
     import sys as _sys
     from pathlib import Path as _Path
-
-    import pixeltable as _pxt
-    from huggingface_hub import HfFileSystem as _HfFS
-    from huggingface_hub import hf_hub_download as _download
-    from huggingface_hub import sync_bucket as _sync_bucket
 
     _sys.path.insert(0, str(repo_dir / "src"))
     from cliff_house import frames as frames_stage
@@ -322,19 +327,19 @@ def _(BUCKET, HF_REPO, HF_STORAGE, PXT_DIR, WORK, manifest, mo, native_prefix, o
               .filter(pl.lit(not _only) | pl.col("clip").is_in(_only))
               .with_columns(fingerprint=pl.col("sha256").map_elements(
                   lambda sha: frames_stage.fingerprint(sha, FRAME_PARAMS), return_dtype=pl.String)))
-    _fs = _HfFS(token=HF_STORAGE["token"])
+    _fs = HfFileSystem(token=HF_STORAGE["token"])
     _remote = lambda row: f"stages/frames/{row['fingerprint']}/{row['clip']}"
     missing = [r for r in videos.iter_rows(named=True)
                if not _fs.exists(f"buckets/{BUCKET}/{_remote(r)}/frames.parquet")]
 
     for _row in missing:
-        _src_path = _Path(_download(HF_REPO, _row["path"], repo_type="dataset", token=HF_STORAGE["token"],
+        _src_path = _Path(hf_hub_download(HF_REPO, _row["path"], repo_type="dataset", token=HF_STORAGE["token"],
                                     local_dir=WORK / "sources"))
         _source = frames_stage.probe(_src_path, _row["sha256"], ffprobe=str(native_prefix / "bin" / "ffprobe"))
         _out = WORK / "frames" / _remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
         frames_stage.extract(_source, FRAME_PARAMS, _out, ffmpeg=str(native_prefix / "bin" / "ffmpeg"))
-        _sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
+        sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
         _src_path.unlink()
 
     def _read(row):
@@ -344,15 +349,101 @@ def _(BUCKET, HF_REPO, HF_STORAGE, PXT_DIR, WORK, manifest, mo, native_prefix, o
                 file=pl.lit(f"{_remote(row)}/") + pl.col("file"))
     frame_rows = pl.concat([_read(r) for r in videos.iter_rows(named=True)])
 
-    frames = _pxt.create_table(
+    frames = pxt.create_table(
         f"{PXT_DIR}/frames",
-        {"clip": _pxt.String, "fingerprint": _pxt.String, "camera": _pxt.String, "frame": _pxt.Int,
-         "candidate": _pxt.Int, "t_ms": _pxt.Int, "sharpness": _pxt.Float, "file": _pxt.String},
+        {"clip": pxt.String, "fingerprint": pxt.String, "camera": pxt.String, "frame": pxt.Int,
+         "candidate": pxt.Int, "t_ms": pxt.Int, "sharpness": pxt.Float, "file": pxt.String},
         primary_key=["clip", "camera", "frame"], if_exists="replace")
     frames.insert(frame_rows.to_dicts())
     mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
           f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
     return FRAME_PARAMS, frame_rows, frames, frames_stage, videos
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## Stage 3 — masks (SAM 3)
+
+    SAM 3 concept segmentation (Pixeltable `sam3_for_segmentation`) finds every instance of each prompt — by default
+    the operator and passers-by (`person`) — on every frame. The union, grown a few pixels, becomes a training mask
+    (0 = ignore, 255 = use). Keyed by the frames fingerprint, SAM 3 revision and prompts; only clips without masks in
+    the bucket are processed.
+    """)
+    return
+
+
+@app.cell
+def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt, shutil, sync_bucket, videos):
+    import itertools as _it
+
+    import PIL.Image as _Image
+    from pixeltable.functions.huggingface import sam3_for_segmentation as _sam3
+
+    from cliff_house import masks as masks_stage
+
+    MASK_PARAMS = masks_stage.Params()
+    _fs = HfFileSystem(token=HF_STORAGE["token"])
+    clips = videos.with_columns(mask_fingerprint=pl.col("fingerprint").map_elements(
+        lambda fp: masks_stage.fingerprint(fp, MASK_PARAMS), return_dtype=pl.String))
+    _frames_remote = lambda r: f"stages/frames/{r['fingerprint']}/{r['clip']}"
+    _masks_remote = lambda r: f"stages/masks/{r['mask_fingerprint']}/{r['clip']}"
+    masks_missing = [r for r in clips.iter_rows(named=True)
+                     if not _fs.exists(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet")]
+
+    def _segment(clip_frames, frames_dir):
+        work = pxt.create_table(f"{PXT_DIR}/mask_work", {"camera": pxt.String, "frame": pxt.Int,
+                                                          "batch": pxt.Int, "image": pxt.Image},
+                                 if_exists="replace")
+        for i, prompt in enumerate(MASK_PARAMS.prompts):
+            work.add_computed_column(**{f"p{i}": _sam3(
+                work.image, text=prompt, model_id=MASK_PARAMS.model_id, revision=MASK_PARAMS.revision,
+                threshold=MASK_PARAMS.threshold, mask_threshold=MASK_PARAMS.mask_threshold)})
+        small_dir = frames_dir / "_seg"
+        small_dir.mkdir(exist_ok=True)
+        for b, batch in enumerate(_it.batched(clip_frames.iter_rows(named=True), 16)):
+            rows = []
+            for r in batch:
+                img = _Image.open(frames_dir / r["file"])
+                size = masks_stage.segmentation_size(*img.size, MASK_PARAMS)
+                small = small_dir / f"{r['camera']}_{r['frame']:06d}.jpg"
+                img.resize(size).save(small, quality=95)
+                rows.append({"camera": r["camera"], "frame": r["frame"], "batch": b, "image": str(small),
+                             "_full": img.size})
+            work.insert([{k: v for k, v in r.items() if k != "_full"} for r in rows])
+            cols = [getattr(work, f"p{i}") for i in range(len(MASK_PARAMS.prompts))]
+            results = {(x["camera"], x["frame"]): x for x in
+                       work.where(work.batch == b).select(work.camera, work.frame, *cols).collect()}
+            for r in rows:
+                res = results[(r["camera"], r["frame"])]
+                instances = [res[f"p{i}"]["masks"] for i in range(len(MASK_PARAMS.prompts))]
+                w, h = r["_full"]
+                yield r["camera"], r["frame"], masks_stage.training_mask(
+                    masks_stage.unwanted(instances, (h, w)), MASK_PARAMS.grow_px)
+
+    for _row in masks_missing:
+        _frames_dir = WORK / "frames" / _frames_remote(_row)
+        _fs.get(f"buckets/{BUCKET}/{_frames_remote(_row)}/", str(_frames_dir) + "/", recursive=True)
+        _clip_frames = pl.read_parquet(_frames_dir / "frames.parquet")
+        _out = WORK / "masks" / _masks_remote(_row)
+        shutil.rmtree(_out, ignore_errors=True)
+        masks_stage.write(_segment(_clip_frames, _frames_dir), _out)
+        sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_masks_remote(_row)}", token=HF_STORAGE["token"])
+
+    def _read_masks(r):
+        with _fs.open(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet", "rb") as f:
+            return pl.read_parquet(f).with_columns(clip=pl.lit(r["clip"]), fingerprint=pl.lit(r["mask_fingerprint"]),
+                                                   file=pl.lit(f"{_masks_remote(r)}/") + pl.col("file"))
+    mask_rows = pl.concat([_read_masks(r) for r in clips.iter_rows(named=True)])
+    masks = pxt.create_table(
+        f"{PXT_DIR}/masks",
+        {"clip": pxt.String, "fingerprint": pxt.String, "camera": pxt.String, "frame": pxt.Int,
+         "ignored_fraction": pxt.Float, "file": pxt.String},
+        primary_key=["clip", "camera", "frame"], if_exists="replace")
+    masks.insert(mask_rows.to_dicts())
+    mo.md(f"Masks: **{mask_rows.height:,}** frames, median ignored "
+          f"{mask_rows['ignored_fraction'].median():.1%} ({len(masks_missing)} clips processed this session)")
+    return MASK_PARAMS, mask_rows, masks, masks_stage
 
 
 @app.cell
