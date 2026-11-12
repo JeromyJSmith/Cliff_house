@@ -9,13 +9,15 @@ dependencies = [
   "numpy>=2.0",
   "scipy>=1.14",
   "pillow>=11.0",
-  "opencv-python-headless>=4.10",
+  "opencv-python-headless>=5.0",
   "pixeltable>=0.4",
   "marimo[recommended,lsp,mcp,otel]>=0.25",
   "huggingface-hub>=1.0",
   # The notebook reads the repository through fsspec's GitHub filesystem (needs requests).
   "fsspec>=2024.6",
   "requests>=2.32",
+  # Reads pixi.lock to fingerprint cached native builds.
+  "pyyaml>=6.0",
   "trimesh>=4.5",
   "plyfile>=1.1",
   "laspy>=2.5",
@@ -59,7 +61,7 @@ platforms = [
 python = "3.12.*"
 ffmpeg = ">=7"
 # PyPI publishes no osx-64 wheel for OpenCV 5; conda-forge's build satisfies the PyPI requirement instead.
-opencv = ">=4.10"
+opencv = ">=5.0"
 exiftool = "*"
 # One Qt and one libav per process: mixed Qt5/Qt6 or a wheel-bundled libav beside conda ffmpeg
 # load duplicate Objective-C classes, which macOS warns can crash. Every Qt consumer is pinned to the Qt6 builds,
@@ -91,9 +93,42 @@ libopengl = "*"
 libstdcxx = ">=13"
 libgomp = ">=13"
 vulkan-tools = "*"
+# NVIDIA's Vulkan driver needs the glvnd EGL/GLX dispatch libraries to create an instance headlessly; molab's image
+# lacks them (NVIDIA/nvidia-container-toolkit#1952, #191). Xvfb is the documented fallback (a virtual DISPLAY).
+libegl = "*"
+libglx = "*"
+xorg-xvfb-server = "*"
+
+# Spirula from source with its CUDA backend and no GUI: one headless binary needing neither a display nor GL, so it runs
+# on hosts whose NVIDIA Vulkan is unusable (molab). Spirula's CUDA side links only cudart; Blackwell (sm_120) needs
+# CUDA >= 12.8 and CUDA 12.9 accepts GCC <= 14.
+[tool.pixi.feature.spirula-build]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.spirula-build.dependencies]
+cuda-version = "12.9.*"
+cuda-nvcc = "*"
+cuda-cudart-dev = "*"
+gxx_linux-64 = "14.*"
+cmake = ">=3.18"
+ninja = "*"
+python = "3.12.*"
+git = "*"
+
+# What the cached Spirula CUDA binary needs at run time, without the compiler toolchain.
+[tool.pixi.feature.spirula-run]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.spirula-run.dependencies]
+cuda-version = "12.9.*"
+cuda-cudart = "*"
+libstdcxx = ">=14"
+libgomp = ">=14"
 
 [tool.pixi.environments]
 default = { features = ["dev"], solve-group = "main" }
+spirula-build = { features = ["spirula-build"], no-default-feature = true }
+spirula-run = { features = ["spirula-run"], no-default-feature = true }
 
 [tool.pixi.tasks]
 test = "pytest"
