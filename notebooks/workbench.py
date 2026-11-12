@@ -319,6 +319,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
 
     _sys.path.insert(0, str(repo_dir / "src"))
     from cliff_house import frames as frames_stage
+    from cliff_house.storage import retry
 
     FRAME_PARAMS = frames_stage.Params()
     # Tests narrow the run to named clips so it stays small; a normal session processes every source video.
@@ -335,13 +336,13 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
                if not _fs.exists(f"buckets/{BUCKET}/{_remote(r)}/frames.parquet")]
 
     for _row in missing:
-        _src_path = _Path(hf_hub_download(HF_REPO, _row["path"], repo_type="dataset", token=HF_STORAGE["token"],
-                                    local_dir=WORK / "sources"))
+        _src_path = _Path(retry(hf_hub_download, HF_REPO, _row["path"], repo_type="dataset",
+                                token=HF_STORAGE["token"], local_dir=WORK / "sources"))
         _source = frames_stage.probe(_src_path, _row["sha256"], ffprobe=str(native_prefix / "bin" / "ffprobe"))
         _out = WORK / "frames" / _remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
         frames_stage.extract(_source, FRAME_PARAMS, _out, ffmpeg=str(native_prefix / "bin" / "ffmpeg"))
-        sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
+        retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
         _src_path.unlink()
 
     def _read(row):
@@ -359,7 +360,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     frames.insert(frame_rows.to_dicts())
     mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
           f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
-    return FRAME_PARAMS, frame_rows, frames, frames_stage, videos
+    return FRAME_PARAMS, frame_rows, frames, frames_stage, retry, videos
 
 
 @app.cell
@@ -376,7 +377,8 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt, shutil, sync_bucket, videos):
+def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt, retry, shutil, sync_bucket,
+      videos):
     import itertools as _it
 
     import PIL.Image as _Image
@@ -425,12 +427,12 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
 
     for _row in masks_missing:
         _frames_dir = WORK / "frames" / _frames_remote(_row)
-        _fs.get(f"buckets/{BUCKET}/{_frames_remote(_row)}/", str(_frames_dir) + "/", recursive=True)
+        retry(_fs.get, f"buckets/{BUCKET}/{_frames_remote(_row)}/", str(_frames_dir) + "/", recursive=True)
         _clip_frames = pl.read_parquet(_frames_dir / "frames.parquet")
         _out = WORK / "masks" / _masks_remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
         masks_stage.write(_segment(_clip_frames, _frames_dir), _out)
-        sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_masks_remote(_row)}", token=HF_STORAGE["token"])
+        retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_masks_remote(_row)}", token=HF_STORAGE["token"])
 
     def _read_masks(r):
         with _fs.open(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet", "rb") as f:
