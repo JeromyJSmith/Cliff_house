@@ -33,6 +33,11 @@ dependencies = [
   "telemetry-parser>=0.4.0",
 ]
 
+[project.optional-dependencies]
+# SAM 3 masks (Pixeltable's sam3_for_segmentation runs on transformers + torch). molab's kernel installs CUDA builds
+# from PyPI via the notebook header; pixi resolves torch from conda-forge, which still builds osx-64.
+ml = ["torch>=2.8", "torchvision>=0.23", "transformers>=5.0"]
+
 [project.scripts]
 cliff-house-manifest = "cliff_house.source_manifest:main"
 cliff-house-verify-upload = "cliff_house.verify_upload:main"
@@ -125,8 +130,14 @@ cuda-cudart = "*"
 libstdcxx = ">=14"
 libgomp = ">=14"
 
+[tool.pixi.feature.ml.dependencies]
+pytorch = ">=2.8"
+torchvision = ">=0.23"
+
 [tool.pixi.environments]
-default = { features = ["dev"], solve-group = "main" }
+default = { features = ["dev", "ml"], solve-group = "main" }
+# Native tools only — what the notebook installs in a molab session (its kernel already has the Python stack).
+native = { features = [], solve-group = "main" }
 spirula-build = { features = ["spirula-build"], no-default-feature = true }
 spirula-run = { features = ["spirula-run"], no-default-feature = true }
 
