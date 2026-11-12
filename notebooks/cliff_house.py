@@ -54,18 +54,21 @@ def _():
 
 @app.cell
 def _():
-    from huggingface_hub import HfApi
+    from huggingface_hub import HfApi, get_token
 
+    # One token for every client: huggingface_hub resolves HF_TOKEN or the login cache; Polars only reads the cache,
+    # which molab does not have, so it is handed the same token explicitly.
+    HF_STORAGE = {"token": get_token()}
     # Raises on a missing or invalid token, so nothing below runs against anonymous access.
-    identity = HfApi().whoami()["name"]
-    return (identity,)
+    identity = HfApi(token=HF_STORAGE["token"]).whoami()["name"]
+    return HF_STORAGE, identity
 
 
 @app.cell
-def _(SOURCES_URI, identity, mo):
+def _(HF_STORAGE, SOURCES_URI, identity, mo):
     import polars as pl
 
-    manifest = pl.read_parquet(f"{SOURCES_URI}/_manifest/sources.parquet")
+    manifest = pl.read_parquet(f"{SOURCES_URI}/_manifest/sources.parquet", storage_options=HF_STORAGE)
     mo.md(f"Signed in as **{identity}** · manifest: **{manifest.height:,}** files, "
           f"**{manifest['bytes'].sum() / 1e9:.1f} GB**")
     return manifest, pl
