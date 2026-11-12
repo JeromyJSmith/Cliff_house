@@ -32,18 +32,22 @@ def _(mo):
     Hugging Face is the only durable store. Sources live in the versioned dataset repo; everything this notebook
     produces goes to the bucket. Pixeltable is rebuilt from them in session scratch every time the notebook runs,
     so a fresh molab session is just *open and run*. Requires the `HF_TOKEN` secret (molab sidebar → Secrets).
+    Design and rationale: `docs/SPEC.md` in the repository.
     """)
     return
 
 
 @app.cell
 def _():
+    import datetime as dt
+
     CLIENT, PROPERTY = "frasier", "cliff-house"
     HF_REPO = f"ojeromyo/{CLIENT}-{PROPERTY}"
     SOURCES_URI = f"hf://datasets/{HF_REPO}"
     BUCKET = HF_REPO
     PXT_DIR = f"{CLIENT}/{PROPERTY.replace('-', '_')}"
-    return BUCKET, PXT_DIR, SOURCES_URI
+    SESSION_ID = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    return BUCKET, PXT_DIR, SESSION_ID, SOURCES_URI
 
 
 @app.cell
@@ -107,20 +111,144 @@ def _(manifest, mo, pl, sources):
 
 
 @app.cell
-def _(BUCKET, by_kind, mo):
-    import datetime as dt
-    import tempfile
+def _(mo):
+    mo.md("""
+    ## Stage 1 — toolchain
+
+    Native tools come from the repository's `pixi.lock`, installed into session scratch by a pinned, checksummed pixi.
+    Spirula is a single pinned, checksummed binary. A probe records what the host provides (glibc, NVIDIA driver,
+    Vulkan ICDs) and whether Spirula starts; the report is written to the bucket so it can be read from anywhere.
+    """)
+    return
+
+
+@app.cell
+def _():
+    import hashlib
+    import os
+    import platform
+    import shutil
+    import subprocess
+    import tarfile
+    import urllib.request
+    import zipfile
     from pathlib import Path
+
+    HOST = (platform.system(), platform.machine())
+    WORK = Path.home() / ".cache" / "cliff-house"
+
+    PIXI_VERSION = "0.84.1"
+    PIXI_BUILDS = {  # release asset name, SHA-256 published by GitHub for that asset
+        ("Linux", "x86_64"): ("pixi-x86_64-unknown-linux-musl", "dea64d690020095e70a7194f48a520fb31cf70daef76d8ba38bbcf874b8c84a2"),
+        ("Linux", "aarch64"): ("pixi-aarch64-unknown-linux-musl", "45f1d18c9aed7defc4b864b83561dd421dfe460c428e81f446f0e7dd9e3ff09a"),
+        ("Darwin", "x86_64"): ("pixi-x86_64-apple-darwin", "775d02cea3c68b41846ca85c1dee2485a45dd8e57416ac0cc906a93114629432"),
+        ("Darwin", "arm64"): ("pixi-aarch64-apple-darwin", "3616ba024b78ab48d8f091903f1b2b1a6ac789afd0c6570e84dd86de547741b4"),
+    }
+    SPIRULA_VERSION = "2026.11.12"
+    # Only the headless Linux build is provisioned; the macOS build is a GUI .dmg for the Apple-silicon MacBook.
+    SPIRULA_BUILDS = {
+        ("Linux", "x86_64"): (f"spirula-{SPIRULA_VERSION}-ubuntu-vulkan-x86_64.zip", "07afb39882f336555633a17023a18c52502dcf0a18b23fe62fa5dd1c24b19a93"),
+    }
+    # The repository snapshot whose pixi.lock defines the toolchain; tests point this at a file:// archive of the
+    # working tree so they exercise the code under test rather than main.
+    REPO_ARCHIVE = os.environ.get(
+        "CLIFF_HOUSE_REPO_ARCHIVE", "https://codeload.github.com/JeromyJSmith/Cliff_house/tar.gz/refs/heads/main")
+
+    def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(url, dest)
+        actual = hashlib.sha256(dest.read_bytes()).hexdigest()
+        if actual != sha256:
+            dest.unlink()
+            raise RuntimeError(f"checksum mismatch for {url}: expected {sha256}, got {actual}")
+        return dest
+
+    def capture(cmd: list[str], **kwargs) -> dict:
+        # The host is a trust boundary: a missing program is a fact to record, not an error.
+        exe = shutil.which(cmd[0], path=kwargs.get("env", os.environ).get("PATH"))
+        if exe is None:
+            return {"cmd": cmd, "found": False}
+        result = subprocess.run([exe, *cmd[1:]], capture_output=True, text=True, timeout=300, **kwargs)
+        return {"cmd": cmd, "found": True, "returncode": result.returncode,
+                "output": (result.stdout + result.stderr)[-4000:]}
+    return (HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ARCHIVE, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture,
+            fetch_verified, os, shutil, subprocess, tarfile, urllib, zipfile)
+
+
+@app.cell
+def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ARCHIVE, WORK, fetch_verified, mo, shutil, subprocess, tarfile, urllib):
+    _asset, _sha = PIXI_BUILDS[HOST]
+    pixi = fetch_verified(
+        f"https://github.com/prefix-dev/pixi/releases/download/v{PIXI_VERSION}/{_asset}", _sha, WORK / "bin" / "pixi")
+    pixi.chmod(0o755)
+
+    # A fresh snapshot every session: the lock in the snapshot, not anything left on disk, defines the environment.
+    _repo_root = WORK / "repo"
+    shutil.rmtree(_repo_root, ignore_errors=True)
+    _archive, _ = urllib.request.urlretrieve(REPO_ARCHIVE, WORK / "repo.tar.gz")
+    with tarfile.open(_archive) as _tar:
+        _tar.extractall(_repo_root, filter="data")
+    (repo_dir,) = list(_repo_root.iterdir())
+
+    subprocess.run([str(pixi), "install", "--frozen", "--manifest-path", str(repo_dir / "pyproject.toml")], check=True)
+    native_prefix = repo_dir / ".pixi" / "envs" / "default"
+    mo.md(f"pixi {PIXI_VERSION} installed the locked toolchain into `{native_prefix}`")
+    return (native_prefix,)
+
+
+@app.cell
+def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, native_prefix, os, zipfile):
+    import glob
+
+    _native_env = os.environ | {
+        "PATH": f"{native_prefix / 'bin'}{os.pathsep}{os.environ.get('PATH', '')}",
+        "LD_LIBRARY_PATH": f"{native_prefix / 'lib'}{os.pathsep}{os.environ.get('LD_LIBRARY_PATH', '')}",
+    }
+    _build = SPIRULA_BUILDS.get(HOST)
+    if _build:
+        _zip = fetch_verified(
+            f"https://github.com/harry7557558/spirula-studio/releases/download/v{SPIRULA_VERSION}/{_build[0]}",
+            _build[1], WORK / "spirula" / _build[0])
+        with zipfile.ZipFile(_zip) as _z:
+            _z.extractall(WORK / "spirula" / SPIRULA_VERSION)
+        spirula = WORK / "spirula" / SPIRULA_VERSION / "spirula"
+        spirula.chmod(0o755)
+        spirula_run = capture([str(spirula), "--help"], env=_native_env)
+    else:
+        spirula = None
+        spirula_run = {"found": False, "reason": f"no headless Spirula build for {HOST[0]} {HOST[1]}"}
+
+    probe = {
+        "host": {"system": HOST[0], "machine": HOST[1],
+                 "glibc": os.confstr("CS_GNU_LIBC_VERSION") if HOST[0] == "Linux" else None},
+        "nvidia_smi": capture(["nvidia-smi", "--query-gpu=name,driver_version,memory.total", "--format=csv,noheader"]),
+        "vulkan_icds": sorted(glob.glob("/usr/share/vulkan/icd.d/*.json") + glob.glob("/etc/vulkan/icd.d/*.json")),
+        "vulkaninfo": capture(["vulkaninfo", "--summary"], env=_native_env),
+        "colmap": capture(["colmap", "-h"], env=_native_env),
+        "ffmpeg": capture(["ffmpeg", "-version"], env=_native_env),
+        "spirula": {"version": SPIRULA_VERSION, **spirula_run},
+    }
+    mo.ui.table([{"check": k, "result": str(v)[:300]} for k, v in probe.items()])
+    return (probe, spirula)
+
+
+@app.cell
+def _(BUCKET, SESSION_ID, by_kind, mo, probe):
+    import json
+    import tempfile
 
     from huggingface_hub import batch_bucket_files
 
-    session_id = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    remote = f"sessions/{session_id}/sources_by_kind.parquet"
-    with tempfile.TemporaryDirectory() as tmp:
-        local = Path(tmp) / "sources_by_kind.parquet"
-        by_kind.write_parquet(local)
-        batch_bucket_files(BUCKET, add=[(str(local), remote)])
-    mo.md(f"Session summary written to `hf://buckets/{BUCKET}/{remote}`")
+    _prefix = f"sessions/{SESSION_ID}"
+    with tempfile.TemporaryDirectory() as _tmp:
+        _summary = f"{_tmp}/sources_by_kind.parquet"
+        _probe = f"{_tmp}/toolchain_probe.json"
+        by_kind.write_parquet(_summary)
+        with open(_probe, "w") as _f:
+            json.dump(probe, _f, indent=1)
+        batch_bucket_files(BUCKET, add=[(_summary, f"{_prefix}/sources_by_kind.parquet"),
+                                        (_probe, f"{_prefix}/toolchain_probe.json")])
+    mo.md(f"Session outputs written to `hf://buckets/{BUCKET}/{_prefix}/`")
     return
 
 

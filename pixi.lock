@@ -386,6 +386,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/viskores-1.1.1-cpu_hc82bd48_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/vlfeat-0.9.21-hd590300_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/vtk-base-9.7.0-py312h1393585_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/vulkan-tools-1.4.357.0-h215f996_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/x264-1!164.3095-pl5321h63c0a64_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/x265-3.5-h73f68a7_4.conda
@@ -8389,6 +8390,25 @@ packages:
     - vtk-base >=9.7.0,<9.7.1.0a0
   size: 89388040
   timestamp: 1792621237606
+- conda: https://conda.anaconda.org/conda-forge/linux-64/vulkan-tools-1.4.357.0-h215f996_0.conda
+  sha256: d54db5400325ef25f87a8e2917d6f111fbabda6efb8aecaef4314a0a0949d38d
+  md5: ccff3279bb01982e56371d36f345bb19
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - libstdcxx >=14
+  - libvulkan-loader 1.4.357.0.*
+  - libvulkan-loader >=1.4.357.0,<2.0a0
+  - libxcb >=1.17.0,<2.0a0
+  - wayland >=1.26.0,<2.0a0
+  - xorg-libx11 >=1.8.13,<2.0a0
+  - xorg-libxrandr >=1.5.5,<2.0a0
+  license: Apache-2.0
+  license_family: Apache
+  purls: []
+  run_exports: {}
+  size: 462598
+  timestamp: 1785385837123
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wayland-1.26.0-hc1c935e_2.conda
   sha256: df65b987979e6d7f88e756494da5a230d4f2d08d17437d04eecd35559c3a04e4
   md5: 88a47e22b53e50865b1cabe2eb648352

@@ -76,6 +76,15 @@ importlib-metadata = "<=8.5.0"
 [tool.pixi.pypi-dependencies]
 cliff-house = { path = ".", editable = true }
 
+# Spirula's Linux build is one Vulkan binary needing GLIBCXX_3.4.32, libvulkan, libOpenGL and libgomp; these provide
+# them inside the molab session. glibc (>= 2.38) and the NVIDIA Vulkan driver must come from the host.
+[tool.pixi.target.linux-64.dependencies]
+libvulkan-loader = ">=1.3"
+libopengl = "*"
+libstdcxx = ">=13"
+libgomp = ">=13"
+vulkan-tools = "*"
+
 [tool.pixi.environments]
 default = { features = ["dev"], solve-group = "main" }
 
