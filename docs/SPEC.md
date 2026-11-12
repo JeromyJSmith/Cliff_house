@@ -34,7 +34,7 @@ registration is recorded as unknown, never as zero or as a guess.
 | **Polars + polars-st, DuckDB spatial, GeoParquet** for tabular and spatial data. | DuckDB writes GeoParquet (`COPY … TO` with a GEOMETRY column emits `geo` metadata); polars-st reads it via `st.from_wkb`. |
 | **Client-first layout**: `<client>/<property>/<kind>/…`; shared assets under `_shared/`. | Every path is identical locally (`data/…`) and on HF (`hf://datasets/<repo>/…`). No spaces in any path. |
 | **Repo is public** so molab can mirror the notebook. | Never commit tokens, `.env`, footage or client data. `HF_TOKEN` lives in molab's Secrets panel (`.env`, not forked). |
-| **Borrow freely, respect licenses.** | Copy cells from MIT/Apache-2.0/BSD sources with attribution in the cell; for unlicensed code, reimplement from the idea only. |
+| **Non-commercial project; borrow freely, respect licenses.** | Cells may come from MIT/Apache-2.0/BSD **and** non-commercial licenses (CC BY-NC, CC BY-NC-SA, Inria GS) with the license notice and attribution kept in the cell (the repo is public; BY-NC-SA adaptations stay BY-NC-SA). Repos with no license grant nothing — reimplement from the idea only. |
 | **Blender runs on the MacBook Pro**, not the Intel iMac (Blender ≥ 5.0 dropped Intel macOS). | Export stages produce files Blender opens; they do not drive Blender. |
 
 ## 3. Theory of the notebook

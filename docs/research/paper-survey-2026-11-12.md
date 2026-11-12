@@ -6,9 +6,11 @@ SpotLessSplats (Apache-2.0), PlanarGS (MIT), WildGaussians (MIT, from its LICENS
 gsplat's `docs/3dgut.md` and `examples/benchmarks/fisheye/`, and the arXiv titles of 2610.37818, 2509.13414,
 2508.20080 and 2611.10699. "Unverified" means no official repository could be confirmed.
 
-**License key for reuse:** MIT / Apache-2.0 / BSD → cells may be adopted with attribution. Non-commercial
-(CC BY-NC, Inria GS license) or no license → read for ideas only, reimplement. VGGT-family code uses Meta's custom
-VGGT license — review before adopting.
+**License key for reuse (non-commercial project):** MIT / Apache-2.0 / BSD and non-commercial licenses
+(CC BY-NC, CC BY-NC-SA, Inria GS) → cells may be adopted, keeping the license notice and attribution (BY-NC-SA
+adaptations stay BY-NC-SA). No license → ideas only, reimplement. VGGT-family code uses Meta's custom VGGT
+license — review its terms before adopting. "Fit" values below were assessed before the project was confirmed
+non-commercial; non-commercial rows marked "reference" are now adoptable.
 
 ## Papers
 
