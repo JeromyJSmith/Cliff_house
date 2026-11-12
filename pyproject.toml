@@ -35,6 +35,8 @@ dependencies = [
 cliff-house-manifest = "cliff_house.source_manifest:main"
 cliff-house-verify-upload = "cliff_house.verify_upload:main"
 cliff-house-telemetry = "cliff_house.insv_telemetry:main"
+cliff-house-remux = "cliff_house.remux:main"
+cliff-house-frames = "cliff_house.frames:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]

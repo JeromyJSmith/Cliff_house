@@ -8,6 +8,7 @@ factory per-lens calibration. This stage turns one clip into typed tables plus a
 Outputs per clip, under `stages/telemetry/<fingerprint>/<clip>/`:
   gps.parquet      one row per fix: UTC time, lat/lon (WGS84 degrees), altitude (m), reported speed (m/s), track
   imu.parquet      one row per sample: t_ms (clip time), gyro deg/s, accel m/s^2 — normalized by the parser
+  exposure.parquet one row per exposure record: t_s (clip time), exposure_s (shutter time)
   lens.json        the parser's Lens/Data and Lens/Rig records (calibration as written by the camera)
   summary.json     derived checks: fix rate, path length, implied vs reported speed, IMU rate, device identity
 
@@ -25,7 +26,7 @@ import numpy as np
 import polars as pl
 
 STAGE = "telemetry"
-STAGE_VERSION = 2  # 2: GPS speed converted from the parser's km/h to m/s
+STAGE_VERSION = 3  # 2: GPS speed km/h -> m/s. 3: exposure.parquet (per-frame exposure time)
 EARTH_RADIUS_M = 6_371_008.8  # IUGG mean radius
 
 GPS_SCHEMA = pl.Schema({
@@ -100,6 +101,12 @@ def imu_frame(normalized_imu: list[dict]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=IMU_SCHEMA).sort("t_ms")
 
 
+def exposure_frame(telemetry: list[dict]) -> pl.DataFrame:
+    rows = [{"t_s": r["t"], "exposure_s": r["v"]} for r in (_tags(telemetry).get("Exposure/Data") or [])
+            if isinstance(r, dict) and "t" in r and "v" in r]
+    return pl.DataFrame(rows, schema={"t_s": pl.Float64, "exposure_s": pl.Float64}).sort("t_s")
+
+
 def haversine_m(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """Great-circle distance in metres between consecutive points."""
     p, lam = np.radians(lat), np.radians(lon)
@@ -145,7 +152,7 @@ def decode(path: Path) -> dict:
     return {
         "camera": tp.camera, "model": tp.model,
         "serial_number": meta.get("serial_number"), "firmware": meta.get("fw_version"),
-        "gps": gps_frame(telemetry), "imu": imu_frame(tp.normalized_imu()),
+        "gps": gps_frame(telemetry), "imu": imu_frame(tp.normalized_imu()), "exposure": exposure_frame(telemetry),
         "lens": {"data": tags.get("Lens/Data"), "rig": tags.get("Lens/Rig")},
     }
 
@@ -161,6 +168,7 @@ def process(path: Path, out_root: Path, source_sha256: str | None = None) -> dic
     result = decode(path)
     result["gps"].write_parquet(clip_dir / "gps.parquet")
     result["imu"].write_parquet(clip_dir / "imu.parquet")
+    result["exposure"].write_parquet(clip_dir / "exposure.parquet")
     (clip_dir / "lens.json").write_text(json.dumps(result["lens"], indent=2, default=str))
     summary = {"clip": path.stem, "source_sha256": sha, "fingerprint": fp, "stage_version": STAGE_VERSION,
                "parser": f"telemetry-parser {parser_version()}", "camera": result["camera"],
