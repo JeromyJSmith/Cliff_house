@@ -7,6 +7,8 @@
 #     "duckdb>=1.3",
 #     "pyarrow>=20",
 #     "huggingface-hub>=1.0",
+#     "fsspec>=2024.6",
+#     "requests>=2.32",
 # ]
 # ///
 # [LAW:one-source-of-truth] exception: molab installs only from this PEP 723 header, so it repeats a subset of
@@ -127,12 +129,14 @@ def _():
     import hashlib
     import os
     import platform
+    import posixpath
     import shutil
     import subprocess
-    import tarfile
     import urllib.request
     import zipfile
     from pathlib import Path
+
+    import fsspec
 
     HOST = (platform.system(), platform.machine())
     WORK = Path.home() / ".cache" / "cliff-house"
@@ -149,10 +153,11 @@ def _():
     SPIRULA_BUILDS = {
         ("Linux", "x86_64"): (f"spirula-{SPIRULA_VERSION}-ubuntu-vulkan-x86_64.zip", "07afb39882f336555633a17023a18c52502dcf0a18b23fe62fa5dd1c24b19a93"),
     }
-    # The repository snapshot whose pixi.lock defines the toolchain; tests point this at a file:// archive of the
-    # working tree so they exercise the code under test rather than main.
-    REPO_ARCHIVE = os.environ.get(
-        "CLIFF_HOUSE_REPO_ARCHIVE", "https://codeload.github.com/JeromyJSmith/Cliff_house/tar.gz/refs/heads/main")
+    # The repository as an fsspec data source (also browsable in molab's storage panel). Its pixi.lock defines the
+    # toolchain. Tests point this at file:// on the working tree so they exercise the code under test, not main.
+    repo_fs, REPO_ROOT = fsspec.core.url_to_fs(
+        os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"))
+    TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src")
 
     def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -171,24 +176,24 @@ def _():
         result = subprocess.run([exe, *cmd[1:]], capture_output=True, text=True, timeout=300, **kwargs)
         return {"cmd": cmd, "found": True, "returncode": result.returncode,
                 "output": (result.stdout + result.stderr)[-4000:]}
-    return (HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ARCHIVE, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture,
-            fetch_verified, os, shutil, subprocess, tarfile, urllib, zipfile)
+    return (HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ROOT, SPIRULA_BUILDS, SPIRULA_VERSION, TOOLCHAIN_FILES, WORK,
+            capture, fetch_verified, os, posixpath, repo_fs, shutil, subprocess, zipfile)
 
 
 @app.cell
-def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ARCHIVE, WORK, fetch_verified, mo, shutil, subprocess, tarfile, urllib):
+def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ROOT, TOOLCHAIN_FILES, WORK, fetch_verified, mo, posixpath, repo_fs,
+      shutil, subprocess):
     _asset, _sha = PIXI_BUILDS[HOST]
     pixi = fetch_verified(
         f"https://github.com/prefix-dev/pixi/releases/download/v{PIXI_VERSION}/{_asset}", _sha, WORK / "bin" / "pixi")
     pixi.chmod(0o755)
 
-    # A fresh snapshot every session: the lock in the snapshot, not anything left on disk, defines the environment.
-    _repo_root = WORK / "repo"
-    shutil.rmtree(_repo_root, ignore_errors=True)
-    _archive, _ = urllib.request.urlretrieve(REPO_ARCHIVE, WORK / "repo.tar.gz")
-    with tarfile.open(_archive) as _tar:
-        _tar.extractall(_repo_root, filter="data")
-    (repo_dir,) = list(_repo_root.iterdir())
+    # A fresh copy every session: the lock just fetched, not anything left on disk, defines the environment.
+    repo_dir = WORK / "repo"
+    shutil.rmtree(repo_dir, ignore_errors=True)
+    repo_dir.mkdir(parents=True)
+    for _name in TOOLCHAIN_FILES:
+        repo_fs.get(posixpath.join(REPO_ROOT, _name), str(repo_dir / _name), recursive=True)
 
     subprocess.run([str(pixi), "install", "--frozen", "--manifest-path", str(repo_dir / "pyproject.toml")], check=True)
     native_prefix = repo_dir / ".pixi" / "envs" / "default"
