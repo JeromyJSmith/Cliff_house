@@ -83,7 +83,7 @@ camera's IMU/upward lens axis is an estimate, not a survey datum.
 
 | Input | Location | Facts |
 |---|---|---|
-| **Insta360 X5** `.insv` video (8 clips, 2026-11-10; 1 clip 2026-11-09 kept with an earlier Spirula run) | `frasier/cliff-house/source/video/<date>/` | One file holds both lenses: two H.264 video streams, one per fisheye lens, **3840×3840 at 29.97 fps**, plus a `mov_text` stream; gyro/accelerometer and exposure records in the Insta360 trailer. Embedded `creation_time` is authoritative; filename clock is off by an hour on at least one clip. |
+| **Insta360 X5 camera on an Antigravity A1** (Insta360's drone; the device serial in every `.insv` trailer is the A1's) — `.insv` video (8 clips, 2026-11-10; 1 clip 2026-11-09 kept with an earlier Spirula run) | `frasier/cliff-house/source/video/<date>/` | One file holds both lenses: two H.264 video streams, one per fisheye lens, **3840×3840 at 29.97 fps**, plus a `mov_text` stream; gyro/accelerometer and exposure records in the Insta360 trailer. Embedded `creation_time` is authoritative; filename clock is off by an hour on at least one clip. |
 | **SiteScape LiDAR** (24 scans, 6.3 GB, 2026-11-09 12:49–13:39 local) | `frasier/cliff-house/source/lidar/2026-11-09/` | SiteScape 1.0 binary PLY, float32 xyz + uchar rgb, up to ~24 M points per scan; interiors and exteriors (stone walls, doors, courtyard). Identity owner-provided and consistent with the video by date and appearance; preview `evidence/2026-11-12/sitescape-preview.jpg`. Earlier Oct-10 PLYs belonged to another property and are excluded. Scanner poses not embedded — stage 7 aligns them. |
 | Prior evidence (registrations, COLMAP/OpenMVS runs, contact sheets) | `frasier/cliff-house/evidence/2026-11-11/` | Produced on the MacBook; symlinks repointed relative. See repo `docs/*-20261111/`. |
 | Spirula runs (excluded from the new workflow, retained) | `frasier/cliff-house/runs/spirula/` | Contains per-lens fisheye calibration from the clip 041 solve. |
@@ -143,13 +143,13 @@ binary, so our code and outputs stay ours). Full flag reference with sources:
   LoMa on the same frames. The `.insv` IMU gave the only scale estimate (0.2467 ± 1.83 %) — not trusted until
   confirmed by a measured distance.
 
-### 7.2 Insta360 tooling (camera: X5)
+### 7.2 Insta360 tooling (X5 camera on the Antigravity A1)
 
 - **Official MediaSDK** — [Insta360Develop/Desktop-MediaSDK-Cpp](https://github.com/Insta360Develop/Desktop-MediaSDK-Cpp).
   The repo holds docs and demo code only; the SDK itself is obtained by applying at
   <https://www.insta360.com/sdk/apply>. Supported: Ubuntu 22.04 x86_64 (CUDA; a reference Dockerfile uses
   `nvidia/cuda:12.1.1-devel-ubuntu22.04` with an NVIDIA Vulkan ICD) and Windows. X5 material uses the **v2** AI
-  stitching model. The demo CLI (`Demo/Linux/Media SDK/main.cc`) takes `-inputs -output -output_size -bitrate
+  stitching model. The SDK README lists X5 but not the A1 — confirm A1 `.insv` support with Insta360 when applying. The demo CLI (`Demo/Linux/Media SDK/main.cc`) takes `-inputs -output -output_size -bitrate
   -stitch_type -ai_stitching_model -enable_flowstate -enable_directionlock -enable_denoise -image_denoise_model
   -enable_colorplus -colorplus_model -enable_deflicker -deflicker_model -enable_stitchfusion -camera_accessory_type
   -image_sequence_dir -image_type -export_frame_index -disable_cuda -enable_soft_decode -enable_soft_encode`.
