@@ -740,3 +740,752 @@ hf_token = "hf_..."  # Your Hugging Face User Access Token
 - **Stage 1, sharpness scoring and overlap selection:** no source scores blur (for example, variance of Laplacian) or selects frames by overlap. The closest is `ns-process-data --num-frames-target` in C06, which samples evenly. Write it as a Pixeltable UDF computed column.
 - **Dual-fisheye `.insv` handling:** every source assumes one video stream. Splitting per lens (`-map 0:v:N`) and the per-lens OPENCV_FISHEYE camera rig are not in any harvested cell. The adaptation notes on C01, C04 and C05 describe the change.
 - **GLOMAP and pycolmap:** none of the licensed sources call GLOMAP or pycolmap. The only GLOMAP pipeline seen is in the unlicensed repo.
+
+---
+
+## Non-commercial sources (added 2026-11-12)
+
+The owner confirmed that this project is not a commercial product, so code under non-commercial licenses is allowed here. This section follows the same copy rules as the sections above: verbatim contiguous excerpts, `# [...]` marks dropped lines, and nothing was rewritten. Two rules are added:
+
+- Every adapted cell keeps the source's copyright and license notice. The exact lines are given with each piece under **Notice to keep**.
+- **Share-alike:** cells adapted from GGPS (CC BY-NC-SA 4.0) must stay CC BY-NC-SA 4.0. PGSR's license also requires derivatives to be open source and non-commercial. These cells are flagged **[SA]**. Keep them in their own notebook module, so that the share-alike terms do not spread to the rest of the notebook.
+
+Licenses were read from each repo's LICENSE file through `gh api repos/<r>/license`. The API reports `NOASSERTION` for all five, so the text itself was checked. Everything was fetched from the default branch at the SHAs below.
+
+| Repo | License (LICENSE text) | Commit | Files read | Status |
+|---|---|---|---|---|
+| tuallen/GOFish | CC BY-NC 4.0 for Amazon files. `configs/` and the 3DGRUT-derived code are Apache-2.0. Files ported from SOF, StopThePop, CoMe and GOF are under the Inria Gaussian-Splatting License (see `THIRD-PARTY-LICENSES`). | 1a33e7a9ff73 | `README.md`, `THIRD-PARTY-LICENSES`, `docs/components.md`, `configs/apps/fiord.yaml`, `configs/dataset/colmap.yaml`, `gofish/data/fiord.py`, `gofish/camera/{domain,make_domain}.py`, `gofish/camera/data/{README.md,fiord.json}`, `mesh.py`, `benchmark/{common,fiord}.sh`, `gofish/eval/fiord/{mesh_metrics,observed_gt}.py` | OK. Full code release. |
+| Insta360-Research-Team/GGPS | **CC BY-NC-SA 4.0** in `LICENSE.md`. The README says CC BY-NC 4.0, so we apply the stricter BY-NC-SA. The ERP rasterizer under `submodules/diff-gaussian-rasterization` is **GPL-3.0** (from OmniGS, see `NOTICE_OMNIGS.md`). Files that carry the Inria header are also under the Gaussian-Splatting License. | b30b236c6657 | `README.md`, `NOTICE_OMNIGS.md`, `requirements.txt`, `config_360/{templates/lonlat_template,self_captured/nsk_c4}.yaml`, `tools/{make_depth_scale,generate_depth_and_skymask,_pano_colmap_utils}.py`, `scripts_new/prepare_pano_scene.sh`, `utils/{large_utils,loss_utils}.py`, `data_partition.py`, `scene/dataset_readers.py` | OK. Training code was released 2026-07-09. The pretrained `.ply` models are still listed as "late July 2026", not released. |
+| Anttwo/MILo | Inria Gaussian-Splatting License in the top-level `LICENSE.md`. `milo/LICENSE` is an unfilled Apache-2.0 template. The two conflict, so we treat all of MILo as Inria non-commercial. | 0c38aa65f8b7 | `README.md`, `install.py`, `milo/configs/mesh/default.yaml`, `milo/convert.py`, file headers | OK. "Estimate camera poses with VGGT" is still "Coming soon". |
+| Metaverse-AI-Lab-THU/DirectFisheye-GS | Inria Gaussian-Splatting License | db9b3a25bff7 | `README.md`, `environment.yml`, `convert.py`, `training_cli.py`, `scene/dataset_readers.py`, `utils/find_camera_groups.py`, `submodules/diff-gaussian-rasterization/cuda_rasterizer/{auxiliary.h,forward.cu}` | OK |
+| zju3dv/PGSR | Custom ZJU license: "educational, research and non-profit purposes only. Any modification based on this work must be open-source and prohibited for commercial use." `render.py` and others also carry the Inria header. | de24f1a38b35 | `README.md`, `LICENSE.md`, `requirements.txt`, `render.py`, `arguments/__init__.py`, `scripts/run_tnt.py`, `scene/dataset_readers.py` | OK |
+
+**Findings that apply to every piece below**
+
+- **No repo reads `.insv`.** None of them splits dual-fisheye video or handles Insta360 files directly. Stage 1 remains our own code (ffmpeg `-map 0:v:0` and `-map 0:v:1`, as in the earlier gap note). GOFish is the closest match: its FIORD benchmark *is* Insta360 dual 200° fisheye footage, with two `OPENCV_FISHEYE` cameras (one per lens, 3264×3264) in one COLMAP model.
+- **Field-of-view limits differ.** GOFish rasterizes beyond 180°. DirectFisheye-GS culls any Gaussian with view-space `z <= 0.2` (`cuda_rasterizer/auxiliary.h` line 194), so it trains only the front hemisphere of each lens. MILo and PGSR take pinhole input only (PGSR asserts this in `scene/dataset_readers.py` line 111). GGPS takes ERP panoramas only (`default_camera_type: 3`).
+- **The environments cannot be merged.**
+  - GOFish: Python ≥3.11, torch 2.8.0+cu128, numpy 2.4.6, open3d 0.19.0, plus the Slang compiler and CGAL.
+  - GGPS: Python 3.9, torch 2.8.0 cu128, numpy==1.26.2.
+  - DirectFisheye-GS: Python 3.12.11, torch 2.8.0+cu126.
+  - MILo: torch 2.3.1, CUDA 11.8 (12.1 untested), CGAL, nvdiffrast.
+  - PGSR: Python 3.8, cu118, pytorch3d, open3d.
+
+  Give each trainer its own pixi environment and call it from the notebook through the C07 subprocess runner. Do not try to fit them into one PEP 723 header.
+- **molab build status: not built or run during this harvest.** Each trainer compiles CUDA extensions, so each needs `nvcc` matching its torch build (for example, pixi `cuda-nvcc` at the right version). GOFish and MILo also need CGAL and GMP, which pixi provides from conda-forge as `cgal-cpp` and `gmp`. Use those instead of `sudo apt`. Set `TORCH_CUDA_ARCH_LIST` to the molab GPU's compute capability, and pass `--no-build-isolation` as GGPS's README explains.
+
+---
+
+### Stage 2 — Poses and fisheye camera models
+
+#### N01 — Write a calibrated-domain record for each OPENCV_FISHEYE lens (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `gofish/camera/make_domain.py` lines 38–54. CC BY-NC 4.0.
+- **Stage:** 2 (camera models), consumed by stage 3 (`dataset.camera_domains`).
+
+```python
+    apertures = {int(row[0]): (float(row[1]), float(row[2]), float(row[3])) for row in args.aperture}
+    records = []
+    for camera_id, intrinsic in sorted(_read_cameras(args.model_dir).items()):
+        if intrinsic.model != "OPENCV_FISHEYE":
+            continue
+        params = [float(value) for value in intrinsic.params]
+        theta_limit = monotone_branch_limit(params[4:8])
+        record = {"camera_id": int(camera_id), "model": intrinsic.model, "width": int(intrinsic.width),
+                  "height": int(intrinsic.height), "params": params}
+        if camera_id in apertures:
+            cx, cy, radius = apertures[camera_id]
+            record |= {"kind": "aperture", "aperture_center": [cx, cy], "aperture_radius": radius,
+                       "theta_limit": theta_limit, "rho_limit": radial_value(theta_limit, params[4:8])}
+        else:
+            record |= {"kind": "max_angle", "max_angle": theta_limit}
+        records.append(record)
+    args.output.write_text(json.dumps({"cameras": records}, indent=1) + "\n")
+```
+
+**Notice to keep:** `# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.` / `# SPDX-License-Identifier: CC-BY-NC-4.0` / `# Adapted from tuallen/GOFish@1a33e7a gofish/camera/make_domain.py`
+
+**Adaptation notes**
+- Write one record per lens (two `camera_id`s). Measure each lens's image circle (`cx, cy, radius`) once from a frame of our 3840×3840 streams, and keep those values as data in the Pixeltable camera table.
+- `_read_cameras` imports from `threedgrut`. On molab, run this inside the GOFish pixi environment through a subprocess (`python -m gofish.camera.make_domain <sparse/0> domains.json --aperture 1 CX CY R --aperture 2 CX CY R`). Do not import it into the notebook kernel.
+- For reference, `gofish/camera/data/fiord.json` holds Insta360 lens records at 3264 px: fx≈998, `theta_limit = π`. Use them only as a sanity range for our own calibration, not as a calibration.
+
+#### N02 — First monotone branch of the Kannala–Brandt polynomial (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `gofish/camera/domain.py` lines 39–48 and 53–66. CC BY-NC 4.0.
+- **Stage:** 2 (check that an `OPENCV_FISHEYE` calibration stays valid past 90° off-axis)
+
+```python
+def radial_value(theta: float, coefficients: Iterable[float]) -> float:
+    k1, k2, k3, k4 = (float(value) for value in coefficients)
+    y = theta * theta
+    return theta * (1.0 + y * (k1 + y * (k2 + y * (k3 + y * k4))))
+
+
+def radial_derivative(theta: float, coefficients: Iterable[float]) -> float:
+    k1, k2, k3, k4 = (float(value) for value in coefficients)
+    y = theta * theta
+    return 1.0 + y * (3.0 * k1 + y * (5.0 * k2 + y * (7.0 * k3 + y * 9.0 * k4)))
+# [...]
+    k1, k2, k3, k4 = (float(value) for value in coefficients)
+    polynomial = np.asarray([9.0 * k4, 7.0 * k3, 5.0 * k2, 3.0 * k1, 1.0], dtype=np.float64)
+    nonzero = np.flatnonzero(np.abs(polynomial) > 0.0)
+    roots = np.roots(polynomial[int(nonzero[0]):])
+    roots_y = sorted(
+        float(root.real)
+        for root in roots
+        if abs(float(root.imag)) <= 1.0e-10 * max(1.0, abs(float(root.real))) and float(root.real) > 0.0
+    )
+    folds = [math.sqrt(value) for value in roots_y if math.sqrt(value) < math.pi]
+    limit = math.nextafter(folds[0] if folds else math.pi, 0.0)
+    while radial_derivative(limit, (k1, k2, k3, k4)) <= 0.0:
+        limit = math.nextafter(limit, 0.0)
+    return limit
+```
+
+**Notice to keep:** `# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.` / `# SPDX-License-Identifier: CC-BY-NC-4.0` / `# From tuallen/GOFish@1a33e7a gofish/camera/domain.py`
+
+**Adaptation notes**
+- This needs only `math` and `numpy`, so it runs in the notebook kernel. Make it a Pixeltable UDF that checks each COLMAP lens: a `theta_limit` below the lens half-FoV (≥ 100° for our lenses) means the fit folds back before the image circle edge, so that pose run should be rejected.
+- Feed it `params[4:8]` (k1..k4) of each lens from `cameras.bin`, read with pycolmap.
+
+#### N03 — COLMAP feature extraction and mapper for native fisheye (DirectFisheye-GS)
+- **Source:** Metaverse-AI-Lab-THU/DirectFisheye-GS @ db9b3a25bff7, `convert.py` lines 81–96 and 120. Inria Gaussian-Splatting License.
+- **Stage:** 2
+
+```python
+def build_feature_extraction_cmd(colmap_command, source_path, camera_model, use_gpu, image_list_path):
+    return (
+        colmap_command
+        + " feature_extractor "
+        + "--database_path "
+        + os.path.join(source_path, "distorted", "database.db")
+        + " --image_path "
+        + os.path.join(source_path, "input")
+        + " --image_list_path "
+        + image_list_path
+        + " --ImageReader.single_camera 1 "
+        + " --ImageReader.camera_model "
+        + camera_model
+        + " --SiftExtraction.use_gpu "
+        + str(use_gpu)
+    )
+# [...]
+        + " --Mapper.ba_global_function_tolerance=0.000001"
+```
+
+**Notice to keep:** `# Copyright (C) 2023, Inria, GRAPHDECO research group. All rights reserved.` / `# Free for non-commercial, research and evaluation use under the Gaussian-Splatting License.` / `# Adapted from Metaverse-AI-Lab-THU/DirectFisheye-GS@db9b3a2 convert.py`
+
+**Adaptation notes**
+- `--ImageReader.single_camera 1` would merge both lenses into one camera, which is wrong for us. Run the extractor twice with `--image_list_path` set to the lens-0 list and then the lens-1 list. Each run then creates its own `OPENCV_FISHEYE` camera in the same database.
+- DirectFisheye's loader opens `os.path.basename(extr.name)`, so frame names must be unique in one flat folder (for example, `l0_000123.jpg` and `l1_000123.jpg`), not split into `lens0/` and `lens1/` subfolders.
+- Build the argv as a list and run it through the C07 runner instead of `os.system`. `exhaustive_matcher` is too slow for video, so use `sequential_matcher` with loop detection.
+
+#### N04 — ERP (lon/lat) projection convention for panoramic poses (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `tools/_pano_colmap_utils.py` lines 174–186. CC BY-NC-SA 4.0.
+- **Stage:** 2 (only on the ERP route, that is, if we stitch to equirectangular and train with GGPS)
+
+```python
+    for img_id, fr in enumerate(frames, start=1):
+        qvec = fr["qvec"]
+        tvec = fr["tvec"]
+        R = _qvec2rotmat(qvec)
+        pts_cam = xyz @ R.T + tvec  # (N, 3)
+
+        r = np.sqrt(np.sum(pts_cam ** 2, axis=-1))
+        valid = r > min_dist
+
+        lon = np.arctan2(pts_cam[:, 0], pts_cam[:, 2])
+        lat = np.arcsin(np.clip(pts_cam[:, 1] / np.clip(r, 1e-8, None), -1, 1))
+
+        u = (lon / np.pi + 1.0) * (W / 2.0)
+```
+
+**Notice to keep:** `# Adapted from Insta360-Research-Team/GGPS@b30b236 tools/_pano_colmap_utils.py — CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/). Changes: <list>. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- This is the projection GGPS's rasterizer expects: +z forward, lon = atan2(x, z), v grows with +y. Any ERP frames we stitch from the two fisheyes (for example, with ffmpeg `v360=dfisheye:e`) must use the same convention, or the poses and images will disagree.
+- Use it as an assertion cell: project the sparse points into a few ERP frames and overlay them, to check the stitch and pose convention before training.
+
+---
+
+### Stage 3 — Splat training on fisheye or panoramic input
+
+#### N05 — Package a COLMAP fisheye scene into `sparse/0` + `images_<k>/` (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `gofish/data/fiord.py` lines 56–77. CC BY-NC 4.0.
+- **Stage:** 1→3 (dataset layout that GOFish's `train.py` reads)
+
+```python
+def prepare(source: Path, target: Path, factor: int = 4) -> None:
+    model = next((source / d for d in MODEL_DIRS if (source / d / "images.bin").is_file()), None)
+    if model is None:
+        raise SystemExit(f"{source}: no fisheye COLMAP model in {', '.join(MODEL_DIRS)}")
+    sparse = target / "sparse" / "0"
+    sparse.mkdir(parents=True, exist_ok=True)
+    for stem in MODEL_FILES:
+        for suffix in (".bin", ".txt"):
+            if (model / f"{stem}{suffix}").is_file():
+                shutil.copyfile(model / f"{stem}{suffix}", sparse / f"{stem}{suffix}")
+    names = sorted(image.name for image in read_images(model / "images.bin"))
+    images = next((source / d for d in IMAGE_DIRS if (source / d / names[0]).is_file()), None)
+    if images is None:
+        raise SystemExit(f"{source}: no image folder ({', '.join(IMAGE_DIRS)}) holds {names[0]}")
+    for name in names:
+        dst = target / f"images_{factor}" / name
+        if dst.exists():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        with Image.open(images / name) as image:
+            image.resize((image.width // factor, image.height // factor), Image.Resampling.BICUBIC).save(dst)
+    print(f"{target}: {len(names)} registered images at 1/{factor}")
+```
+
+**Notice to keep:** `# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.` / `# SPDX-License-Identifier: CC-BY-NC-4.0` / `# Adapted from tuallen/GOFish@1a33e7a gofish/data/fiord.py`
+
+**Adaptation notes**
+- Replace `read_images` with `pycolmap.Reconstruction(model).images` so that this runs in the notebook kernel. Set `MODEL_DIRS`/`IMAGE_DIRS` to our own layout instead of FIORD's.
+- FIORD trains at ¼ resolution (3264 → 816 px). Expose `factor` as a run-mode value (C25) and record it in Pixeltable with the dataset row.
+- The `dst.exists()` skip makes the cell resumable. Write `target` to local scratch, then sync it to the HF bucket (stage 8).
+
+#### N06 — GOFish train, render and mesh for one scene, plus the own-data override (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `README.md` lines 107–119. CC BY-NC 4.0.
+- **Stage:** 3 and 7
+
+```bash
+DATA=runs/_data/Kitchen_In
+RUN=runs/Kitchen_In
+python -m gofish.data.fiord scene /data/FIORD/Kitchen_In "$DATA"
+
+# Train GOFish (add geometry=sof for + Geometry Objective)
+python train.py --config-name apps/fiord path="$DATA" out_dir=runs experiment_name=Kitchen_In
+
+# Render the test set with the exact renderer of the paper's tables, and measure the real-time frame rate
+python render.py --checkpoint "$RUN/ckpt_last.pt" --out "$RUN/heldout" --renderer exact
+python -m threedgrut.benchmark --checkpoint "$RUN/ckpt_last.pt" --out "$RUN/fps.json"
+
+# Extract the mesh from the geometry checkpoint
+python mesh.py --checkpoint "$RUN/ours_30000/ckpt_30000.pt" --out "$RUN/mesh"
+```
+
+**Notice to keep:** `# GOFish commands from tuallen/GOFish@1a33e7a README.md — CC BY-NC 4.0; training/rendering/meshing also run Gaussian-Splatting-License code (non-commercial).`
+
+**Adaptation notes**
+- For our data, README lines 122–125 give the override: `--config-name apps/fiord path=<scene> dataset.camera_domains=[] dataset.downsample_factor=<k>`. Point `dataset.camera_domains` at the N01 JSON instead of `[]` once the apertures are measured. Add `geometry=sof` for the mesh-quality run.
+- The mesh comes from the geometry checkpoint `ours_<n_iterations - n_distillation_steps>`, not from `ckpt_last.pt`. `benchmark/common.sh` lines 63–68 compute that step from `parsed.yaml`. Compute it the same way, without hard-coding 30000.
+- Run each step through C07 with the GOFish pixi environment. The checkpoints and `mesh/mesh.ply` go to the HF bucket at the end of each step, because molab wipes scratch.
+
+#### N07 — FIORD app config: Insta360 dual-fisheye training knobs (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `configs/apps/fiord.yaml` lines 17–38. **Apache-2.0** (3DGRUT-derived, with Amazon modifications).
+- **Stage:** 3
+
+```yaml
+# FIORD: Insta360 dual 200-degree fisheye, COLMAP OPENCV_FISHEYE, images_4/.
+defaults:
+  - /base_gs
+  - /dataset: colmap
+  - /initialization: colmap
+  - /render: 3dgut
+  - _self_
+  - /geometry: null  # + Geometry Objective: geometry=sof
+
+seed_initialization: 1234
+dataset:
+  downsample_factor: 4
+  camera_sampler_seed: 771234
+  camera_domains: [fiord.json]  # measured lens apertures
+post_processing:
+  # Wide-Angle Appearance Modeling: PPISP with 50 radial knots and a 50x50 flat-field grid per camera.
+  radial_attenuation_knots: 50
+  flatfield_grid: 50
+render:
+  # Test renders: numpy.rint PNG quantization and rgb * (W_r * W_ff), see configs/render/3dgut.yaml.
+  png_rounding: half_even
+  wa_order: product
+```
+
+**Notice to keep:** `# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.` / `# SPDX-FileCopyrightText: Modifications Copyright Amazon.com, Inc. or its affiliates.` / `# SPDX-License-Identifier: Apache-2.0`
+
+**Adaptation notes**
+- Copy this to `configs/apps/cliffhouse.yaml` with `camera_domains: [<N01 output>]` and our `downsample_factor`. The 50-knot radial and 50×50 flat-field appearance model handles lens falloff, so keep it on for both lenses.
+- `load_exif: true` (in `configs/dataset/colmap.yaml`) expects EXIF exposure in each frame. Frames extracted from `.insv` with ffmpeg have no EXIF, so set it to `false` or write exposure into the frames.
+
+#### N08 — DirectFisheye-GS training with cross-view joint optimization (DirectFisheye-GS)
+- **Source:** Metaverse-AI-Lab-THU/DirectFisheye-GS @ db9b3a25bff7, `README.md` lines 147–161, and `submodules/diff-gaussian-rasterization/cuda_rasterizer/auxiliary.h` line 194. Inria Gaussian-Splatting License.
+- **Stage:** 3
+
+```bash
+python train.py \
+  -s /path/to/scene \
+  -m output/scene_name
+# [...]
+python train.py \
+  -s /path/to/scene \
+  -m output/scene_name \
+  --eval
+```
+```cpp
+	if (p_view.z <= 0.2f)
+```
+
+**Notice to keep:** `# DirectFisheye-GS (Metaverse-AI-Lab-THU/DirectFisheye-GS@db9b3a2) — Gaussian-Splatting License, non-commercial research and evaluation use only.`
+
+**Adaptation notes**
+- Keep the default `--bs 2`. README line 161 says `--bs 1` falls back to single-view training and does not reproduce CVO. By default, the loader resizes large images toward about 1.6k.
+- The `z <= 0.2` cull means content beyond 90° off-axis is never rendered. Mask each lens to its 180° circle, or prefer GOFish for the full >180° FoV. Treat this trainer as the baseline.
+- Environment: Python 3.12.11, torch 2.8.0+cu126 (`environment.yml`). The rasterizer is a vendored `pip install` of `submodules/diff-gaussian-rasterization` and `simple-knn`.
+
+#### N09 — COLMAP covisibility from shared 3D points (DirectFisheye-GS)
+- **Source:** Metaverse-AI-Lab-THU/DirectFisheye-GS @ db9b3a25bff7, `utils/find_camera_groups.py` lines 119–130. Inria Gaussian-Splatting License.
+- **Stage:** 3 (view grouping), also stage 1 (dropping redundant frames after a first SfM pass)
+
+```python
+        point_to_images = defaultdict(list)
+        for idx, image_name in enumerate(image_names):
+            for point_id in images[image_name]["point3D_ids"]:
+                point_to_images[point_id].append(idx)
+
+        covisibility = defaultdict(int)
+        for _, img_indices in tqdm(point_to_images.items(), desc="Building covisibility matrix"):
+            for i in range(len(img_indices)):
+                for j in range(i + 1, len(img_indices)):
+                    idx_i, idx_j = img_indices[i], img_indices[j]
+                    covisibility[(idx_i, idx_j)] += 1
+                    covisibility[(idx_j, idx_i)] += 1
+```
+
+**Notice to keep:** `# Adapted from Metaverse-AI-Lab-THU/DirectFisheye-GS@db9b3a2 utils/find_camera_groups.py — Gaussian-Splatting License (non-commercial research use).`
+
+**Adaptation notes**
+- `images[name]["point3D_ids"]` comes from pycolmap. Store the pair counts as a Pixeltable table `(img_a, img_b, shared_points)`. Frame selection and lens-pairing checks can then read it.
+- Cross-lens covisibility (an `l0_*` frame with an `l1_*` frame at the same timestamp) should be near zero for back-to-back lenses. A high count signals a lens mix-up.
+
+#### N10 — Panorama AABB from camera baseline × disparity factor (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `utils/large_utils.py` lines 240, 245–252 and 293–304. CC BY-NC-SA 4.0.
+- **Stage:** 3 (partitioning or cropping a large exterior+interior scene)
+
+```python
+def _median_nearest_neighbor_distance(centers_np: np.ndarray) -> float:
+# [...]
+    n = centers_np.shape[0]
+    if n < 2:
+        return 0.0
+    pts = torch.from_numpy(centers_np.astype(np.float32))
+    d = torch.cdist(pts, pts)
+    d.fill_diagonal_(float("inf"))
+    nn = d.min(dim=1).values.cpu().numpy()
+    return float(np.median(nn))
+# [...]
+    cc = np.stack(centers, axis=0).astype(np.float64)
+
+    center = cc.mean(axis=0)
+    deviations = np.abs(cc - center)
+    radius = np.percentile(deviations, p_radius, axis=0)
+
+    baseline = _median_nearest_neighbor_distance(cc)
+    margin_meters = baseline * disparity_factor
+    pad = np.full(3, margin_meters, dtype=np.float64)
+
+    lo = center - radius - pad
+    hi = center + radius + pad
+```
+
+**Notice to keep:** `# Adapted from Insta360-Research-Team/GGPS@b30b236 utils/large_utils.py — CC BY-NC-SA 4.0. Changes: <list>. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- Replace the `loadCam_woImage` loop (lines 289–292) with camera centres read from pycolmap, so that `cc` is an `(N, 3)` array. The rest is plain numpy and torch.
+- GGPS's own configs use `aabb_pano_disparity_factor: 30` (the function default is 15). The margin is `baseline * factor` in scene units. Until stage 5/6 fixes metric scale, it is relative to the SfM scale.
+- The same AABB serves as the crop box for mesh extraction (stage 7) and LiDAR registration (stage 6).
+
+#### N11 — GGPS six-stage coarse → partition → block → merge sequence and partition keys (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `README.md` lines 232–237, and `config_360/self_captured/nsk_c4.yaml` lines 8–27. CC BY-NC-SA 4.0.
+- **Stage:** 3
+
+```text
+| 1 | `python train_large.py --config config_360/<scene>.yaml` | Coarse training (30K iterations) |
+| 2 | `python data_partition.py --config config_360/<scene>_c4.yaml` | Data partitioning |
+| 3 | `python train_large.py --config config_360/<scene>_c4.yaml --block_id N` | Per-block fine-tuning |
+| 4 | `python merge.py --config config_360/<scene>_c4.yaml` | Merge |
+| 5 | `python render_large.py --config config_360/<scene>_c4.yaml --skip_train` | Render |
+| 6 | `python metrics_large.py -m output/<scene>_c4 -t test` | Evaluate |
+```
+```yaml
+    partition_name: "nsk_c4",
+    pretrain_path: "output/nsk_coarse/point_cloud/iteration_30000",
+    model_path: "",
+    images: "imgs",
+    alpha_masks: "",
+    use_alpha_masks: False,
+    use_sky_masks: False,
+    use_depth: False,
+    block_dim: [2, 1, 1],
+    partition_mode: "gradient",
+    grad_ratio_threshold: 0.8,
+    ssim_threshold: 0.08,
+    resolution: 1,
+    white_background: False,
+    data_device: "cpu",
+    eval: True,
+    skybox_num: 0,
+    skybox_locked: True,
+    default_camera_type: 3,
+    aabb_autofit_mode: "cameras_pano",
+```
+
+**Notice to keep:** `# From Insta360-Research-Team/GGPS@b30b236 (README.md, config_360/self_captured/nsk_c4.yaml) — CC BY-NC-SA 4.0. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- GGPS is ERP-only (`default_camera_type: 3`), and its rasterizer is GPL-3.0. It applies only if we stitch the two fisheyes into equirectangular frames. Use it for the large exterior/courtyard pass, where partitioning pays off.
+- Run each row as a separate C07 call in a GGPS pixi environment (Python 3.9, numpy 1.26.2). Each block's `point_cloud.ply` is the resume marker, so sync it to the HF bucket after each block to survive the 12 h session limit.
+- `use_depth: True` requires N13 to run first (see N13).
+
+#### N12 — Latitude-weighted SSIM for ERP images (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `utils/loss_utils.py` lines 76 and 100–107. CC BY-NC-SA 4.0. The file also carries the Inria header.
+- **Stage:** 3 (loss), and evaluation of ERP renders
+
+```python
+def ssim_erp_weighted(img1, img2, window_size=11):
+# [...]
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
+               ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+
+    H = ssim_map.shape[-2]
+    phi = pi * (0.5 - torch.arange(H, device=ssim_map.device).float() / H)
+    shape = [1] * (ssim_map.dim() - 2) + [H, 1]
+    w = torch.cos(phi).view(*shape)
+    return (ssim_map * w).sum() / w.expand_as(ssim_map).sum()
+```
+
+**Notice to keep:** `# Copyright (C) 2023, Inria, GRAPHDECO research group. Free for non-commercial, research and evaluation use under the Gaussian-Splatting License.` / `# Modified by Insta360-Research-Team/GGPS@b30b236 utils/loss_utils.py — CC BY-NC-SA 4.0. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- Use it as an evaluation metric when comparing ERP renders of GOFish and GGPS. Plain SSIM over-weights the poles of an equirectangular image.
+
+---
+
+### Stage 5 — Depth, normals and metric scale
+
+#### N13 — Per-frame scale/offset that aligns mono inverse depth to SfM, with ERP radial depth (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `tools/make_depth_scale.py` lines 97–105 and 133–143. CC BY-NC-SA 4.0.
+- **Stage:** 5
+
+```python
+    pts = points3d_ordered[pts_idx]
+    R = qvec2rotmat(image_meta.qvec)
+    pts_cam = np.dot(pts, R.T) + image_meta.tvec
+    if camera_type == 3:
+        # ERP/LonLat: rasterizer uses radial distance r = sqrt(x²+y²+z²)
+        r = np.sqrt(np.sum(pts_cam ** 2, axis=-1))
+        inv_colmap = 1.0 / np.clip(r, 1e-8, None)
+    else:
+        inv_colmap = 1.0 / np.clip(pts_cam[..., 2], 1e-8, None)
+# [...]
+    t_colmap = np.median(inv_colmap)
+    s_colmap = np.mean(np.abs(inv_colmap - t_colmap))
+    t_mono = np.median(inv_mono)
+    s_mono = np.mean(np.abs(inv_mono - t_mono))
+    if s_mono <= 1e-8:
+        scale, offset = 0.0, 0.0
+    else:
+        scale = float(s_colmap / s_mono)
+        offset = float(t_colmap - t_mono * scale)
+
+    return {"image_name": os.path.splitext(image_meta.name)[0], "scale": scale, "offset": offset}
+```
+
+**Notice to keep:** `# Adapted from Insta360-Research-Team/GGPS@b30b236 tools/make_depth_scale.py — CC BY-NC-SA 4.0. Changes: <list>. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- The robust fit (median for offset, mean absolute deviation for scale) is independent of camera model. For our fisheye frames, use the `camera_type == 3` radial branch (r = ‖p_cam‖), not z-depth, because fisheye depth is radial.
+- Run it as a Pixeltable computed column over the frame view. Its inputs are the frame's COLMAP points and the 16-bit inverse-depth PNG, and its output is the `{scale, offset}` struct. GGPS flags frames whose scale is outside 0.2×–5× the median (lines 190–193).
+- This aligns depth to the SfM scale, not to metres. Metric scale still comes from stage 6 (LiDAR) or a marker (C15).
+
+#### N14 — Depth + sky mask → 16-bit inverse-depth PNG and 8-bit sky PNG (GGPS) [SA]
+- **Source:** Insta360-Research-Team/GGPS @ b30b236c6657, `tools/generate_depth_and_skymask.py` lines 75–91 and 185–186. CC BY-NC-SA 4.0.
+- **Stage:** 4 (sky mask) and 5 (depth file format)
+
+```python
+def depth_to_invdepth_u16(depth: np.ndarray, sky_mask: np.ndarray) -> np.ndarray:
+    """将 metric depth 转为 16-bit 逆深度 PNG。
+
+    invdepth = 1/depth（天空=0），归一化到 [0, 65535]。
+    """
+    eps = 1e-6
+    invdepth = np.zeros_like(depth, dtype=np.float32)
+    fg = ~sky_mask & (depth > eps)
+    invdepth[fg] = 1.0 / depth[fg]
+
+    max_val = invdepth.max()
+    if max_val > 0:
+        invdepth_norm = invdepth / max_val
+    else:
+        invdepth_norm = invdepth
+
+    return (invdepth_norm * 65535).astype(np.uint16), max_val
+# [...]
+        sky_png = np.where(sky_mask, 0, 255).astype(np.uint8)
+        cv2.imwrite(sky_out, sky_png)
+```
+
+**Notice to keep:** `# Adapted from Insta360-Research-Team/GGPS@b30b236 tools/generate_depth_and_skymask.py — CC BY-NC-SA 4.0. This cell is licensed CC BY-NC-SA 4.0.`
+
+**Adaptation notes**
+- The depth model GGPS uses (DAP, loaded from a local checkout) is not vendored here, and its license was not checked. Keep only this encoding step and feed it any depth/sky model whose license we have confirmed.
+- Normalizing per frame to the frame's max inverse depth throws away cross-frame scale. That is fine only because N13 re-fits scale and offset per frame. Store `max_val` in Pixeltable anyway.
+
+#### N15 — PGSR multi-view geometry neighbour defaults (PGSR) [SA]
+- **Source:** zju3dv/PGSR @ de24f1a38b35, `arguments/__init__.py` lines 59–62, and `scripts/run_tnt.py` line 16. PGSR license, with the Inria header.
+- **Stage:** 5 (planar depth/normal training on undistorted pinhole crops)
+
+```python
+        self.multi_view_num = 8
+        self.multi_view_max_angle = 30
+        self.multi_view_min_dis = 0.01
+        self.multi_view_max_dis = 1.5
+# [...]
+    common_args = f"--quiet -r2 --ncc_scale 0.5 --data_device {data_devices[id]} --densify_abs_grad_threshold 0.00015 --opacity_cull_threshold 0.05 --exposure_compensation"
+```
+
+**Notice to keep:** `// Copyright 2023-2024 3D Vision Group at the State Key Lab of CAD&CG, Zhejiang University. All Rights Reserved. Educational, research and non-profit use only; modifications must be open-source and non-commercial. (zju3dv/PGSR@de24f1a)` and the Inria Gaussian-Splatting notice.
+
+**Adaptation notes**
+- `multi_view_max_dis` (1.5) and `multi_view_min_dis` are in scene units. Rescale them once the model is metric, because the lodge spans tens of metres.
+- PGSR accepts only `PINHOLE`/`SIMPLE_PINHOLE`. Feed it the `colmap image_undistorter` output of the fisheye model (C05), and set `--max_abs_split_points 0` for low-texture plaster walls (README advice).
+
+---
+
+### Stage 6 — LiDAR registration and geometry evaluation
+
+#### N16 — Sample an aligned mesh and get nearest distances to a LiDAR cloud (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `gofish/eval/fiord/observed_gt.py` lines 177–200. CC BY-NC 4.0.
+- **Stage:** 6 (check registration of the phone LiDAR PLY against our mesh), and 7
+
+```python
+def nearest_distances(source: np.ndarray, target: np.ndarray) -> np.ndarray:
+    from scipy.spatial import cKDTree
+
+    distances, _ = cKDTree(np.asarray(target, np.float64)).query(np.asarray(source, np.float64), k=1, workers=-1)
+    return np.asarray(distances, dtype=np.float64)
+
+
+def sample_mesh(mesh_path: str | Path, transform: np.ndarray, count: int = NUM_MESH_SAMPLES,
+                seed: int = SEED) -> np.ndarray:
+    """Uniform area samples of the mesh after alignment to the GT frame."""
+    import open3d as o3d
+
+    mesh = o3d.io.read_triangle_mesh(str(mesh_path))
+    mesh.remove_duplicated_vertices()
+    mesh.remove_degenerate_triangles()
+    transformed = o3d.geometry.TriangleMesh(mesh)
+    transformed.transform(transform)
+    try:
+        cloud = transformed.sample_points_uniformly(number_of_points=count, seed=seed)
+    except TypeError:
+        # Open3D 0.19 has no ``seed`` argument here; seed its global generator instead.
+        o3d.utility.random.seed(seed)
+        cloud = transformed.sample_points_uniformly(number_of_points=count)
+    return np.asarray(cloud.points, dtype=np.float64)
+```
+
+**Notice to keep:** `# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.` / `# SPDX-License-Identifier: CC-BY-NC-4.0` / `# From tuallen/GOFish@1a33e7a gofish/eval/fiord/observed_gt.py`
+
+**Adaptation notes**
+- `transform` is the 4×4 mesh→LiDAR matrix. GOFish stores it as `{"transform_mesh_to_gt": [[...]]}` per scene (`gofish/eval/fiord/alignments/*.json`), and we can store ours the same way. Our ICP (written from Open3D's docs, as in the earlier gap note) produces the matrix; this cell scores it.
+- Our LiDAR is PLY, so load it with `load_points` (same file, lines 126–137), which reads `.npy`/`.npz` and otherwise uses Open3D. Constants: `NUM_MESH_SAMPLES = 400_000`, `SEED = 0`.
+
+#### N17 — Precision / recall / F-score at fixed metric thresholds (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `gofish/eval/fiord/observed_gt.py` lines 27 and 203–210, and `gofish/eval/fiord/mesh_metrics.py` lines 50–52. CC BY-NC 4.0.
+- **Stage:** 6 and 7 (mesh accuracy against LiDAR, in metres)
+
+```python
+THRESHOLDS_M = (0.05, 0.10, 0.25, 0.30)
+# [...]
+def prf(d_pred_to_gt: np.ndarray, recall: dict[int, float]) -> dict:
+    out = {}
+    for threshold in THRESHOLDS_M:
+        cm = int(round(threshold * 100))
+        precision = float(np.mean(d_pred_to_gt < threshold)) if len(d_pred_to_gt) else 0.0
+        out[f"P{cm}"], out[f"R{cm}"] = precision, recall[cm]
+        out[f"F{cm}"] = 2 * precision * recall[cm] / (precision + recall[cm]) if precision + recall[cm] else 0.0
+    return out
+# [...]
+    d_pred_to_gt = O.nearest_distances(pred, gt)
+    d_gt_to_pred = O.nearest_distances(gt, pred)
+    recall = {int(round(t * 100)): float(np.mean(d_gt_to_pred < t)) for t in O.THRESHOLDS_M}
+```
+
+**Notice to keep:** `# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.` / `# SPDX-License-Identifier: CC-BY-NC-4.0` / `# From tuallen/GOFish@1a33e7a gofish/eval/fiord/{observed_gt,mesh_metrics}.py`
+
+**Adaptation notes**
+- The thresholds are metres (5, 10, 25 and 30 cm). They mean something only after the mesh is in the LiDAR's metric frame, so report "n/a" for unconstrained (non-metric) parts.
+- Phone LiDAR covers only part of the lodge. Restrict precision to samples inside the LiDAR cloud's bounding box, as GOFish's `C` crop does (`mesh_metrics.py` lines 54–56), and log both numbers to Pixeltable.
+
+---
+
+### Stage 7 — Mesh extraction and export
+
+#### N18 — Build GOF's tetra-triangulation extension against current torch wheels (GOFish)
+- **Source:** tuallen/GOFish @ 1a33e7a9ff73, `README.md` lines 49–56. CC BY-NC 4.0.
+- **Stage:** 7 (prerequisite for `mesh.py`)
+
+```bash
+sudo apt install cmake libgmp-dev libcgal-dev
+git clone https://github.com/autonomousvision/gaussian-opacity-fields ../gaussian-opacity-fields
+git -C ../gaussian-opacity-fields checkout 5245b20e5d11acd6d1ff5af4b890dc2bedd99693
+cd ../gaussian-opacity-fields/submodules/tetra-triangulation
+sed -i 's/_GLIBCXX_USE_CXX11_ABI=0/_GLIBCXX_USE_CXX11_ABI=1/' cmake/FindTorch.cmake   # ABI of current torch wheels
+export CPATH=/usr/local/cuda/include   # CUDA headers for the extension's C++ sources
+cmake -DCMAKE_PREFIX_PATH="$(python -c 'import torch; print(torch.utils.cmake_prefix_path)')" . && make
+pip install -e . && cd -
+```
+
+**Notice to keep:** `# Build steps from tuallen/GOFish@1a33e7a README.md — CC BY-NC 4.0; gaussian-opacity-fields is under the Gaussian-Splatting License.`
+
+**Adaptation notes**
+- molab has no `sudo apt`. Get `cmake`, `gmp` and `cgal-cpp` from pixi (conda-forge), and point `CPATH` at the pixi CUDA toolkit's `include`, not `/usr/local/cuda`.
+- The `_GLIBCXX_USE_CXX11_ABI=1` sed is the non-obvious fix: current torch wheels use the new ABI. Run it once per session and cache the built wheel in the HF bucket, so later sessions skip the compile.
+
+#### N19 — MILo train + mesh: quick, dense, and appearance-robust variants (MILo)
+- **Source:** Anttwo/MILo @ 0c38aa65f8b7, `README.md` lines 70–74, 81–85, 258 and 263. Inria Gaussian-Splatting License.
+- **Stage:** 7 (and 3)
+
+```bash
+# Training for an outdoor scene
+python train.py -s ./data/Ignatius -m ./output/Ignatius --imp_metric outdoor --rasterizer radegs
+
+# Saves mesh as PLY with vertex colors after training
+python mesh_extract_sdf.py -s ./data/Ignatius -m ./output/Ignatius --rasterizer radegs
+# Training with dense gaussians and better appearance model
+python train.py -s ./data/Ignatius -m ./output/Ignatius --imp_metric outdoor --rasterizer radegs --dense_gaussians --decoupled_appearance
+
+# Saves mesh as PLY with vertex colors after training
+python mesh_extract_sdf.py -s ./data/Ignatius -m ./output/Ignatius --rasterizer radegs
+# [...]
+python train.py -s <PATH TO COLMAP DATASET> -m <OUTPUT_DIR> --imp_metric outdoor --rasterizer radegs --dense_gaussians --mesh_config highres --data_device cpu
+python train.py -s <PATH TO COLMAP DATASET> -m <OUTPUT_DIR> --imp_metric indoor --rasterizer radegs --dense_gaussians --mesh_config veryhighres --decoupled_appearance --log_interval 200 --data_device cpu
+```
+
+**Notice to keep:** `# MILo commands from Anttwo/MILo@0c38aa6 README.md — Gaussian-Splatting License (Inria/MPII), non-commercial research and evaluation use only.`
+
+**Adaptation notes**
+- MILo assumes pinhole input. Run it on the `image_undistorter` output of the fisheye model, use `--imp_metric outdoor` for exterior/courtyard captures and `indoor` for interiors, and keep `--decoupled_appearance` for the exposure swings between rooms.
+- `mesh_extract_sdf.py` must use the same mesh config as training (README line 302 WARNING). Training takes it as `--mesh_config <name>`, extraction as `--config <name>`. Carry it as one value through both subprocess calls.
+- Environment: torch 2.3.1 on CUDA 11.8 (12.1 untested; `install.py` line 14). This conflicts with the torch 2.8 trainers, so MILo needs its own pixi environment.
+
+#### N20 — MILo differentiable Gaussians-to-mesh API (MILo)
+- **Source:** Anttwo/MILo @ 0c38aa65f8b7, `README.md` lines 423–431, 447–452 and 458–465. Inria Gaussian-Splatting License.
+- **Stage:** 7 (extracting a mesh from any 3DGS-style Gaussians, for example GOFish's)
+
+```python
+surface_gaussians_idx = sample_gaussians_on_surface(
+    views=train_cameras,
+    means=means,
+    scales=scales,
+    rotations=rotations,
+    opacities=opacities,
+    n_max_samples=600_000,
+    scene_type='indoor',
+)
+# [...]
+delaunay_tets = compute_delaunay_triangulation(
+    means=means,
+    scales=scales,
+    rotations=rotations,
+    gaussian_idx=surface_gaussians_idx,
+)
+# [...]
+mesh = extract_mesh(
+    delaunay_tets=delaunay_tets,
+    pivots_sdf=initial_pivots_sdf,
+    means=means,
+    scales=scales,
+    rotations=rotations,
+    gaussian_idx=surface_gaussians_idx,
+)
+```
+
+**Notice to keep:** `# From Anttwo/MILo@0c38aa6 README.md (milo.functional) — Gaussian-Splatting License, non-commercial research and evaluation use only.`
+
+**Adaptation notes**
+- `initial_pivots_sdf` comes from `compute_initial_sdf_values(...)` (README lines 436–443). It needs a `render_func(view) -> {"render", "depth"}` and 3DGS-style `Camera`s. Those are pinhole, so render perspective crops from the fisheye-trained splat to supply them.
+- Delaunay triangulation is slow. Run it once per checkpoint as its own cell, and persist `delaunay_tets` to scratch and HF.
+
+#### N21 — Depth-normal grazing-angle filter + Open3D scalable TSDF fusion (PGSR) [SA]
+- **Source:** zju3dv/PGSR @ de24f1a38b35, `render.py` lines 105–112, 125–135 and 149–152. PGSR license, with the Inria header.
+- **Stage:** 7
+
+```python
+        if use_depth_filter:
+            view_dir = torch.nn.functional.normalize(view.get_rays(), p=2, dim=-1)
+            depth_normal = out["depth_normal"].permute(1,2,0)
+            depth_normal = torch.nn.functional.normalize(depth_normal, p=2, dim=-1)
+            dot = torch.sum(view_dir*depth_normal, dim=-1).abs()
+            angle = torch.acos(dot)
+            mask = angle > (80.0 / 180 * 3.14159)
+            depth_tsdf[mask] = 0
+# [...]
+            pose = np.identity(4)
+            pose[:3,:3] = view.R.transpose(-1,-2)
+            pose[:3, 3] = view.T
+            color = o3d.io.read_image(os.path.join(render_path, view.image_name + ".jpg"))
+            depth = o3d.geometry.Image((ref_depth*1000).astype(np.uint16))
+            rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+                color, depth, depth_scale=1000.0, depth_trunc=max_depth, convert_rgb_to_intensity=False)
+            volume.integrate(
+                rgbd,
+                o3d.camera.PinholeCameraIntrinsic(W, H, view.Fx, view.Fy, view.Cx, view.Cy),
+                pose)
+# [...]
+        volume = o3d.pipelines.integration.ScalableTSDFVolume(
+            voxel_length=voxel_size,
+            sdf_trunc=4.0*voxel_size,
+            color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8)
+```
+
+**Notice to keep:** `// Copyright 2023-2024 3D Vision Group at the State Key Lab of CAD&CG, Zhejiang University. All Rights Reserved. Educational, research and non-profit use only; modifications must be open-source and non-commercial. (zju3dv/PGSR@de24f1a render.py)` / `# Copyright (C) 2023, Inria, GRAPHDECO research group — Gaussian-Splatting License.`
+
+**Adaptation notes**
+- The 80° grazing-angle cull removes depth that is unreliable on walls seen edge-on. That case is common in narrow lodge corridors, so keep it.
+- `PinholeCameraIntrinsic` takes pinhole depth only. Fuse perspective re-renders, never raw fisheye depth. Set `voxel_size` and `max_depth` in metres after stage 6 (README default `--max_depth 10.0 --voxel_size 0.01`).
+- Fold the stage 4 person masks into `view.mask` before fusion (the code zeroes masked depth at lines 120–121), so that walkers do not leave blobs in the mesh.
+
+#### N22 — Keep the largest connected mesh clusters (PGSR) [SA]
+- **Source:** zju3dv/PGSR @ de24f1a38b35, `render.py` lines 42–63. PGSR license, with the Inria header.
+- **Stage:** 7 (clean-up before export)
+
+```python
+def post_process_mesh(mesh, cluster_to_keep=1):
+    """
+    Post-process a mesh to filter out floaters and disconnected parts
+    """
+    import copy
+    print("post processing the mesh to have {} clusterscluster_to_kep".format(cluster_to_keep))
+    mesh_0 = copy.deepcopy(mesh)
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+            triangle_clusters, cluster_n_triangles, cluster_area = (mesh_0.cluster_connected_triangles())
+
+    triangle_clusters = np.asarray(triangle_clusters)
+    cluster_n_triangles = np.asarray(cluster_n_triangles)
+    cluster_area = np.asarray(cluster_area)
+    n_cluster = np.sort(cluster_n_triangles.copy())[-cluster_to_keep]
+    n_cluster = max(n_cluster, 50) # filter meshes smaller than 50
+    triangles_to_remove = cluster_n_triangles[triangle_clusters] < n_cluster
+    mesh_0.remove_triangles_by_mask(triangles_to_remove)
+    mesh_0.remove_unreferenced_vertices()
+    mesh_0.remove_degenerate_triangles()
+    print("num vertices raw {}".format(len(mesh.vertices)))
+    print("num vertices post {}".format(len(mesh_0.vertices)))
+    return mesh_0
+```
+
+**Notice to keep:** same two notices as N21.
+
+**Adaptation notes**
+- Pure Open3D, so it runs in the notebook kernel. For a lodge with separate interior rooms, raise `cluster_to_keep` above 1, or the largest room wins and the others are deleted. Make it a slider value.
+- Log `num vertices raw` and `num vertices post` as Pixeltable columns instead of prints.
+
+---
+
+### What is still missing after this pass
+
+- **`.insv` demux and per-lens frame extraction (stage 1):** none of the five repos handles it. This is still our own ffmpeg cell.
+- **HF I/O (stage 8):** none of the five repos touches Hugging Face, apart from GOFish and GGPS linking to their own HF dataset pages. Nothing to adopt.
+- **Person and transient masks (stage 4):** only GGPS's sky mask (N14). None of the five repos masks people.
+- **LiDAR-to-SfM registration fitting (stage 6):** GOFish ships fixed per-scene alignment matrices and only *scores* them (N16, N17). The ICP fit itself is still written from Open3D's documentation.
