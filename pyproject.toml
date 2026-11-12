@@ -125,8 +125,37 @@ cuda-cudart = "*"
 libstdcxx = ">=14"
 libgomp = ">=14"
 
+# SAM 3 people masks (`cliff_house.masks`), run on the Apple-silicon MacBook's GPU through PyTorch MPS (owner direction,
+# 2026-11-12). Its own environment (SPEC §7.4: research models do not share the default env's solve). Meta's own
+# `sam3` package requires CUDA, so the model runs through the Transformers port (Sam3VideoModel), which supports MPS.
+# The cliff_house package is not installed here (its dependency list is the whole workbench); the `masks` task puts
+# `src/` on the path instead.
+[tool.pixi.feature.sam3]
+platforms = ["osx-arm64-macos14"]
+
+[tool.pixi.feature.sam3.dependencies]
+python = "3.12.*"
+ffmpeg = ">=7"
+numpy = ">=2.0"
+polars = ">=1.30"
+pillow = ">=11.0"
+scipy = ">=1.14"
+pytest = ">=8.3"
+# torch from conda-forge, not PyPI: the PyPI wheel bundles a second libomp beside conda-forge's llvm-openmp and the
+# process aborts (OMP Error #15). conda-forge's osx-arm64 builds include the MPS backend.
+pytorch = ">=2.9"
+torchvision = ">=0.24"
+
+[tool.pixi.feature.sam3.pypi-dependencies]
+transformers = ">=5.0"
+huggingface-hub = ">=1.0"
+
+[tool.pixi.feature.sam3.tasks]
+masks = { cmd = "python -m cliff_house.masks", env = { PYTHONPATH = "src", PYTORCH_ENABLE_MPS_FALLBACK = "1" } }
+
 [tool.pixi.environments]
 default = { features = ["dev"], solve-group = "main" }
+sam3 = { features = ["sam3"], no-default-feature = true }
 spirula-build = { features = ["spirula-build"], no-default-feature = true }
 spirula-run = { features = ["spirula-run"], no-default-feature = true }
 
