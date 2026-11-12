@@ -203,8 +203,10 @@ def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ROOT, TOOLCHAIN_FILES, WORK, fetch_v
     for _name in TOOLCHAIN_FILES:
         repo_fs.get(posixpath.join(REPO_ROOT, _name), str(repo_dir / _name), recursive=True)
 
-    subprocess.run([str(pixi), "install", "--frozen", "--manifest-path", str(repo_dir / "pyproject.toml")], check=True)
-    native_prefix = repo_dir / ".pixi" / "envs" / "default"
+    # The `native` environment: native tools only; the kernel already has the Python stack (including torch).
+    subprocess.run([str(pixi), "install", "--frozen", "-e", "native", "--manifest-path",
+                    str(repo_dir / "pyproject.toml")], check=True)
+    native_prefix = repo_dir / ".pixi" / "envs" / "native"
     mo.md(f"pixi {PIXI_VERSION} installed the locked toolchain into `{native_prefix}`")
     return native_prefix, pixi, repo_dir
 
