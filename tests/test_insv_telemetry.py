@@ -13,9 +13,9 @@ CLIP_032 = REPO / "input" / "VID_20261109_174428_032.insv"
 METRES_PER_DEGREE = 2 * math.pi * tel.EARTH_RADIUS_M / 360  # along a meridian
 
 
-def _fix(t, lat, lon, speed, acquired=True):
+def _fix(t, lat, lon, speed_kmh, acquired=True):
     return {"is_acquired": acquired, "unix_timestamp": t, "lat": lat, "lon": lon,
-            "speed": speed, "track": 0.0, "altitude": 1771.0}
+            "speed": speed_kmh, "track": 0.0, "altitude": 1771.0}
 
 
 def test_haversine_matches_meridian_arc():
@@ -42,7 +42,8 @@ def test_gps_summary_from_parser_blocks():
     assert s["gps_span_s"] == pytest.approx(10.0)
     assert s["path_length_m"] == pytest.approx(0.001 * METRES_PER_DEGREE, rel=1e-6)
     assert s["implied_mean_speed_mps"] == pytest.approx(0.001 * METRES_PER_DEGREE / 10, rel=1e-6)
-    assert s["reported_mean_speed_mps"] == pytest.approx(11.0)
+    # The parser reports km/h; the stage stores m/s.
+    assert s["reported_mean_speed_mps"] == pytest.approx(11.0 / 3.6)
     assert s["gps_first_utc"] == "2026-11-10T20:23:20+00:00"
 
 

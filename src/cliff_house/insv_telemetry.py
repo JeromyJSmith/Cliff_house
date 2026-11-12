@@ -25,7 +25,7 @@ import numpy as np
 import polars as pl
 
 STAGE = "telemetry"
-STAGE_VERSION = 1
+STAGE_VERSION = 2  # 2: GPS speed converted from the parser's km/h to m/s
 EARTH_RADIUS_M = 6_371_008.8  # IUGG mean radius
 
 GPS_SCHEMA = pl.Schema({
@@ -83,7 +83,10 @@ def gps_frame(telemetry: list[dict]) -> pl.DataFrame:
     fixes = _tags(telemetry).get("GPS/Data") or []
     rows = [{
         "time_utc": f["unix_timestamp"] * 1e6, "lat": f["lat"], "lon": f["lon"], "altitude_m": f.get("altitude"),
-        "speed_mps": f.get("speed"), "track_deg": f.get("track"), "is_acquired": f.get("is_acquired"),
+        # telemetry-parser multiplies the trailer's m/s by 3.6 (src/insta360/record.rs, RecordType::Gps; GpsData.speed
+        # "in km/h"), so divide it back to SI here.
+        "speed_mps": None if f.get("speed") is None else f["speed"] / 3.6,
+        "track_deg": f.get("track"), "is_acquired": f.get("is_acquired"),
     } for f in fixes if isinstance(f, dict) and "lat" in f and "lon" in f]
     frame = pl.DataFrame(rows, schema={**GPS_SCHEMA, "time_utc": pl.Float64})
     return frame.with_columns(pl.col("time_utc").cast(pl.Int64).cast(pl.Datetime("us", "UTC"))).sort("time_utc")
