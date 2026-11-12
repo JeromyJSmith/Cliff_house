@@ -17,6 +17,13 @@ dependencies = [
   "plyfile>=1.1",
   "laspy>=2.5",
   "jsonschema>=4.23",
+  # Tabular/spatial layer inside the notebook: Polars + polars-st geometry, DuckDB (spatial extension), GeoParquet via Arrow.
+  "polars>=1.30",
+  "polars-st>=0.11",
+  "duckdb>=1.3",
+  "pyarrow>=20",
+  "shapely>=2.1",
+  "pyproj>=3.7",
 ]
 
 [dependency-groups]
@@ -47,6 +54,11 @@ pycolmap = { version = ">=4.2", build = "cpu_gpl*" }
 openmvs = ">=2.4"
 av = "*"
 qt6-main = "*"
+# Same rule for GEOS/PROJ/Arrow: wheels would bundle second copies beside the conda libs PDAL/Open3D already load,
+# and pyproj has no usable osx-64 wheel for this Python.
+shapely = "*"
+pyproj = "*"
+pyarrow = "*"
 open3d = "*"
 pdal = "*"
 git-lfs = ">=3.8"

@@ -7,6 +7,7 @@ import pytest
 PYTHON_MODULES = [
     "numpy", "scipy", "PIL", "cv2", "pixeltable", "marimo", "huggingface_hub",
     "trimesh", "plyfile", "laspy", "jsonschema", "pycolmap", "open3d", "av",
+    "polars", "polars_st", "duckdb", "pyarrow", "shapely", "pyproj",
 ]
 
 # (command, text its output must contain) — exit codes are not uniform across these tools' help/version flags.
