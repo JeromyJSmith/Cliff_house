@@ -6,9 +6,11 @@
 #     "polars>=1.30",
 #     "duckdb>=1.3",
 #     "pyarrow>=20",
+#     "opencv-python-headless>=5.0",
 #     "huggingface-hub>=1.0",
 #     "fsspec>=2024.6",
 #     "requests>=2.32",
+#     "pyyaml>=6.0",
 # ]
 # ///
 # [LAW:one-source-of-truth] exception: molab installs only from this PEP 723 header, so it repeats a subset of
@@ -49,7 +51,7 @@ def _():
     BUCKET = HF_REPO
     PXT_DIR = f"{CLIENT}/{PROPERTY.replace('-', '_')}"
     SESSION_ID = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    return BUCKET, PXT_DIR, SESSION_ID, SOURCES_URI
+    return BUCKET, HF_REPO, PXT_DIR, SESSION_ID, SOURCES_URI
 
 
 @app.cell
@@ -160,7 +162,7 @@ def _():
     # toolchain. Tests point this at file:// on the working tree so they exercise the code under test, not main.
     repo_fs, REPO_ROOT = fsspec.core.url_to_fs(
         os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"))
-    TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src")
+    TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src", "tools")
 
     def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -201,11 +203,54 @@ def _(HOST, PIXI_BUILDS, PIXI_VERSION, REPO_ROOT, TOOLCHAIN_FILES, WORK, fetch_v
     subprocess.run([str(pixi), "install", "--frozen", "--manifest-path", str(repo_dir / "pyproject.toml")], check=True)
     native_prefix = repo_dir / ".pixi" / "envs" / "default"
     mo.md(f"pixi {PIXI_VERSION} installed the locked toolchain into `{native_prefix}`")
-    return (native_prefix,)
+    return native_prefix, pixi, repo_dir
 
 
 @app.cell
-def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, native_prefix, os, zipfile):
+def _(BUCKET, HF_STORAGE, WORK, capture, mo, pixi, repo_dir, subprocess):
+    import sys
+
+    from huggingface_hub import HfFileSystem as _HfFileSystem
+    from huggingface_hub import batch_bucket_files as _batch_bucket_files
+
+    # Spirula's release builds are Vulkan-only, and molab's NVIDIA Vulkan driver cannot create an instance
+    # (llvmpipe only). Its CUDA backend built without the GUI needs no display, GL or Vulkan, so it is compiled here
+    # once per (commit, GPU architecture, recipe) and cached in the bucket; later sessions only download it.
+    SPIRULA_COMMIT = "667e353bca3941303a4d93e93aa8ae3f2c202712"  # tag v2026.11.12
+    _caps = capture(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"])
+    cuda_archs = sorted({line.strip().replace(".", "") for line in _caps.get("output", "").splitlines()
+                         if line.strip()} if _caps.get("returncode") == 0 else set())
+    _fs = _HfFileSystem(token=HF_STORAGE["token"])
+    _manifest = str(repo_dir / "pyproject.toml")
+
+    spirula_cuda = {}
+    for _arch in cuda_archs:
+        _fp = subprocess.run(
+            [sys.executable, str(repo_dir / "tools" / "spirula_fingerprint.py"), str(repo_dir / "pixi.lock"),
+             str(repo_dir / "tools" / "build_spirula_cuda.sh"), SPIRULA_COMMIT, _arch],
+            capture_output=True, text=True, check=True).stdout.strip()
+        _remote = f"toolchain/spirula-cuda/{_fp}"
+        _local = WORK / "spirula-cuda" / _fp
+        if not _fs.exists(f"buckets/{BUCKET}/{_remote}/spirula"):
+            subprocess.run([str(pixi), "run", "--frozen", "-e", "spirula-build", "--manifest-path", _manifest,
+                            str(repo_dir / "tools" / "build_spirula_cuda.sh"), SPIRULA_COMMIT, _arch, str(_local)],
+                           check=True)
+            _batch_bucket_files(BUCKET, add=[(str(_local / n), f"{_remote}/{n}") for n in ("spirula", "BUILD_INFO")])
+        _fs.get(f"buckets/{BUCKET}/{_remote}/", str(_local) + "/", recursive=True)
+        (_local / "spirula").chmod(0o755)
+        spirula_cuda[_arch] = _local / "spirula"
+
+    # The runtime environment is Linux-only, and needed exactly where a CUDA binary exists.
+    for _env in ["spirula-run"] if spirula_cuda else []:
+        subprocess.run([str(pixi), "install", "--frozen", "-e", _env, "--manifest-path", _manifest], check=True)
+    spirula_run_prefix = repo_dir / ".pixi" / "envs" / "spirula-run"
+    mo.md(f"Spirula CUDA binaries: {', '.join(f'sm_{a}' for a in spirula_cuda) or 'none (no NVIDIA GPU on this host)'}")
+    return spirula_cuda, spirula_run_prefix
+
+
+@app.cell
+def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, native_prefix, os, spirula_cuda,
+      spirula_run_prefix, zipfile):
     import glob
 
     _native_env = os.environ | {
@@ -235,9 +280,79 @@ def _(HOST, SPIRULA_BUILDS, SPIRULA_VERSION, WORK, capture, fetch_verified, mo, 
         "colmap": capture(["colmap", "-h"], env=_native_env),
         "ffmpeg": capture(["ffmpeg", "-version"], env=_native_env),
         "spirula": {"version": SPIRULA_VERSION, **spirula_run},
+        "spirula_cuda": {f"sm_{a}": capture([str(b), "train", "--help"],
+                                            env=os.environ | {"LD_LIBRARY_PATH": str(spirula_run_prefix / "lib")})
+                         for a, b in spirula_cuda.items()},
     }
     mo.ui.table([{"check": k, "result": str(v)[:300]} for k, v in probe.items()])
     return (probe, spirula)
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## Stage 2 — frames
+
+    Every source video becomes sharpness-selected frames, one rig-consistent set per clip (`cliff_house.frames`).
+    Work is keyed by fingerprint (source SHA-256, stage code, parameters): a session downloads and processes only
+    sources whose frames are not already in the bucket, then builds the Pixeltable `frames` table from the bucket.
+    """)
+    return
+
+
+@app.cell
+def _(BUCKET, HF_REPO, HF_STORAGE, PXT_DIR, WORK, manifest, mo, native_prefix, os, pl, repo_dir, shutil):
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    import pixeltable as _pxt
+    from huggingface_hub import HfFileSystem as _HfFS
+    from huggingface_hub import hf_hub_download as _download
+    from huggingface_hub import sync_bucket as _sync_bucket
+
+    _sys.path.insert(0, str(repo_dir / "src"))
+    from cliff_house import frames as frames_stage
+
+    FRAME_PARAMS = frames_stage.Params()
+    # Tests narrow the run to named clips so it stays small; a normal session processes every source video.
+    _only = [c for c in os.environ.get("CLIFF_HOUSE_FRAME_CLIPS", "").split(",") if c]
+    videos = (manifest
+              .filter(pl.col("capture_time_utc").is_not_null() & pl.col("path").str.contains("/source/video/"))
+              .with_columns(clip=pl.col("path").str.extract(r"([^/]+)\.[^.]+$"))
+              .filter(pl.lit(not _only) | pl.col("clip").is_in(_only))
+              .with_columns(fingerprint=pl.col("sha256").map_elements(
+                  lambda sha: frames_stage.fingerprint(sha, FRAME_PARAMS), return_dtype=pl.String)))
+    _fs = _HfFS(token=HF_STORAGE["token"])
+    _remote = lambda row: f"stages/frames/{row['fingerprint']}/{row['clip']}"
+    missing = [r for r in videos.iter_rows(named=True)
+               if not _fs.exists(f"buckets/{BUCKET}/{_remote(r)}/frames.parquet")]
+
+    for _row in missing:
+        _src_path = _Path(_download(HF_REPO, _row["path"], repo_type="dataset", token=HF_STORAGE["token"],
+                                    local_dir=WORK / "sources"))
+        _source = frames_stage.probe(_src_path, _row["sha256"], ffprobe=str(native_prefix / "bin" / "ffprobe"))
+        _out = WORK / "frames" / _remote(_row)
+        shutil.rmtree(_out, ignore_errors=True)
+        frames_stage.extract(_source, FRAME_PARAMS, _out, ffmpeg=str(native_prefix / "bin" / "ffmpeg"))
+        _sync_bucket(str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
+        _src_path.unlink()
+
+    def _read(row):
+        with _fs.open(f"buckets/{BUCKET}/{_remote(row)}/frames.parquet", "rb") as f:
+            return pl.read_parquet(f).with_columns(
+                clip=pl.lit(row["clip"]), fingerprint=pl.lit(row["fingerprint"]),
+                file=pl.lit(f"{_remote(row)}/") + pl.col("file"))
+    frame_rows = pl.concat([_read(r) for r in videos.iter_rows(named=True)])
+
+    frames = _pxt.create_table(
+        f"{PXT_DIR}/frames",
+        {"clip": _pxt.String, "fingerprint": _pxt.String, "camera": _pxt.String, "frame": _pxt.Int,
+         "candidate": _pxt.Int, "t_ms": _pxt.Int, "sharpness": _pxt.Float, "file": _pxt.String},
+        primary_key=["clip", "camera", "frame"], if_exists="replace")
+    frames.insert(frame_rows.to_dicts())
+    mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
+          f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
+    return FRAME_PARAMS, frame_rows, frames, frames_stage, videos
 
 
 @app.cell

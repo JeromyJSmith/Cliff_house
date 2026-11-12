@@ -40,3 +40,9 @@ def test_native_tool_runs(command, marker, tmp_path):
     # OpenMVS writes a log into its working directory even for --help.
     result = subprocess.run(command, capture_output=True, text=True, cwd=tmp_path)
     assert marker in result.stdout + result.stderr, (command, result.returncode, result.stderr[-2000:])
+
+
+def test_opencv_is_version_5():
+    import cv2
+
+    assert int(cv2.__version__.split(".")[0]) == 5, cv2.__version__
