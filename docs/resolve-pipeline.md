@@ -372,3 +372,73 @@ bucket (waits for approval), and any of the §6.3 passes.
 | G6 | "Render Magic Mask in place as an external matte" | per clip | the two-render matte (§6.1); `GetClipMatteList` reads mattes made in the GUI |
 | G7 | Generate proxies or optimized media | per clip | not needed (lossless remux plays; both are disabled in the bootstrap) |
 | G8 | Dismiss a modal dialog (e.g. an unsaved project on switch) | rare | run headless (`-nogui`) for unattended jobs; save before switching |
+
+## 10. Site work in Resolve: 360 walkthrough, analysis layers, draw-on-top (2026-11-12)
+
+Owner direction: use Resolve now on the 360 video, preparing it for the point clouds and for drawing on top. Three
+passes, all `use = analysis`. None of them feeds reconstruction.
+
+### 10.1 R1: levelled equirectangular 360 masters (`cliff_house.equirect`)
+
+- **Stitch:** both fisheye lenses map to one 2:1 equirect using the camera's factory calibration (Mei model with
+  Brown distortion, `q_rig_from_cam`, from the telemetry stage's `rig.json`). This is not a stitcher's guess. The
+  measured lens0_from_lens1 rotation is 179.96°. The 71.3 mm baseline is ignored as in every single-centre stitch,
+  so close objects show parallax at the seam. The lenses are blended with a ±5° feather around the 90° boundary
+  (each lens sees 95°).
+- **Level:** per frame, from the IMU gravity vector (`gravity.parquet`, smoothed over 0.5 s). Heading follows the
+  rig. The tilt removed is recorded per frame in `frames.parquet` (median 6–10°, up to 50°).
+- **Why not Fusion's PanoMap:** it has no Mei model, so it cannot use the factory calibration exactly. The remap
+  tables run on the CPU (≈ 0.13 s/frame at 7680×3840), and decode and encode use the media engine, not the GPU.
+- **Output:** `stages/equirect/<fp>/<clip>/equirect.mov`, H.265 Main10 7680×3840 at 29.97 fps, one frame per source
+  frame, plus `frames.parquet`, `review/*.jpg` and `pass.json`.
+- **Result:** all 8 clips, 21,689 frames, frame counts exact, 13 GB, 4.7–6.4 fps. The two lenses agree in the
+  overlap (NCC 0.77 on clip 041). I checked the horizon and seam on clips 038, 042 and 035 by eye: the horizon is
+  level, verticals are vertical, and there are no seam breaks on buildings or trees. Parallax shows only on objects
+  within ~1 m, such as the operator and the lowered gear.
+- **In Resolve:** `cliff_house.resolve.immersive` imports the masters into the bin `equirect-360` and builds the
+  `site-360` timeline (7680×3840, capture order from telemetry GPS time).
+- **GUI gap (G9):** Resolve 21.2 has no scripting call for a clip's 360 projection (25 `Projection` values refused)
+  or for an immersive timeline. These are two clicks, listed in `immersive.py`.
+
+### 10.2 R2: site-analysis layers on a 3 fps sample (`cliff_house.resolve.sample` + passes)
+
+- **Sample:** every 10th source frame of each lens, as a JPEG sequence (`stages/sample/<fp>/<clip>/<lens>/`, with
+  `frames.parquet` mapping each sample to its source frame). 4,348 frames, 11 GB.
+- **Passes:** each runs on the sample in Resolve at 1920² (a per-timeline custom resolution). Each output row
+  records its source frame.
+
+  | Pass | How | Output |
+  |---|---|---|
+  | `edges_sobel` | DCTL `resolve/dctl/edges_sobel.dctl` as the node LUT: Sobel on Rec.709 luma, ×2, clamped | 8-bit grey |
+  | `vegetation_vari` | DCTL: (G−R)/(G+R−B), shown as 0.5 + 0.5·VARI | 8-bit grey |
+  | `vegetation_exg` | DCTL: 2g−r−b on chromaticity, shown as (ExG+1)/3 | 8-bit grey |
+  | `depth_map` | Fusion Depth Map, Better, map output | 16-bit grey, relative, 1 = near |
+  | `normals_relight` | Fusion Relight, Output Surface Map | 8-bit RGB surface map |
+
+- **DCTL versioning:** the DCTLs live in the repo and their bytes are in the fingerprint. The pass installs them
+  under `LUT/CliffHouse/`.
+- **Caveats:** vegetation indices are computed on display-referred values, not reflectance, so they are relative.
+  Depth is per-frame relative, not metric.
+
+R2_RESULT
+
+### 10.3 R3: draw-on-top scene (`cliff_house.resolve.usd_scene`, checked by `usd_check`)
+
+- **Input:** the poses stage solves the fisheye lenses with OPENCV_FISHEYE. USD and Fusion cameras are pinhole.
+- **Cameras:** each solved view becomes a pinhole camera with a chosen field of view. The fisheye frame is
+  undistorted to exactly that view (`rectify_map`, with the solve's own fisheye parameters).
+- **`scene.usda`:** one animated camera per lens (time code = source frame), the sparse points with colour, and the
+  camera path as a curve.
+- **`site_lines.usda` sublayer:** the owner's drawing layer, never overwritten. Lines in the solve frame (metres
+  from the factory baseline, a scale hint) render through every camera and stay locked to the footage.
+- **Fusion:** `uLoader(scene) → uRenderer(camera) → Merge` over the rectified plate. `uCamera` projection and
+  `uCatcher` can project frames onto geometry later.
+- **Verified:** USD and COLMAP projections agree to 1e-6 px on synthetic poses (tests).
+
+R3_RESULT
+
+### 10.4 Not done here
+
+- The real-data scene waits for molab's poses (stage 4).
+- Fusion has no interactive 3D polyline tool. Site lines are curves in the USD drawing layer, drawn by script from
+  CAD or a points file, or edited in a USD tool.
