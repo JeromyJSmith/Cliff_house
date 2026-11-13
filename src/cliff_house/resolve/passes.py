@@ -278,6 +278,14 @@ def run_depth_map(project, resolve, source: Source, spec: PassSpec, fp: str,
 
 # ---------------------------------------------------------------- outputs and acceptance
 
+def lens_rule(bands: dict, lens: str) -> dict:
+    """A class's acceptance for one lens: `[acceptance.<pass>.<lens>]` replaces the class-wide rule when present
+    (cam1 sees the operator only as a head at the rim, so cam0's coverage band must not apply to it)."""
+    lenses = {k: v for k, v in bands.items() if isinstance(v, dict)}
+    base = {k: v for k, v in bands.items() if not isinstance(v, dict)}
+    return lenses.get(lens, base)
+
+
 def write_outputs(frames: Iterable[np.ndarray], source: Source, spec: PassSpec, fp: str, out: Path,
                   record: dict, bands: dict) -> dict:
     """Write each frame as it comes (a clip at 3840² does not fit in memory as a list) and its statistics."""
@@ -351,7 +359,7 @@ def run(config_path: Path, pass_name: str, clip: str, lens: str) -> dict:
     else:
         frames, details = run_depth_map(project, resolve, source, spec, fp, work)
     record = {"resolve_version": resolve.GetVersionString(), "render_dir": str(work), **details}
-    meta = write_outputs(frames, source, spec, fp, out, record, cfg.acceptance.get(spec.name, {}))
+    meta = write_outputs(frames, source, spec, fp, out, record, lens_rule(cfg.acceptance.get(spec.name, {}), lens))
     meta["seconds"] = round(time.time() - started, 1)
     (out / "pass.json").write_text(json.dumps(meta, indent=2, sort_keys=True))
     resolve.GetProjectManager().SaveProject()

@@ -65,13 +65,40 @@ colorScienceMode = "davinciYRGB"
 [acceptance.mask_people]
 every_frame = true
 coverage = [0.04, 0.15]   # SPEC stage 3: the operator is ~8 % of cam0 on clip 041
+# cam1 looks up and sees the operator's head (goggles) at the top rim on every frame, so a mask is required there too;
+# cam0's coverage band does not apply. No band yet: set one from the measured clip-041 value once the owner agrees.
+[acceptance.mask_people.cam1]
+every_frame = true
 [acceptance.mask_landing_gear_tracked]
 every_frame = true
 
-# Class "landing gear" as a static per-lens mask (cliff_house.static_mask): the gear is bolted to the camera, so it
-# is one mask per lens, derived once from every clip and checked against each. It also keeps the other white rigid
+# Class "landing gear" as a static mask (cliff_house.static_mask): the gear does not move relative to the lens within
+# a clip, so it is derived once per clip and lens instead of tracked frame by frame. It also keeps the other white rigid
 # parts it finds on the rim (the lens-guard edge). Parameters default in the code; override under .params.
 [static_masks.landing_gear]
 lenses = ["cam0"]          # the downward lens sees both struts and feet on its left and right rim
 absent_lenses = ["cam1"]   # the upward lens never sees the gear: the derivation must find nothing there
 full_size = 3840
+# The gear is fixed within a clip but has two positions: folded along the left/right rim (clips 035–041) and lowered
+# into the upper left/right of the image (clip 042). So it is one mask per clip and lens (scope "clip"), checked
+# against that clip's own frames; rim_band 0.55 reaches the lowered legs.
+params = { scope = "clip", rim_band = 0.55, min_clip_fraction = 0.8 }
+
+# ---------------------------------------------------------------- SAM 3 people masks (cliff_house.people_masks)
+# Prompts are data. `people` are whole people and their parts; `carried` are things the people in this footage carry,
+# kept only where they touch a person. The operator carries a controller in one hand, a chest device, keys and a tag
+# on the belt, and a yellow strap over the shoulder (none of which SAM 3's "person" silhouette reliably includes).
+[masks]
+people = ["person", "hand"]
+carried = ["keys", "controller", "phone", "radio", "tag", "bag", "strap", "handle", "lanyard", "yellow object"]
+# Pictures of people (posters, paintings) are walls, not transients: a "person" mostly inside one of these is dropped.
+depictions = ["artwork", "painting", "picture"]
+
+# Class "aircraft body" as a static per-lens mask: the dark arc of the aircraft's body across the top rim of both
+# lenses (and on cam0 the dark arm arcs above the gear). It makes the rim boundary explicit where SAM 3 people masks
+# stop short of the operator at the rim. It is lit in bright outdoor clips and then no darker than the scene, so a
+# component must stand out in 6 of 8 clips, not all of them.
+[static_masks.aircraft_body]
+lenses = ["cam0", "cam1"]
+full_size = 3840
+params = { criterion = "dark", dark_max = 80, edge_px = 6, min_clip_fraction = 0.75 }

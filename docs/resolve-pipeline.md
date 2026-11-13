@@ -62,10 +62,24 @@ The bucket is the interface. Resolve reads the remux stage's lossless per-lens M
 
 Only the mask classes (§6.1) cross into molab's reconstruction stages:
 
-- **Paths:** people: `stages/resolve/mask_people/<fp>/<clip>/<lens>/` (per frame, `frames.parquet`, `pass.json`).
-  Landing gear: `stages/static_mask/<fp>/<lens>/mask.png` (one image for every frame of that lens, with
-  `static_mask.json`). molab reads only fingerprints whose `acceptance.ok` is true. The final ignore-mask for a
-  frame is the union of the people mask for that frame and the static mask of its lens.
+- **Paths:**
+  - **People (primary):** `stages/masks/<fp>/<clip>/<lens>/` from `cliff_house.people_masks` (SAM 3 on this Mac,
+    branch `feat/people-masks-sam3`, not yet merged): one 8-bit L PNG per **source** frame, 255 = person (and what
+    they carry), `frames.parquet` and `pass.json` with `use = reconstruction`. Prompts come from the config's
+    `[masks]` table, and the acceptance is per lens (`[acceptance.mask_people.<lens>]`). Clip-041 fingerprints in
+    progress: cam0 `a01dd0bf78e8931a`, cam1 `2da3d275e13811f0` (see `stages/masks/README.txt`).
+  - **People (cross-check):** `stages/resolve/mask_people/<fp>/<clip>/<lens>/`, same format.
+  - **Rigid aircraft parts:** `stages/static_mask/<fp>/<lens>/mask.png`, one image for every frame of that lens,
+    with `static_mask.json`, for the classes `landing_gear` and `aircraft_body`.
+  - molab reads only fingerprints whose `acceptance.ok` is true. The final ignore-mask for a frame is the union of
+    the people mask for that frame and the static masks of its lens.
+- **Conflict at `stages/masks/` (needs an owner decision).** PR #10 (`feat/masks-sam3`, merged to main) also
+  writes under `stages/masks/`, with the **opposite polarity** (0 = ignore, 255 = use). It works on the 1-fps
+  selected frames, writes `masks.parquet`, and writes no `pass.json`. The two layouts share a stage name but
+  disagree on meaning, so molab must never mix them. Options: (a) rename one stage path (e.g. PR #10's to
+  `stages/masks_sfm/`), or (b) molab reads only fingerprints with a `pass.json` whose `use = reconstruction` and
+  whose convention is 255 = masked. Recommended: (a) plus (b). A path that means two opposite things is exactly the
+  silent error this layout exists to prevent.
 - **Join:** a molab frame (clip, lens, `t_ms`) maps to the Resolve frame `round(t_ms · 30 / 1001)` at 29.97 fps.
   Both index source frames from 0, and the lens names are the remux's `cam0`/`cam1`.
 - **Convention:** 255 = subject, 0 = keep. COLMAP's mask images are the opposite (black = ignored), so molab inverts
@@ -154,18 +168,25 @@ config:
 | Class | What | Method | Prompts | Acceptance (config `[acceptance.<pass>]`) |
 |---|---|---|---|---|
 | **people** | every person, the operator included | **primary: SAM 3 with the text prompt `person`, run on this Mac** (owner decisions, 2026-11-12: SAM 3 primary; SAM 3 runs locally, not in molab). Secondary: Resolve `mask_people` (Magic Mask, several clicks unioned, below), a cross-check whose union with SAM 3 can only remove more pixels | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
-| **landing gear** (`static_mask landing_gear`) | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | **one static mask per lens**, derived once from all clips ([`static_mask.py`](../src/cliff_house/static_mask.py)) | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`) | the mask is present and whiter than its surroundings in **every** clip's median; per-frame check on 24 frames per clip; empty on the absent lens |
+| **aircraft body** (`static_mask aircraft_body`) | the dark arc of the aircraft's body across the top rim of both lenses, and on cam0 the dark arm arcs above the gear | one static mask per lens, criterion "dark" (V ≤ 80) | `[static_masks.aircraft_body]`: lenses `cam0`, `cam1`; `min_clip_fraction = 0.75` | each part darker than its surroundings in ≥ 6/8 clips (it is lit, and no darker than the scene, in bright outdoor clips) |
+| **landing gear** (`static_mask landing_gear`) | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | **one static mask per clip and lens** (scope "clip"), derived from that clip ([`static_mask.py`](../src/cliff_house/static_mask.py)): the gear is fixed within a clip but has two positions | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`); `scope = "clip"`, `rim_band = 0.55` | each part whiter than its surroundings on ≥ 80 % of that clip's sampled frames; empty on the absent lens |
 
-**Recommendation for the landing gear: the static per-lens mask, not tracking.** The gear is bolted to the camera,
-so its pixels do not move. Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was worse on every
-count. It recovered a median 13 % of the static mask (IoU 0.13), usually only the feet, never the full struts. It
-varied from frame to frame (0.14–1.5 % coverage) and lost the right foot entirely on some frames. At the 95th
-percentile, 10 % of its mask spilled onto nearby walls and pictures. The static mask is one 3840² PNG per lens. It
-needs no Resolve and no model, costs about 10 minutes per rig, and is checked against all 8 clips. It must be
-re-derived only if the rig changes (another drone, camera re-mounted, gear replaced), and its fingerprint covers
-every input file, so a new clip set gives a new mask beside the old one. Not covered yet: the aircraft's **dark**
-body arc at the top rim of both lenses. It is rigid too, but not white, so it needs the same static method with a
-darkness criterion as its own class.
+**Recommendation for the landing gear: a static mask per clip and lens, not tracking.** The gear does not move
+relative to the lens within a clip. It is **not** one fixed shape per lens, though: in 7 of the 8 clips of
+2026-11-10 it is folded along the left and right rim of cam0, and in clip 042 (outdoor) it is lowered into the
+upper left and right of the image for the whole clip. A first per-lens mask pooled over all clips
+(`379006cbe2bfcc41`, later `a2c308df0a6904ce`) passed its checks but was wrong for clip 042. It masked the empty rim
+and missed the lowered legs, which shows that a clip-level check is needed. The gear is therefore derived per clip
+and checked against that clip's own frames. Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was
+worse on every count. It recovered a median 13 % of the static mask (IoU 0.13), usually only the feet, never the
+full struts. It varied from frame to frame (0.14–1.5 % coverage) and lost the right foot entirely on some frames. At
+the 95th percentile, 10 % of its mask spilled onto nearby walls and pictures. A static mask needs no Resolve and no
+model and takes a few minutes per clip. Its fingerprint covers the clip's file, the code and the parameters. If
+the gear could move *within* a clip (lowered during a flight), its per-frame check would fail and show it. The
+fix then is to split the clip at the change, not to track. The aircraft's **dark** body arc at the top rim of both lenses is its own class, `aircraft_body`, using the
+same method with a darkness criterion. It also makes the rim boundary explicit where SAM 3 people masks stop short
+of the operator at the rim; on cam0 it may include the operator's edge where it touches the rim in every clip,
+which is masked as people anyway.
 
 **People: SAM 3 primary, run on this Mac; Magic Mask as cross-check.** Owner decisions, 2026-11-12: a whole person
 is masked in one step by a text-prompted segmenter, and it runs here, not in molab. **Not set up yet:** the

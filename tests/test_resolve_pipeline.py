@@ -82,3 +82,11 @@ def test_matte_is_recovered_from_black_and_white_renders(tmp_path, level):
     matte = passes._matte(tmp_path / "a.png", tmp_path / "b.png", level)
     # 8-bit renders: one rounding step per render, amplified by 1/level.
     assert np.abs(matte.astype(int) - (m * 255).round()).max() <= np.ceil(1 / level) + 1
+
+
+def test_per_lens_acceptance_replaces_the_class_rule():
+    bands = {"every_frame": True, "coverage": [0.04, 0.15], "cam1": {"every_frame": True}}
+    assert passes.lens_rule(bands, "cam0") == {"every_frame": True, "coverage": [0.04, 0.15]}
+    assert passes.lens_rule(bands, "cam1") == {"every_frame": True}
+    cfg = config.load(CONFIG_DIR / "frasier-cliff-house.toml")
+    assert "coverage" not in passes.lens_rule(cfg.acceptance["mask_people"], "cam1")
