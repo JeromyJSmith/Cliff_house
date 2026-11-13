@@ -344,8 +344,12 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     FRAME_PARAMS = frames_stage.Params()
     # Tests narrow the run to named clips so it stays small; a normal session processes every source video.
     _only = [c for c in os.environ.get("CLIFF_HOUSE_FRAME_CLIPS", "").split(",") if c]
+    # Owner decision 2026-11-13: the twin is built from the 360 (.insv) footage alone, starting with 2026-11-10, the
+    # only capture day whose landing-gear positions are known (training masks need them). Phone clips and the
+    # 2026-11-09 360 clips stay in the dataset and come back by widening this pattern.
+    SOURCE_PATTERN = r"/source/video/2026-11-10/[^/]+\.insv$"
     videos = (manifest
-              .filter(pl.col("capture_time_utc").is_not_null() & pl.col("path").str.contains("/source/video/"))
+              .filter(pl.col("capture_time_utc").is_not_null() & pl.col("path").str.contains(SOURCE_PATTERN))
               .with_columns(clip=pl.col("path").str.extract(r"([^/]+)\.[^.]+$"))
               .filter(pl.lit(not _only) | pl.col("clip").is_in(_only))
               .with_columns(fingerprint=pl.col("sha256").map_elements(
@@ -385,7 +389,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     frames.insert(frame_rows.to_dicts())
     mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
           f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
-    return FRAME_PARAMS, frame_rows, frames, frames_stage, retry, videos, views
+    return FRAME_PARAMS, SOURCE_PATTERN, frame_rows, frames, frames_stage, retry, videos, views
 
 
 @app.cell
