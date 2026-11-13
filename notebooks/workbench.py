@@ -167,8 +167,9 @@ def _():
     }
     # The repository as an fsspec data source (also browsable in molab's storage panel). Its pixi.lock defines the
     # toolchain. Tests point this at file:// on the working tree so they exercise the code under test, not main.
+    # A fresh instance per run: fsspec's instance cache would pin the commit and file listing of an earlier run.
     repo_fs, REPO_ROOT = fsspec.core.url_to_fs(
-        os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"))
+        os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"), skip_instance_cache=True)
     TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src", "tools")
 
     def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
@@ -330,6 +331,10 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     from pathlib import Path as _Path
 
     _sys.path.insert(0, str(repo_dir / "src"))
+    # A rerun in a long-lived kernel must use the code just fetched: modules cached from an earlier run would execute
+    # old rules under fingerprints computed from the new files.
+    for _m in [m for m in _sys.modules if m == "cliff_house" or m.startswith("cliff_house.")]:
+        del _sys.modules[_m]
     from cliff_house import frames as frames_stage
     from cliff_house import views
     from cliff_house.storage import retry
@@ -501,8 +506,6 @@ def _(mask_rows, mo, pl, px):
     _per_clip = mask_rows.group_by("clip").agg(median=pl.col("ignored_fraction").median(),
                                                worst=pl.col("ignored_fraction").max(),
                                                with_people=(pl.col("ignored_fraction") > 0).mean()).sort("clip")
-    browse_clip = mo.ui.dropdown(sorted(mask_rows["clip"].unique()), value=sorted(mask_rows["clip"].unique())[0],
-                                 label="Clip")
     mo.vstack([
         mo.hstack([mo.stat(value=f"{mask_rows.height:,}", label="frames masked"),
                    mo.stat(value=f"{(mask_rows['ignored_fraction'] > 0).mean():.0%}", label="frames with a person"),
@@ -514,29 +517,133 @@ def _(mask_rows, mo, pl, px):
                               title="Share of each frame SAM 3 masks out (people), over the clip")
                      .update_yaxes(tickformat=".0%").for_each_annotation(lambda a: a.update(text=a.text[5:]))),
         mo.ui.table(_per_clip.with_columns(pl.col("median", "worst", "with_people").round(3)), selection=None,
-                    label="Ignored fraction per clip"),
-        mo.md("### Frame and mask browser — red is what training ignores"),
+                    label="Ignored fraction per clip (people only)"),
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## Stage 3b — training masks
+
+    The one ignore-mask per frame that poses and training read (`cliff_house.training_masks`): the frame's SAM 3
+    people mask ∪ the landing-gear template of that frame's gear position, with the rim band (`gear_mask`; cam1 has
+    the rim band only) ∪ the aircraft-body arc of its lens (`static_mask`). The rigid masks are pinned by fingerprint
+    and must have passed their own acceptance. A frame of an A1 clip whose gear position is unknown (a clip the
+    gear stage never saw) stops the stage: it is never given a default. One polarity: 0 = ignore, 255 = use; the
+    rigid stages' 255 = mask is inverted in `training_masks.ignore_region` and nowhere else. Keyed by the people-mask
+    fingerprint, the template IDs, the per-frame gear positions and the stage code.
+    """)
+    return
+
+
+@app.cell
+def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, clips, mo, pl, pxt, retry, shutil, sync_bucket):
+    from cliff_house import training_masks as training_stage
+
+    TRAINING_TEMPLATES = training_stage.Templates()
+    _fs = HfFileSystem(token=HF_STORAGE["token"])
+    _rigid_root = WORK / "rigid"
+    for _dir in TRAINING_TEMPLATES.dirs():
+        retry(_fs.get, f"buckets/{BUCKET}/{_dir}/", str(_rigid_root / _dir) + "/", recursive=True)
+    _rigid = training_stage.load_rigid(_rigid_root, TRAINING_TEMPLATES)
+
+    def _plan(row):
+        with _fs.open(f"buckets/{BUCKET}/stages/frames/{row['fingerprint']}/{row['clip']}/frames.parquet", "rb") as f:
+            table = pl.read_parquet(f)
+        positions = training_stage.positions_path(_rigid_root, TRAINING_TEMPLATES, row["clip"])
+        return training_stage.plan(row["clip"], table, row["mask_fingerprint"], TRAINING_TEMPLATES,
+                                   pl.read_parquet(positions) if positions.exists() else None,
+                                   aircraft=row["path"].endswith(".insv"))
+
+    training_plans, _unknown = {}, {}
+    for _row in clips.iter_rows(named=True):
+        try:
+            training_plans[_row["clip"]] = _plan(_row)
+        except training_stage.UnknownGearPosition as _e:
+            _unknown[_row["clip"]] = str(_e)
+    _remote = lambda p: f"stages/training_masks/{p.fingerprint}/{p.clip}"
+    training_missing = [p for p in training_plans.values()
+                        if not _fs.exists(f"buckets/{BUCKET}/{_remote(p)}/training_masks.parquet")]
+    for _p in mo.status.progress_bar(training_missing, title="Training masks (clips)", show_eta=True):
+        _people_remote = f"stages/masks/{_p.people_fingerprint}/{_p.clip}"
+        _people = WORK / "masks" / _people_remote
+        retry(_fs.get, f"buckets/{BUCKET}/{_people_remote}/", str(_people) + "/", recursive=True)
+        _out = WORK / "training_masks" / _remote(_p)
+        shutil.rmtree(_out, ignore_errors=True)
+        training_stage.build(_p, _people, _rigid, TRAINING_TEMPLATES, _out)
+        retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_remote(_p)}", token=HF_STORAGE["token"])
+    # Clips with a known position are built and stored first; then an unknown position stops everything downstream.
+    if _unknown:
+        raise training_stage.UnknownGearPosition(
+            f"{len(_unknown)} clip(s) have frames with no known gear position; poses and training cannot use them "
+            "until gear_mask has run with them assigned:\n" + "\n".join(_unknown.values()))
+
+    def _read_training(p):
+        with _fs.open(f"buckets/{BUCKET}/{_remote(p)}/training_masks.parquet", "rb") as f:
+            return pl.read_parquet(f).with_columns(clip=pl.lit(p.clip), fingerprint=pl.lit(p.fingerprint),
+                                                   file=pl.lit(f"{_remote(p)}/") + pl.col("file"))
+    training_rows = pl.concat([_read_training(p) for p in training_plans.values()])
+    training_clips = clips.with_columns(training_fingerprint=pl.col("clip").replace_strict(
+        {c: p.fingerprint for c, p in training_plans.items()}, return_dtype=pl.String))
+    training_masks = pxt.create_table(
+        f"{PXT_DIR}/training_masks",
+        {"clip": pxt.String, "fingerprint": pxt.String, "camera": pxt.String, "frame": pxt.Int,
+         "position": pxt.String | None, "people_fraction": pxt.Float, "gear_fraction": pxt.Float | None,
+         "body_fraction": pxt.Float | None, "ignored_fraction": pxt.Float, "file": pxt.String},
+        primary_key=["clip", "camera", "frame"], if_exists="replace")
+    training_masks.insert(training_rows.drop("t_ms", "source_frame").to_dicts())
+    mo.md(f"Training masks: **{training_rows.height:,}** frames, median ignored "
+          f"{training_rows['ignored_fraction'].median():.1%} ({len(training_missing)} clips built this session)")
+    return training_clips, training_masks, training_rows, training_stage
+
+
+@app.cell
+def _(mo, pl, px, training_rows):
+    _per_clip = (training_rows.group_by("clip")
+                 .agg(median=pl.col("ignored_fraction").median(), worst=pl.col("ignored_fraction").max(),
+                      people=pl.col("people_fraction").median(), gear=pl.col("gear_fraction").median(),
+                      body=pl.col("body_fraction").median(),
+                      positions=pl.col("position").drop_nulls().unique().sort().str.join(", "))
+                 .sort("clip"))
+    browse_clip = mo.ui.dropdown(sorted(training_rows["clip"].unique()),
+                                 value=sorted(training_rows["clip"].unique())[0], label="Clip")
+    mo.vstack([
+        mo.hstack([mo.stat(value=f"{training_rows.height:,}", label="frames with a training mask"),
+                   mo.stat(value=f"{training_rows['ignored_fraction'].median():.1%}", label="median ignored"),
+                   mo.stat(value=f"{training_rows['ignored_fraction'].max():.1%}", label="worst frame ignored")],
+                  widths="equal"),
+        mo.ui.plotly(px.line(training_rows.sort("clip", "camera", "frame"), x="frame", y="ignored_fraction",
+                              color="camera", facet_col="clip", facet_col_wrap=3,
+                              height=220 * -(-training_rows["clip"].n_unique() // 3),
+                              title="Share of each frame training ignores (people ∪ gear ∪ body), over the clip")
+                     .update_yaxes(tickformat=".0%").for_each_annotation(lambda a: a.update(text=a.text[5:]))),
+        mo.ui.table(_per_clip.with_columns(pl.col("median", "worst", "people", "gear", "body").round(3)),
+                    selection=None, label="Ignored fraction per clip, and the median share of each source"),
+        mo.md("### Frame and training-mask browser — red is what training ignores"),
         browse_clip,
     ])
     return (browse_clip,)
 
 
 @app.cell
-def _(browse_clip, mask_rows, mo, pl):
-    _frames_in_clip = mask_rows.filter(pl.col("clip") == browse_clip.value)["frame"].unique().sort().to_list()
+def _(browse_clip, mo, pl, training_rows):
+    _frames_in_clip = training_rows.filter(pl.col("clip") == browse_clip.value)["frame"].unique().sort().to_list()
     browse_frame = mo.ui.slider(steps=_frames_in_clip, label="Frame", full_width=True, show_value=True)
     browse_frame
     return (browse_frame,)
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_rows, mask_rows, mo, pl, views):
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_rows, mo, pl, training_rows,
+      views):
     import io as _io
 
     import numpy as _np
 
     _fs = HfFileSystem(token=HF_STORAGE["token"])
-    _pick = (mask_rows.filter((pl.col("clip") == browse_clip.value) & (pl.col("frame") == browse_frame.value))
+    _pick = (training_rows.filter((pl.col("clip") == browse_clip.value) & (pl.col("frame") == browse_frame.value))
              .join(frame_rows.select("clip", "camera", "frame", "sharpness", frame_file="file"),
                    on=["clip", "camera", "frame"]).sort("camera"))
 
@@ -544,9 +651,14 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_
         img = Image.open(_io.BytesIO(_fs.read_bytes(f"buckets/{BUCKET}/{path}"))).convert(mode)
         return _np.asarray(img.resize((720, 720 * img.height // img.width), resample))
 
+    def _share(x):
+        return "—" if x is None else f"{x:.1%}"
+
     mo.hstack([mo.vstack([mo.image(views.overlay(_load(r["frame_file"], "RGB", Image.BILINEAR),
                                                   _load(r["file"], "L", Image.NEAREST))),
-                          mo.md(f"`{r['camera']}` frame {r['frame']} · ignored {r['ignored_fraction']:.1%} · "
+                          mo.md(f"`{r['camera']}` frame {r['frame']} · gear {r['position'] or '—'} · "
+                                f"ignored {r['ignored_fraction']:.1%} (people {_share(r['people_fraction'])}, "
+                                f"gear+rim {_share(r['gear_fraction'])}, body {_share(r['body_fraction'])}) · "
                                 f"sharpness {r['sharpness']:,.0f}")])
                for r in _pick.iter_rows(named=True)], justify="start")
     return
@@ -557,16 +669,16 @@ def _(mo):
     mo.md("""
     ## Stage 4 — poses (COLMAP)
 
-    One structure-from-motion solve over every clip's frames and masks. The A1's lenses are one rig whose
+    One structure-from-motion solve over every clip's frames and training masks (stage 3b). The A1's lenses are one rig whose
     lens-to-lens transform comes from the camera's factory calibration (telemetry `lens.json`); each A1 lens is one
-    camera across all clips; each phone clip is its own camera. Keyed by the masks' fingerprints and the solver
+    camera across all clips; each phone clip is its own camera. Keyed by the training masks' fingerprints and the solver
     parameters. The solve is in metres via the 71.3 mm factory baseline — a hint until LiDAR confirms it.
     """)
     return
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket):
+def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, mo, pl, retry, sync_bucket, training_clips):
     import json as _json
 
     from cliff_house import poses as poses_stage
@@ -579,15 +691,17 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket)
         raise ValueError(f"factory rig differs across {len(_lens_files)} telemetry records: {_rigs}")
     POSE_PARAMS = poses_stage.Params(rig=_rigs.pop())
 
-    pose_fp = poses_stage.fingerprint(clips["mask_fingerprint"].to_list(), POSE_PARAMS)
+    pose_fp = poses_stage.fingerprint(training_clips["training_fingerprint"].to_list(), POSE_PARAMS)
     _remote = f"stages/poses/{pose_fp}"
     pose_missing = [] if _fs.exists(f"buckets/{BUCKET}/{_remote}/summary.json") else [pose_fp]
 
     def _frame_set(row):
         frames_dir = WORK / "frames" / f"stages/frames/{row['fingerprint']}/{row['clip']}"
-        masks_dir = WORK / "masks" / f"stages/masks/{row['mask_fingerprint']}/{row['clip']}"
+        # Training masks (people ∪ gear ∪ body, 0 = ignore), never the people-only masks stage.
+        masks_remote = f"stages/training_masks/{row['training_fingerprint']}/{row['clip']}"
+        masks_dir = WORK / "training_masks" / masks_remote
         for remote_dir, local in ((f"stages/frames/{row['fingerprint']}/{row['clip']}", frames_dir),
-                                  (f"stages/masks/{row['mask_fingerprint']}/{row['clip']}", masks_dir)):
+                                  (masks_remote, masks_dir)):
             retry(_fs.get, f"buckets/{BUCKET}/{remote_dir}/", str(local) + "/", recursive=True)
         table = pl.read_parquet(frames_dir / "frames.parquet")
         cameras = sorted(table["camera"].unique())
@@ -598,7 +712,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket)
 
     for _fp in pose_missing:
         _work = WORK / "poses" / _fp
-        _sets = [_frame_set(r) for r in mo.status.progress_bar(list(clips.iter_rows(named=True)),
+        _sets = [_frame_set(r) for r in mo.status.progress_bar(list(training_clips.iter_rows(named=True)),
                                                                 title="Poses: fetching frames and masks")]
         with mo.status.spinner(title="COLMAP: features, matching, incremental mapping",
                                subtitle=f"{sum(len(s.frames) for s in _sets):,} images from {len(_sets)} clips"):
@@ -648,10 +762,13 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, go, mo, pose_fp, pose_summary, ret
 
 
 @app.cell
-def _(frame_rows, mask_rows, mo, pl, pose_cameras):
+def _(frame_rows, mask_rows, mo, pl, pose_cameras, training_rows):
     _status = (frame_rows.group_by("clip").agg(frames=pl.len())
                .join(mask_rows.group_by("clip").agg(masked=pl.len(),
-                                                    median_ignored=pl.col("ignored_fraction").median().round(3)),
+                                                    median_people=pl.col("ignored_fraction").median().round(3)),
+                     on="clip", how="left")
+               .join(training_rows.group_by("clip").agg(
+                         training_masked=pl.len(), median_ignored=pl.col("ignored_fraction").median().round(3)),
                      on="clip", how="left")
                .join(pose_cameras.group_by("clip").agg(registered=pl.len()), on="clip", how="left")
                .with_columns(registered=pl.col("registered").fill_null(0),
@@ -659,7 +776,8 @@ def _(frame_rows, mask_rows, mo, pl, pose_cameras):
                .sort("clip"))
     mo.vstack([mo.md("## Pipeline status per clip"),
                mo.ui.table(_status, selection=None, page_size=25,
-                           format_mapping={"median_ignored": "{:.1%}".format, "registered_share": "{:.0%}".format})])
+                           format_mapping={"median_people": "{:.1%}".format, "median_ignored": "{:.1%}".format,
+                                           "registered_share": "{:.0%}".format})])
     return
 
 
