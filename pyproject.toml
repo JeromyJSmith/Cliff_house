@@ -37,6 +37,8 @@ dependencies = [
 # SAM 3 masks (Pixeltable's sam3_for_segmentation runs on transformers + torch). molab's kernel installs CUDA builds
 # from PyPI via the notebook header; pixi resolves torch from conda-forge, which still builds osx-64.
 ml = ["torch>=2.8", "torchvision>=0.23", "transformers>=5.0"]
+# The notebook kernel's COLMAP bindings: CUDA build on Linux (molab), plain on macOS. pixi takes pycolmap from conda.
+sfm = ["pycolmap-cuda12==4.2.1; sys_platform == 'linux'", "pycolmap==4.2.1; sys_platform == 'darwin'"]
 
 [project.scripts]
 cliff-house-manifest = "cliff_house.source_manifest:main"

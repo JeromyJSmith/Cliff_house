@@ -46,8 +46,10 @@ class Source:
 
 @dataclass(frozen=True)
 class Params:
-    candidate_fps: float = 4.0   # frames scored per second of video
-    target_fps: float = 1.0      # frames kept per second of video (one per window)
+    # 3 kept frames/s: at 1/s a walking 360 camera near interior walls left SfM with 3-4 of 26 images registered
+    # (clip 041); at 3/s the same clip registered 37/37 lens-0 images with a healthy ~1,100 px focal length.
+    candidate_fps: float = 12.0  # frames scored per second of video
+    target_fps: float = 3.0      # frames kept per second of video (one per window)
     jpeg_quality: int = 95
 
 
