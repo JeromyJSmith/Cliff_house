@@ -339,7 +339,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
         del _sys.modules[_m]
     from cliff_house import frames as frames_stage
     from cliff_house import views
-    from cliff_house.storage import retry
+    from cliff_house.storage import fetch, retry
 
     FRAME_PARAMS = frames_stage.Params()
     # Tests narrow the run to named clips so it stays small; a normal session processes every source video.
@@ -389,7 +389,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     frames.insert(frame_rows.to_dicts())
     mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
           f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
-    return FRAME_PARAMS, SOURCE_PATTERN, frame_rows, frames, frames_stage, retry, videos, views
+    return FRAME_PARAMS, SOURCE_PATTERN, fetch, frame_rows, frames, frames_stage, retry, videos, views
 
 
 @app.cell
@@ -429,7 +429,7 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, io, mo, pl, pxt, retry, shutil,
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, fetch, frames_stage, io, mo, pl, pxt, retry, shutil,
       sync_bucket, videos):
     import itertools as _it
 
@@ -478,7 +478,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, io, 
 
     for _row in mo.status.progress_bar(masks_missing, title="Masks stage (clips)", show_eta=True):
         _frames_dir = WORK / "frames" / _frames_remote(_row)
-        retry(_fs.get, f"buckets/{BUCKET}/{_frames_remote(_row)}/", str(_frames_dir) + "/", recursive=True)
+        fetch(BUCKET, _frames_remote(_row), _frames_dir, HF_STORAGE["token"])
         _clip_frames = pl.read_parquet(_frames_dir / "frames.parquet")
         _out = WORK / "masks" / _masks_remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
@@ -539,14 +539,14 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, clips, mo, pl, pxt, retry, shutil, sync_bucket):
+def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, clips, fetch, mo, pl, pxt, retry, shutil, sync_bucket):
     from cliff_house import training_masks as training_stage
 
     TRAINING_TEMPLATES = training_stage.Templates()
     _fs = HfFileSystem(token=HF_STORAGE["token"])
     _rigid_root = WORK / "rigid"
     for _dir in TRAINING_TEMPLATES.dirs():
-        retry(_fs.get, f"buckets/{BUCKET}/{_dir}/", str(_rigid_root / _dir) + "/", recursive=True)
+        fetch(BUCKET, _dir, _rigid_root / _dir, HF_STORAGE["token"])
     _rigid = training_stage.load_rigid(_rigid_root, TRAINING_TEMPLATES)
 
     def _plan(row):
@@ -569,7 +569,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, clips, mo, pl, pxt, retry
     for _p in mo.status.progress_bar(training_missing, title="Training masks (clips)", show_eta=True):
         _people_remote = f"stages/masks/{_p.people_fingerprint}/{_p.clip}"
         _people = WORK / "masks" / _people_remote
-        retry(_fs.get, f"buckets/{BUCKET}/{_people_remote}/", str(_people) + "/", recursive=True)
+        fetch(BUCKET, _people_remote, _people, HF_STORAGE["token"])
         _out = WORK / "training_masks" / _remote(_p)
         shutil.rmtree(_out, ignore_errors=True)
         training_stage.build(_p, _people, _rigid, TRAINING_TEMPLATES, _out)
@@ -677,7 +677,7 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, mo, pl, retry, sync_bucket, training_clips):
+def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, fetch, mo, pl, retry, sync_bucket, training_clips):
     import json as _json
 
     from cliff_house import poses as poses_stage
@@ -701,7 +701,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, mo, pl, retry, sync_bucket, traini
         masks_dir = WORK / "training_masks" / masks_remote
         for remote_dir, local in ((f"stages/frames/{row['fingerprint']}/{row['clip']}", frames_dir),
                                   (masks_remote, masks_dir)):
-            retry(_fs.get, f"buckets/{BUCKET}/{remote_dir}/", str(local) + "/", recursive=True)
+            fetch(BUCKET, remote_dir, local, HF_STORAGE["token"])
         table = pl.read_parquet(frames_dir / "frames.parquet")
         cameras = sorted(table["camera"].unique())
         # Two synchronized streams are the A1 rig (shared lens cameras); one stream is a phone clip (its own camera).
@@ -740,12 +740,11 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, mo, pl, retry, sync_bucket, traini
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, go, mo, pose_fp, pose_summary, retry, views):
+def _(BUCKET, HF_STORAGE, WORK, fetch, go, mo, pose_fp, pose_summary, views):
     import pycolmap as _pycolmap
 
     _sparse = WORK / "poses" / pose_fp / "sparse" / "0"
-    retry(HfFileSystem(token=HF_STORAGE["token"]).get, f"buckets/{BUCKET}/stages/poses/{pose_fp}/sparse/0/",
-          str(_sparse) + "/", recursive=True)
+    fetch(BUCKET, f"stages/poses/{pose_fp}/sparse/0", _sparse, HF_STORAGE["token"])
     _rec = _pycolmap.Reconstruction(_sparse)
     pose_cameras = views.cameras(_rec)
     _cloud = views.points(_rec, limit=60_000)
