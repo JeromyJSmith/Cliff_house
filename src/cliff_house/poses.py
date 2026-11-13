@@ -63,7 +63,10 @@ class Params:
     priors: dict[str, CameraPrior] = field(default_factory=lambda: dict(A1_LENS_PRIORS))
     unknown_camera_model: str = "OPENCV"             # cameras without a prior (phones) are estimated
     overlap: int = 15
-    mapper: Literal["global", "incremental"] = "incremental"   # global (GLOMAP) fragmented short walkthroughs
+    # Global (GLOMAP) on the 8 clips of 2026-11-10 (4,352 images): 33 min, sharing the CPU, with every frame of
+    # 035-038/041/042 in one model at 1.14 px. Incremental had 414 images after 50 min. 039 and 040 came out as their
+    # own models; sequential pairs link only neighbouring clips, so that is a matching gap, not the mapper's.
+    mapper: Literal["global", "incremental"] = "global"
     max_image_size: int = 1600                       # SIFT on 3840² fisheye at 1600 px: 4x faster, same solve
 
 
