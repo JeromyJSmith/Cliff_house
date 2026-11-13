@@ -17,7 +17,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sqlite3
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -99,17 +98,20 @@ def stage_workspace(sets: Iterable[FrameSet], out: Path) -> dict[str, list[str]]
     return {k: sorted(v) for k, v in by_folder.items()}
 
 
-def _extract(db: Path, out: Path, by_folder: dict[str, list[str]], params: Params) -> None:
-    for folder, names in sorted(by_folder.items()):
-        prior = params.priors.get(folder)
-        reader = pycolmap.ImageReaderOptions()
-        reader.mask_path = str(out / "masks")
-        reader.camera_model = prior.model if prior else params.unknown_camera_model
-        reader.camera_params = ",".join(map(str, prior.params)) if prior else ""
-        extraction = pycolmap.FeatureExtractionOptions()
-        extraction.max_image_size = params.max_image_size
-        pycolmap.extract_features(db, out / "images", image_names=names, camera_mode=pycolmap.CameraMode.PER_FOLDER,
-                                  reader_options=reader, extraction_options=extraction)
+def _extract(db: Path, out: Path, folder: str, names: list[str], params: Params, camera_id: int) -> int:
+    """Extract one batch of a folder's images into that folder's camera (-1: create it); returns the camera's id."""
+    prior = params.priors.get(folder)
+    reader = pycolmap.ImageReaderOptions()
+    reader.mask_path = str(out / "masks")
+    reader.camera_model = prior.model if prior else params.unknown_camera_model
+    reader.camera_params = ",".join(map(str, prior.params)) if prior else ""
+    reader.existing_camera_id = camera_id
+    extraction = pycolmap.FeatureExtractionOptions()
+    extraction.max_image_size = params.max_image_size
+    pycolmap.extract_features(db, out / "images", image_names=names, camera_mode=pycolmap.CameraMode.SINGLE,
+                              reader_options=reader, extraction_options=extraction)
+    with pycolmap.Database.open(db) as database:
+        return database.read_image_with_name(names[0]).camera_id
 
 
 def _rig_config(params: Params) -> pycolmap.RigConfig:
@@ -140,36 +142,38 @@ def largest(models: dict[int, pycolmap.Reconstruction]) -> pycolmap.Reconstructi
 
 
 Progress = Callable[[str, int, int], None]
-"""(step, done, total), called from the caller's thread while a step runs and once more when it ends."""
+"""(step, done, total), called from the caller's thread: after every batch, and every 2 s while mapping runs."""
 
 STEPS = ("features", "rig", "matching", "mapping")
+# Steps run in batches so progress is reported between COLMAP calls. Nothing reads the database while COLMAP writes
+# it: a second connection broke the solve twice (Python's sqlite3: "database disk image is malformed"; pycolmap's own:
+# "No registered database factory succeeded").
+BATCH_IMAGES = 64
+BATCH_PAIRS = 4096
 
 
-def _counts(db: Path) -> dict[str, int]:
-    # A second, read-only connection sees what the solver has committed; COLMAP commits per batch.
-    with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
-        return {"features": con.execute("SELECT COUNT(*) FROM keypoints").fetchone()[0],
-                "rig": con.execute("SELECT COUNT(*) FROM frames").fetchone()[0],
-                # pair_id = image_id1 * 2147483647 + image_id2 and sequential matching walks image_id1 upward
-                "matching": con.execute("SELECT COUNT(DISTINCT pair_id / 2147483647) FROM two_view_geometries"
-                                        ).fetchone()[0]}
+def _batches(items: list, size: int) -> list[list]:
+    return [items[i:i + size] for i in range(0, len(items), size)]
 
 
-def _run(step: str, work: Callable[[], object], total: int, done: Callable[[], int], progress: Progress):
-    """Run one solver step on a worker thread and report its progress from this one (pycolmap releases the GIL)."""
-    result: dict[str, object] = {}
+def _map_reporting(db: Path, out: Path, params: Params, progress: Progress, total: int):
+    """Mapping is one COLMAP call: run it on a worker thread, reporting its registered-image count from this one."""
+    registered, result = [0], {}
+
+    def next_image():
+        registered[0] += 1
 
     def target():
         try:
-            result["value"] = work()
+            result["value"] = _map(db, out, out / "sparse_all", params, next_image)
         except BaseException as e:  # re-raised below, in the caller's thread
             result["error"] = e
-    worker = threading.Thread(target=target, name=f"colmap-{step}")
+    worker = threading.Thread(target=target, name="colmap-mapping")
     worker.start()
     while worker.is_alive():
-        progress(step, done(), total)
+        progress("mapping", registered[0], total)
         worker.join(timeout=2.0)
-    progress(step, done(), total)
+    progress("mapping", registered[0], total)
     if "error" in result:
         raise result["error"]
     return result["value"]
@@ -179,34 +183,40 @@ def solve(sets: Iterable[FrameSet], out: Path, params: Params, progress: Progres
     """Rig-constrained SfM; writes <out>/sparse/0 and returns the largest reconstruction."""
     by_folder = stage_workspace(sets, out)
     images = sum(len(v) for v in by_folder.values())
-    frames = images // max(len(params.rig), 1)
     db = out / "database.db"
     db.unlink(missing_ok=True)
     # COLMAP's per-image INFO log goes through the notebook's console capture. In the molab kernel, rig setup crawled
     # under it (419 of 2,176 frames in 2.5 h); the same step on the same database in a plain process took 0.4 s.
-    # Progress comes from the step bars instead.
     pycolmap.logging.minloglevel = pycolmap.logging.WARNING
-    _run("features", lambda: _extract(db, out, by_folder, params), images,
-         lambda: _counts(db)["features"] if db.exists() else 0, progress)
 
-    def rig():
-        with pycolmap.Database.open(db) as database:
-            pycolmap.apply_rig_config([_rig_config(params)] if params.rig else [], database)
-    _run("rig", rig, frames, lambda: _counts(db)["rig"], progress)
+    done = 0
+    for folder, names in sorted(by_folder.items()):
+        camera_id = -1
+        for batch in _batches(names, BATCH_IMAGES):
+            camera_id = _extract(db, out, folder, batch, params, camera_id)
+            done += len(batch)
+            progress("features", done, images)
+
+    with pycolmap.Database.open(db) as database:
+        pycolmap.apply_rig_config([_rig_config(params)] if params.rig else [], database)
+        progress("rig", database.num_frames(), database.num_frames())
 
     pairing = pycolmap.SequentialPairingOptions()
     pairing.overlap = params.overlap
     pairing.quadratic_overlap = True
-    _run("matching", lambda: pycolmap.match_sequential(db, pairing_options=pairing), images,
-         lambda: _counts(db)["matching"], progress)
+    with pycolmap.Database.open(db) as database:
+        pairs = pycolmap.SequentialPairGenerator(pairing, database).all_pairs()
+        name = {image.image_id: image.name for image in database.read_all_images()}
+    pair_list, done = out / "pairs.txt", 0
+    for batch in _batches(pairs, BATCH_PAIRS):
+        pair_list.write_text("".join(f"{name[a]} {name[b]}\n" for a, b in batch))
+        imported = pycolmap.ImportedPairingOptions()
+        imported.match_list_path = pair_list
+        pycolmap.match_image_pairs(db, pairing_options=imported)
+        done += len(batch)
+        progress("matching", done, len(pairs))
 
-    registered = [0]
-
-    def next_image():
-        registered[0] += 1
-    models = _run("mapping", lambda: _map(db, out, out / "sparse_all", params, next_image), images,
-                  lambda: registered[0], progress)
-    final = largest(models)
+    final = largest(_map_reporting(db, out, params, progress, images))
     (out / "sparse" / "0").mkdir(parents=True, exist_ok=True)
     final.write(out / "sparse" / "0")
     return final
