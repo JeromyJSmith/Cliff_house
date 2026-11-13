@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 import pytest
 
 from cliff_house import insv_telemetry as tel
@@ -71,6 +72,9 @@ def test_real_a1_clip_decodes(tmp_path):
     # Gyro/accel stream is ~1 kHz; the parser normalizes accel to m/s^2, so a near-still drone reads ~1 g.
     assert 900 < row["imu_rate_hz"] < 1100
     assert 8.0 < row["accel_norm_median_mps2"] < 11.6
+    # Shutter time per frame: positive and never longer than one frame at 29.97 fps.
+    exposure = pl.read_parquet(clip_dir / "exposure.parquet")
+    assert exposure.height > 0 and exposure["exposure_s"].is_between(0, 1001 / 30000, closed="right").all()
     lens = json.loads((clip_dir / "lens.json").read_text())
     cameras = lens["rig"]["projection"]["kind"]["Rig"]["cameras"]
     assert len(cameras) == 2  # one calibration per lens

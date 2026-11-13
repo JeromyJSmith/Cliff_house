@@ -23,7 +23,8 @@ def _header_requirements() -> list[Requirement]:
 
 
 def test_notebook_header_only_names_project_dependencies():
-    project = {Requirement(r).name for r in tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["dependencies"]}
+    meta = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]
+    project = {Requirement(r).name for r in [*meta["dependencies"], *sum(meta.get("optional-dependencies", {}).values(), [])]}
     assert {r.name for r in _header_requirements()} <= project
 
 
@@ -34,6 +35,8 @@ def test_notebook_runs_against_hugging_face(tmp_path):
         "CLIFF_HOUSE_REPO": REPO.as_uri(),
         # One short clip (12 s, both lenses) keeps the frames stage's real Hugging Face round trip small.
         "CLIFF_HOUSE_FRAME_CLIPS": "VID_20261110_132328_041",
+        # Intel Macs report MPS but cannot run it (no unified memory); Apple silicon and CUDA hosts are unaffected.
+        "PIXELTABLE_ENABLE_MPS": os.environ.get("PIXELTABLE_ENABLE_MPS", "false"),
     }
     result = subprocess.run([sys.executable, str(NOTEBOOK)], capture_output=True, text=True, env=env, cwd=tmp_path)
     assert result.returncode == 0, result.stderr[-4000:]

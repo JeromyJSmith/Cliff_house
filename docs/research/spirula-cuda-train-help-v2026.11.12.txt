@@ -1,0 +1,387 @@
+usage: /out/spirula train [<preset>] --data <dataset_dir> [--flag value ...]
+
+presets (given as the first argument; default: 3dgs):
+  3dgs               Generic method that works well for most datasets.
+  360-camera         Preset for training on original distorted images captured by 360 cameras.
+  in-the-wild        Preset for datasets consisting of internet images, with extreme lighting variation, with un-masked outliers, and/or shot with long focal lengths.
+  centered-object    Preset for captures that orbit a single masked object, whose background is not meant to be reconstructed.
+  hdr                Preserves the dynamic range of the splats; trains linear ACEScg splats by default.
+  synthetic          Preset for training splats on synthetic datasets rendered with constant exposure.
+  meshing            Preset for training splats for meshing, aimed at the quality of the mesh geometry rather than at how the splats themselves look.
+
+app flags:
+  --device <index>
+      Compute device to train on: a CUDA device index. If omitted, the current CUDA device is used. The device list prints at startup.
+
+flags ('-' and '_' interchangeable; bools take 0/1; 'none' clears optional values; defaults shown for the selected preset):
+
+  [Run & Output]
+  --data                                   [none]
+      Folder holding the dataset to train on. COLMAP, Nerfstudio and Metashape
+      layouts are all recognized.
+  --output-dir-prefix                      [outputs]
+      Folder that each run's output directory is created inside.
+  --output-dir-name                        [none]
+      Name of this run's folder inside the output prefix. Leave empty to get a
+      name built from the dataset name and the current time.
+  --num-iterations                         [30000]
+      How long to train, in steps. More steps often give better visual results
+      with diminishing returns, and a proportionally longer wait.
+  --finish-command                         [none]
+      Runs when training finishes or fails, not when you stop it.
+      - {message} becomes a one-line summary, always passed as one argument.
+      - Executes without a shell; quotes around the summary are optional.
+
+  [Dataset]
+  --data-format                            [none] {colmap|nerfstudio|metashape|none}
+      Which dataset layout to read. Leave empty to detect it from the folder
+      contents.
+  --image-dir                              [images]
+      Subfolder holding the training images, for COLMAP and Metashape datasets.
+  --mask-dir                               [masks]
+      Subfolder holding the image masks, for COLMAP and Metashape datasets. What a
+      mask means is set by apply_loss_for_mask.
+  --load-masks                             [1]
+      Use the dataset's masks when they exist, and the alpha channel of images
+      that have one.
+      - What they then mean is set by apply_loss_for_mask
+      - turn off to train as if the dataset had none.
+  --apply-loss-for-mask                    [none]
+      When unset, on for alpha-only masks and off otherwise.
+      - Off -- skip masked pixels in the loss.
+      - On -- train masked pixels as empty space.
+  --flip-mask                              [0]
+      Inverts mask files before edge adjustment. White normally means keep. Image
+      alpha channels are never inverted.
+  --depth-dir                              [depths]
+      Subfolder holding depth maps, for COLMAP and Metashape datasets. Only read
+      when load_depths is on.
+  --normal-dir                             [normals]
+      Subfolder holding normal maps, for COLMAP and Metashape datasets. Only read
+      when load_normals is on.
+  --load-depths                            [1]
+      Use the dataset's depth maps when they exist. They drive depth supervision;
+      turn off to ignore them.
+  --load-normals                           [1]
+      Use the dataset's normal maps when they exist. They drive normal
+      supervision; turn off to ignore them.
+  --colmap-recon-dir                       [none]
+      Which COLMAP reconstruction to read, relative to the dataset folder, such as
+      sparse/0.
+      Leave empty to pick automatically: the reconstruction with the most
+      registered images wins.
+  --seed-pointcloud                        [none]
+      Choose the point cloud used for training seeds.
+      - Empty uses dense/roma.ply if available, otherwise dataset points. sparse
+      always uses dataset points.
+      - A path selects an XYZ + RGB point cloud PLY in the same source frame as
+      the cameras. Relative paths start at the dataset folder.
+      - Centering and scaling apply. random_init=always overrides the cloud.
+      init_ply uses it with init_ply_add_points.
+      - Resume restores checkpoint splats.
+  --init-ply                               [none]
+      Starts from a trained splat PLY with a fresh optimizer at step 0. It must
+      use the same photos and scene settings to align correctly.
+  --train-resolution-divisor               [0]
+      Divides each image side by this value: 2 halves it; 0 or 1 keeps its size.
+      Already downscaled image folders need no extra divisor.
+  --progressive-resolution                 [0]
+      Starts with smaller images and increases resolution between dataset passes.
+      Each image gets equal training at each size. Off uses full resolution.
+
+  [Scene Placement]
+  --outlier-threshold                      [inf]
+      Rejects cameras far from the capture. Lower values reject more bad poses
+      that distort scene scale. Infinity keeps every camera.
+  --scene-center                           [auto] {auto|none|point-median|camera-median|camera-focus|point-mean|camera-mean}
+      Set the training origin. The shift is saved in scene_transform.json.
+      - Useful for georeferenced scenes far from zero, where single precision
+      loses detail.
+      - auto uses the point cloud median when the origin is far relative to scene
+      size. Otherwise keeps the frame.
+      - none keeps the dataset frame.
+
+  [Splat Model]
+  --primitive                              [3dgs] {3dgs|mip|3dgut}
+      - 3dgs: standard Gaussians, widest viewer compatibility.
+      - mip: less aliasing across different distances or resolutions.
+      - 3dgut: more accurate wide/distorted lenses and cleaner mesh geometry.
+  --sh-degree                              [3]
+      Higher degrees give sharper view-dependent reflections and shading.
+      - Higher uses more memory and file space; 0 gives view-independent color.
+      - Degrees 4 and above have limited support in common viewers.
+  --sb-lobes                               [0]
+      Spherical-beta lobes per splat, from Deformable Beta Splatting: each adds a
+      sharp highlight that follows the camera, for six numbers.
+      - 2 is the published setting. Unless the SH degree is set as well it drops
+      to 0, so the lobes replace the SH bands.
+      - Vulkan builds only; viewers that do not know the lobes show the base
+      color.
+  --background-mode                        [color] {color|noise|pseudorandom|random|sh}
+      Fill pixels that splats do not cover.
+      - color uses one chosen color. Black adds no cost.
+      - noise, pseudorandom and random change pixels, tiles or the whole frame
+      each step to discourage translucency.
+      - sh learns a skybox for distant background.
+  --background-color                       [0 0 0]
+      The color that fills pixels no splat covers. Black is free -- it skips the
+      blend entirely. Only used with the `color` background.
+  --background-sh-degree                   [4]
+      How detailed the learned skybox may be. Higher captures finer sky and
+      distant scenery. Only used with the `sh` background.
+  --background-export-height               [512]
+      Height in pixels of background.webp saved with SH checkpoints (1-8192).
+      Width is twice the height.
+
+  [Detail & Splat Count]
+  --quality                                [medium] {low|medium|high|ultra}
+      Overall detail level, setting the splat budget and how long training runs.
+      Use a higher level for larger datasets, or for datasets with more detail in
+      them.
+  --cap-max                                [1000000]
+      Maximum splat count. More splats capture finer detail but produce larger
+      files and slower rendering; tune per scene.
+  --distraction-robustness                 [off] {off|mild|strong}
+      Ignore people, cars and anything else that moves between photos.
+      Splats are no longer spent on them, at the cost of some sensitivity to real
+      detail.
+  --min-init-fraction                      [0.1]
+      Minimum starting splats as a fraction of cap_max. Increase for sparse
+      initial clouds, including synthetic scenes.
+  --densify-score-mode                     [mean] {mean|max|median|geom}
+      - mean: balanced default; geom: between mean and median.
+      - max: reacts to one bad view.
+      - median: ignores occasional odd views, useful with moving people or cars.
+  --densify-loss-map-mode                  [auto] {auto|none|loss_full|ssim_full|ssim_cs|ssim_structure|s_cielab|flip|flip_feature|edge_aware|robust_edge_aware|loss_full_nms|ssim_full_nms|ssim_cs_nms|ssim_structure_nms|s_cielab_nms|flip_nms|flip_feature_nms}
+      Error used to place new splats. none spreads them evenly.
+      - ssim_structure ignores brightness shifts. ssim_full, ssim_cs and loss_full
+      use progressively more color error.
+      - edge_aware follows photo edges. robust_edge_aware ignores the worst
+      matches. _nms keeps error ridges.
+      - s_cielab measures perceived color. flip measures perceptual error.
+      flip_feature uses its edges and points.
+      - auto chooses s_cielab or flip_feature for matching --perceptual-loss
+      modes, otherwise ssim_cs.
+  --densify-robust-edge-aware-quantile     [0.9]
+      Error cutoff quantile for robust_edge_aware. Lower rejects more moving
+      distractions; higher retains more real detail in clean captures.
+  --densify-accum-mode                     [sum] {max|sum|avg}
+      - `max` takes its worst pixel, so a splat covering one bad spot still
+      counts.
+      - `sum` adds the error up, which favours large splats and busy areas.
+      - `avg` takes the average over the area it covers, which judges big and
+      small splats alike.
+  --long-axis-split-opacity-k              [0.5 0.55 15000]
+      Opacity retained by each split half: initial value, final value, transition
+      steps. Higher keeps sharp dense halves; lower fades floaters for relocation.
+  --max-screen-size                        [0.3]
+      Shrink splats that cover more than this share of the screen instead of
+      letting them stay huge. Keeps big blobby splats from smearing across the
+      image.
+  --max-screen-size-clip-hardness          [1.5]
+      How firmly the screen-size limit is enforced, from 1 upward.
+      Higher clamps oversized splats decisively; lower eases them down.
+  --max-screen-size-penalty                [1]
+      Penalty strength per doubling beyond the on-screen size limit.
+      - Balanced with image error so sky or broad flat surfaces can stay large.
+      - 0 uses a hard clamp every step instead.
+
+  [Image Loss]
+  --ssim-lambda                            [0.2]
+      Structure-versus-pixel-color loss weight.
+      - Higher emphasizes fine texture; lower gives smoother, less noisy
+      backgrounds.
+      - With perceptual-loss s_cielab or flip, weights that metric instead of
+      SSIM.
+  --l1-weight                              [1]
+      Weight of plain per-pixel color error. This is the main term driving color
+      accuracy.
+  --l2-weight                              [0]
+      Squared pixel-color error weight. Penalizes large errors more than L1,
+      settling color faster but chasing outliers such as moving objects.
+  --alpha-loss-weight                      [0.5]
+      How firmly to clear splats out of areas the mask says should be empty. Raise
+      it if background creeps back in.
+  --alpha-loss-weight-under                [0]
+      How firmly to fill in areas the mask says should be solid but the render
+      leaves empty. Raise it if holes appear in the subject.
+  --view-sampling                          [uniform] {uniform|deficit}
+      uniform visits every image once per pass. deficit favors images showing
+      under-rendered splats, using actual contributions from the last render.
+
+  [Geometry & Surfaces]
+  --floater-suppression                    [off] {off|mild|moderate|strong}
+      Tightens depth/color consistency and limits view-dependent color to reduce
+      floaters.
+      - moderate: crispest geometry, but may flatten thin or translucent detail.
+      - strong: adds neighborhood regularization, potentially slower with many
+      splats.
+  --depth-distortion-reg                   [0]
+      Encourage each pixel's depth to come from one surface and discourage
+      floaters.
+      Gives crisper geometry and better meshes; too much flattens fine translucent
+      detail.
+  --normal-distortion-reg                  [0]
+      The same idea as depth distortion, applied to surface direction. Each pixel
+      settles on one consistent orientation instead of several.
+  --rgb-distortion-reg                     [0]
+      Encourage each pixel's color to come from one surface rather than blended
+      layers. Helps discourage false transparency.
+  --distortion-reg-warmup                  [6000]
+      How many steps the distortion penalties take to reach full strength.
+      Ramping in lets coarse structure form before geometry is tightened.
+  --normal-reg-weight                      [0.04]
+      Encourage splats to lie flat along the surfaces they represent. Higher gives
+      cleaner geometry and better meshes; too high flattens fine detail.
+  --alpha-reg-weight                       [0]
+      Push each pixel's coverage toward fully solid or fully empty instead of half
+      transparent.
+      Clears haze and gives cleaner background cutouts, at the risk of less stable
+      training.
+  --depth-supervision-weight               [0]
+      How strongly AI-predicted depth guides the geometry. Helps in textureless
+      areas, but a heavily biased prediction can pull quality down.
+  --normal-supervision-weight              [0.01]
+      How strongly AI-predicted surface direction guides the geometry. Helps flat
+      surfaces come out flat.
+  --input-depth-is-ray-depth               [none]
+      Depth means distance along the camera ray, not straight ahead. Unset: ray
+      depth for wide lenses split by spirula geometry, straight-ahead depth
+      otherwise.
+
+  [Splat Shape]
+  --opacity-reg                            [0.01]
+      Gently push splat opacity down so weak splats get recycled where they are
+      needed more. Higher recycles more aggressively.
+  --scale-reg                              [0.01]
+      Gently push splat size down. Keeps splats compact so detail stays local; too
+      high leaves large flat areas underfilled.
+  --opacity-decay                          [0]
+      Fade every splat's opacity slightly each step, freeing weak ones for reuse.
+      An alternative to opacity_reg that acts on all splats equally.
+  --scale-decay                            [0]
+      Shrink every splat slightly each step. An alternative to scale_reg that acts
+      on all splats equally.
+  --erank-reg                              [0.001]
+      Discourage needle-like splats in favor of rounder ones. Reduces spiky
+      artifacts and flicker as the camera moves.
+  --dc-reg                                 [0.001]
+      Keeps view-independent splat color within 0-1. Higher cleans surfaces; too
+      high clips real brightness range, so lower it when needed.
+  --sh-reg                                 [0.025]
+      Limits view-dependent color so per-photo correction handles color drift.
+      Higher improves unseen views; too high flattens real reflections.
+
+  [Camera & Color Correction]
+  --use-bilateral-grid                     [1]
+      Smooth per-photo color correction for exposure and white-balance drift.
+      Keeps splat colors consistent. Disable for synthetic or already consistent
+      images.
+  --bilagrid-type                          [ppisp] {affine|ppisp|loglinear}
+      - `ppisp` adjusts exposure and color gain and shifts hue the least.
+      - `affine` is a full color matrix, the most flexible but the most prone to
+      color drift.
+      - `loglinear` sits in between.
+  --bilagrid-shape                         [16 16 8]
+      Color-grid width, height and brightness steps. Finer grids fix local shifts
+      but use more VRAM and may absorb real detail on flat, low-texture surfaces.
+  --use-ppisp                              [1]
+      Model per-pixel camera effects such as vignetting, exposure and lens color
+      response.
+      Keeps darkened corners and per-photo exposure shifts out of the splats
+      themselves.
+  --ppisp-param-type                       [no_crf_no_vig] {original|rqs|no_crf|no_crf_clamp|no_crf_no_vig|no_crf_no_vig_clamp}
+      - no_crf: exposure, vignetting and color; original adds a tone curve, rqs
+      improves dark tones.
+      - Add _no_vig to omit vignetting or _clamp for output in 0-1.
+  --ppisp-exposure-from-exif               [0]
+      Initializes exposure corrections from EXIF shutter, aperture and ISO
+      relative to the dataset average. Missing tags use the average.
+  --calib-correction                       [basic] {off|basic|accurate}
+      Warp each photo to compensate for calibration errors such as rolling shutter
+      or incorrect poses.
+      - basic warps in the image plane.
+      - accurate moves near content more and renders depth each step.
+  --use-calib-warp                         [1]
+      Fits a smooth per-photo warp during training to align each image with the
+      reconstruction. Enabled by calibration correction.
+  --calib-warp-parallax                    [0]
+      Moves near content more than distant content to correct small
+      camera-position errors. Renders depth every step, slowing training.
+
+  [Color Space]
+  --image-color-is-linear                  [none]
+      Treat the input images as linear light rather than ordinary display-encoded
+      photos.
+      - `auto` reads an EXR as linear, which is what that format promises, and
+      everything else as display-encoded
+      - set it explicitly for an EXR whose pixels are display-encoded anyway.
+  --image-color-gamut                      [none] {Rec.709|ACES2065-1|ACEScg|Rec.2020|AdobeRGB|DCI-P3|none}
+      Input color primaries. none reads EXR metadata, otherwise assumes sRGB;
+      Rec.709 forces sRGB primaries. No tone mapping.
+  --splat-color-is-linear                  [none]
+      Stores linear-light splat colors; unset follows input. Enables square-root
+      color optimization with a trust region. Output curve:
+      --splat-color-transfer.
+  --splat-color-gamut                      [none] {Rec.709|ACES2065-1|ACEScg|Rec.2020|AdobeRGB|DCI-P3|none}
+      Stored splat color space; unset follows input. Wide gamut preserves
+      saturated colors for grading but requires a compatible viewer. No tone
+      mapping.
+  --point-color-is-linear                  [none]
+      Whether the seed point cloud's colors are linear light rather than display
+      values.
+      - Leave unset to follow the input images, which is where a reconstruction
+      samples them.
+      - The seeds are converted into the splat space wherever the two differ.
+  --point-color-gamut                      [none] {Rec.709|ACES2065-1|ACEScg|Rec.2020|AdobeRGB|DCI-P3|none}
+      Color space of the seed point cloud's colors.
+      - Leave unset to follow the input images.
+      - Set Rec.709 for a cloud left in plain sRGB, such as one the built-in SfM
+      wrote with its point colors in sRGB.
+
+  [Speed & Memory]
+  --cache-images                           [disk] {cpu|disk}
+      Where decoded training images are kept between steps.
+      `disk` re-reads them and uses the least memory, `cpu` keeps them in RAM for
+      faster steps.
+  --max-batch-per-epoch                    [800]
+      Target steps per dataset pass. Higher uses fewer images per step; lower is
+      steadier but slower and uses more memory. Smaller datasets use one image per
+      step.
+  --min-renders-per-refine                 [0]
+      Sets images per step so a poorly seen splat at the render quantile gets this
+      many renders per refinement. Estimated from seeds/frusta. 0 uses steps per
+      pass.
+
+  [Learning Rates]
+  --means-lr                               [0.000256]
+      How fast splats move through space.
+      - Higher rearranges geometry quickly but can jitter and blur
+      - lower stays closer to the starting point cloud.
+  --means-lr-final                         [3.2e-06]
+      How fast splats move by the end of training.
+      - Positions ease to a stop so detail can settle.
+      - Set to none to keep the rate constant.
+  --scales-lr                              [0.02]
+      How fast splats change size. Higher adapts coverage quickly; lower keeps
+      sizes near where they started.
+  --scales-lr-final                        [0.005]
+      How fast splats change size by the end of training. Set to none to keep the
+      rate constant.
+  --quats-lr                               [0.0015]
+      How fast splats rotate, which sets how quickly they align themselves to
+      surfaces.
+  --opacities-lr                           [0.025]
+      How fast splat transparency changes.
+      - Higher clears haze and prunes faint splats sooner
+      - lower gives weak structure more time to prove itself.
+  --features-dc-lr                         [0.005]
+      How fast the base color of a splat changes.
+  --features-sh-lr                         [0.00025]
+      How fast view-dependent color changes. Kept well below the base color rate
+      so reflections do not run away with the color.
+  --features-sb-lr                         [0.0025]
+      How fast the spherical-beta lobes change. Their color, direction and
+      sharpness share this rate.
+
+More flags, for tuning rather than for getting a first result: 186. List them with --help-all
