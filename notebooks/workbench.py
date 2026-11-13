@@ -167,8 +167,9 @@ def _():
     }
     # The repository as an fsspec data source (also browsable in molab's storage panel). Its pixi.lock defines the
     # toolchain. Tests point this at file:// on the working tree so they exercise the code under test, not main.
+    # A fresh instance per run: fsspec's instance cache would pin the commit and file listing of an earlier run.
     repo_fs, REPO_ROOT = fsspec.core.url_to_fs(
-        os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"))
+        os.environ.get("CLIFF_HOUSE_REPO", "github://JeromyJSmith:Cliff_house@main/"), skip_instance_cache=True)
     TOOLCHAIN_FILES = ("pyproject.toml", "pixi.lock", "src", "tools")
 
     def fetch_verified(url: str, sha256: str, dest: Path) -> Path:
@@ -330,6 +331,10 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     from pathlib import Path as _Path
 
     _sys.path.insert(0, str(repo_dir / "src"))
+    # A rerun in a long-lived kernel must use the code just fetched: modules cached from an earlier run would execute
+    # old rules under fingerprints computed from the new files.
+    for _m in [m for m in _sys.modules if m == "cliff_house" or m.startswith("cliff_house.")]:
+        del _sys.modules[_m]
     from cliff_house import frames as frames_stage
     from cliff_house import views
     from cliff_house.storage import retry
