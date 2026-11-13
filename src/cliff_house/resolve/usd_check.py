@@ -79,6 +79,7 @@ def build_and_render(work: Path, plate: Path) -> tuple[list[Path], dict]:
     item = tl.GetItemListInTrack("video", 1)[0]
     comp = item.AddFusionComp() if not item.GetFusionCompCount() else item.GetFusionCompByIndex(1)
     media_in, media_out = comp.FindTool("MediaIn1"), comp.FindTool("MediaOut1")
+    comp.Lock()  # an unlocked comp opens a modal file picker for a new loader, which blocks Resolve
     loader = comp.AddTool("uLoader", -32768, -32768)
     loader.SetInput("Filename", str(work / "usd" / "scene.usda"))
     renderer = comp.AddTool("uRenderer", -32768, -32768)
@@ -91,8 +92,16 @@ def build_and_render(work: Path, plate: Path) -> tuple[list[Path], dict]:
     merge.ConnectInput("Background", media_in)
     merge.ConnectInput("Foreground", renderer)
     media_out.ConnectInput("Input", merge)
-    cams = renderer.GetInput("CameraSelector")
-    files = render(project, tl, work / "render", "RGB8")
+    comp.Unlock()
+    # The camera combo lists the scene's cameras (by prim name) only once the stage has been evaluated; a camera
+    # picked before that is kept as text but renders nothing. Pull one frame, then pick it.
+    renderer.Output.GetValue(0)
+    renderer.SetInput("CameraSelector", "Default")
+    renderer.SetInput("CameraSelector", "cam")
+    cams = renderer.CameraSelector.GetAttrs().get("INPIDT_ComboControl_ID")
+    if "cam" not in (cams or {}).values():
+        raise RuntimeError(f"scene camera not offered by the renderer: {cams}")
+    files = render(project, tl, work / "render" / name, "RGB8")
     return files, {"timeline": name, "camera_selector": cams}
 
 

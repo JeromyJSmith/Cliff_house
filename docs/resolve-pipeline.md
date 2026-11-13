@@ -407,7 +407,9 @@ passes, all `use = analysis`. None of them feeds reconstruction.
   level, verticals are vertical, and there are no seam breaks on buildings or trees. Parallax shows only on objects
   within ~1 m, such as the operator and the lowered gear.
 - **In Resolve:** `cliff_house.resolve.immersive` imports the masters into the bin `equirect-360` and builds the
-  `site-360` timeline (7680×3840, capture order from telemetry GPS time).
+  `site-360` timeline (7680×3840 at 29.97, capture order from telemetry GPS time: 035, 036 … 042). Built
+  2026-11-12: 8 clips and 21,689 frames, the same count as the stitch. A frame read back from Resolve is level, with
+  vertical door frames and no seam break.
 - **GUI gap (G9):** Resolve 21.2 has no scripting call for a clip's 360 projection (25 `Projection` values refused)
   or for an immersive timeline. These are two clicks, listed in `immersive.py`.
 
@@ -431,7 +433,19 @@ passes, all `use = analysis`. None of them feeds reconstruction.
 - **Caveats:** vegetation indices are computed on display-referred values, not reflectance, so they are relative.
   Depth is per-frame relative, not metric.
 
-R2_RESULT
+- **Result (2026-11-12):** 80/80 passes accepted (5 layers × 8 clips × 2 lenses), 4,348 frames per layer. Wall
+  time 84 min for the batch run on the Mac. Edges 9 min, VARI 7, ExG 7, Depth Map 27, Relight 34. Fingerprints and
+  per-pass times are in `stages/resolve/_logs/r2.log`. One contact sheet per layer (`stages/resolve/_review/r2_<clip>_<lens>.jpg`;
+  042/cam0, 038/cam1 and 035/cam0 reviewed) shows:
+  - **Edges:** strong and usable. Building and railing lines are clean; foliage and gravel saturate to texture.
+  - **VARI / ExG:** they separate green plants (035 garden beds, 042 shrubs) but with low contrast in the stored
+    scaling. November trees are bare or yellow, so they read low, as they should. VARI is unstable where G+R−B → 0:
+    blue sky gives blotches. Both throw streaks outside the image circle (black border, index ≈ 0/0). Use them
+    inside the measured image area only (`static_mask.image_area`).
+  - **Depth Map:** near/far order is right (operator and drone near, sky far). It is normalised per frame, so
+    brightness is not comparable between frames.
+  - **Relight surface map:** coarse. Large planes and the operator show, fine geometry does not. It is a lighting
+    aid, not surface normals for reconstruction.
 
 ### 10.3 R3: draw-on-top scene (`cliff_house.resolve.usd_scene`, checked by `usd_check`)
 
@@ -446,7 +460,19 @@ R2_RESULT
   `uCatcher` can project frames onto geometry later.
 - **Verified:** USD and COLMAP projections agree to 1e-6 px on synthetic poses (tests).
 
-R3_RESULT
+- **Fusion end-to-end check (`usd_check`, 2026-11-12):** 60 random points and a 5-frame moving camera. The plate
+  has green dots where COLMAP maths projects each point. Fusion draws the USD scene over it in red (`uLoader →
+  uRenderer → Merge` over `MediaIn`), and the renders are measured. Every frame passes: median error 0.73–0.86 px,
+  90th percentile ≤ 1.11 px at 960². So Fusion reads the camera animation (time code = frame), focal length,
+  aperture, axes and units the way `usd_scene` writes them. Evidence: `stages/resolve/_proof/usd_check/`
+  (`usd_check.json`, renders, scene).
+- **Two scripting traps, handled in `usd_check`:**
+  - `comp.AddTool("uLoader")` on an unlocked comp opens a modal file picker, which blocks every later script call.
+    Lock the comp while adding tools.
+  - The renderer's camera combo lists the scene's cameras only after the stage has been evaluated. A camera set
+    earlier is kept as text but renders nothing (the first run drew no points:
+    `render/usd_check-1794543750-no-camera/`). Pull one frame first (`renderer.Output.GetValue(0)`), then select
+    the camera.
 
 ### 10.4 Not done here
 
