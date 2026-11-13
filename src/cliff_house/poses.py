@@ -2,8 +2,9 @@
 
 Workspace layout is what COLMAP's rig support keys on: one folder per physical camera, and identical file names for
 images taken at the same instant (`lens0/<clip>__000005.jpg` and `lens1/<clip>__000005.jpg`). A folder is one camera
-across every clip that used it, so each lens is calibrated once from all its frames. Masks follow COLMAP's convention
-(`<mask root>/<image name>.png`, 0 = ignore), which is the masks stage's convention too.
+across every clip that used it, so each lens is calibrated once from all its frames. Masks come from the
+training_masks stage (people ∪ landing gear ∪ aircraft body), never the people-only masks stage, and follow COLMAP's
+convention (`<mask root>/<image name>.png`, 0 = ignore, 255 = use), the one polarity of every training input.
 
 The lens-to-lens transform comes from the camera's factory rig calibration (Insta360 `lens.json`, decoded by the
 telemetry stage): lens 1 is rotated ~180° from lens 0 and offset 71.3 mm. On clip 041 every reading of that record
@@ -69,7 +70,7 @@ class Params:
 class FrameSet:
     clip: str
     frames_dir: Path      # contains <camera>/<frame:06d>.jpg
-    masks_dir: Path       # contains <camera>/<frame:06d>.png
+    masks_dir: Path       # training_masks stage output: <camera>/<frame:06d>.png, 0 = ignore, 255 = use
     folders: dict[str, str]   # camera id in the frame set -> workspace folder (= COLMAP camera)
     frames: tuple[tuple[str, int], ...]   # (camera, frame) pairs to include
 

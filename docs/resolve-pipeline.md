@@ -63,38 +63,49 @@ The bucket is the interface. Resolve reads the remux stage's lossless per-lens M
 
 ## 2a. What feeds molab, and how
 
-Only the mask classes (§6.1) cross into molab's reconstruction stages:
+Only the mask classes (§6.1) cross into molab's reconstruction stages, and only through one stage:
+**`training_masks`** ([`training_masks.py`](../src/cliff_house/training_masks.py), notebook stage 3b). Poses read it,
+and so will training. Nothing downstream reads the people masks, the gear or the body masks directly.
 
-- **Paths:**
-  - **People (primary):** `stages/masks/<fp>/<clip>/<lens>/` from `cliff_house.people_masks` (SAM 3 on this Mac,
-    branch `feat/people-masks-sam3`, not yet merged): one 8-bit L PNG per **source** frame, 255 = person (and what
-    they carry), `frames.parquet` and `pass.json` with `use = reconstruction`. Prompts come from the config's
-    `[masks]` table, and the acceptance is per lens (`[acceptance.mask_people.<lens>]`). Clip-041 fingerprints in
-    progress: cam0 `a01dd0bf78e8931a`, cam1 `2da3d275e13811f0` (see `stages/masks/README.txt`).
-  - **People (cross-check):** `stages/resolve/mask_people/<fp>/<clip>/<lens>/`, same format.
-  - **Landing gear and rim band:** `stages/gear_mask/<fp>/<lens>/<position>.png` (gear in that position plus the
-    rim band) and `positions/<clip>.parquet` (one row per source frame: its position). A frame's rigid mask is the
-    template of its position. cam1 has `rim.png` only.
+- **The final ignore-mask of a frame** (A1 clips, both lenses) is the union of:
+  - **People:** the notebook masks stage (`cliff_house.masks`, SAM 3 on molab, PR #14; the one people-mask path the
+    owner chose on 2026-11-12), read by its fingerprint: `stages/masks/<fp>/<clip>/<lensN>/<frame:06d>.png` +
+    `masks.parquet`, one PNG per **kept** frame of the frames stage.
+  - **Landing gear and rim band:** `stages/gear_mask/<fp>/<lens>/<position>.png`, where `<position>` is the frame's
+    row in `positions/<clip>.parquet` (one row per source frame). cam1 never sees the gear and has `rim.png` only.
   - **Aircraft body:** `stages/static_mask/<fp>/<lens>/mask.png`, one image for every frame of that lens.
-  - Only fingerprints listed as CURRENT in `stages/static_mask/README.txt` and `stages/gear_mask/README.txt` may be
-    used.
-  - molab reads only fingerprints whose `acceptance.ok` is true. The final ignore-mask for a frame is the union of
-    the people mask of that frame, the gear template of that frame's position (with the rim band) and the
-    aircraft-body mask of its lens.
-- **Conflict at `stages/masks/` (needs an owner decision).** PR #10 (`feat/masks-sam3`, merged to main) also
-  writes under `stages/masks/`, with the **opposite polarity** (0 = ignore, 255 = use). It works on the 1-fps
-  selected frames, writes `masks.parquet`, and writes no `pass.json`. The two layouts share a stage name but
-  disagree on meaning, so molab must never mix them. Options: (a) rename one stage path (e.g. PR #10's to
-  `stages/masks_sfm/`), or (b) molab reads only fingerprints with a `pass.json` whose `use = reconstruction` and
-  whose convention is 255 = masked. Recommended: (a) plus (b). A path that means two opposite things is exactly the
-  silent error this layout exists to prevent.
-- **Join:** a molab frame (clip, lens, `t_ms`) maps to the Resolve frame `round(t_ms · 30 / 1001)` at 29.97 fps.
-  Both index source frames from 0, and the lens names are the remux's `cam0`/`cam1`.
-- **Convention:** 255 = subject, 0 = keep. COLMAP's mask images are the opposite (black = ignored), so molab inverts
-  and thresholds (`colmap_mask = 255 if m < 128 else 0`) when it writes COLMAP masks. Unioned with SAM 3's person
-  mask, it can only remove more pixels from SfM, never add any.
-- Every other pass (`use = analysis`) is for this Mac's CAD-tracing and review tools, and molab must not read it.
-  The `use` field in `pass.json` is the machine-readable form of this rule.
+- **Pinned fingerprints** (CURRENT in `stages/gear_mask/README.txt` and `stages/static_mask/README.txt`, held in
+  `training_masks.Templates`): gear cam0 `c506a8ae5ffdd157`, cam1 `fc17000db00e21c6` (rim only); body cam0
+  `472823d347e66988`, cam1 `937c47e779a1d0dc`. On load each record's own fingerprint and lens must match and its
+  `acceptance.ok` must be true. A new rigid mask enters training only by changing these IDs in code, in a reviewed PR.
+- **Join:** the frames stage names lenses `lens0`/`lens1`, and the remux and rigid stages call the same streams
+  `cam0`/`cam1`. A kept frame at `t_ms` takes the gear position of the nearest source frame
+  (`t_ms = frame · 1001/30`) within one frame period (33.4 ms).
+- **Unknown stays unknown:** a frame of an A1 clip with no position in reach, a clip with no positions table (clip
+  027 was added after the gear stage ran), or a position with no template is an `UnknownGearPosition` error. The
+  notebook builds every clip it can, then stops before poses and names the clips that need `gear_mask` run with them
+  assigned. A source that is not an A1 (a phone) has no aircraft in view; its mask is people only, and
+  `training_masks.json` records that rule.
+- **Output:** `stages/training_masks/<fp>/<clip>/<lensN>/<frame:06d>.png`, `training_masks.parquet` (per frame: gear
+  position, the share of the frame each source covers, the ignored share) and `training_masks.json`. Fingerprint =
+  people-mask fingerprint + rigid-mask IDs + the per-frame gear-position assignment + the module's code.
+
+### Polarity: one convention
+
+**0 = ignore, 255 = use**, 8-bit single-channel, for everything that poses or training reads. It is COLMAP's (black
+pixels are not used for features), Spirula's and the trainers' convention, and the masks stage already writes it,
+so `training_masks` output goes to COLMAP as is, with no inversion in the poses stage.
+
+The rigid-mask stages (`gear_mask`, `static_mask`) and Resolve's passes (§2, §6.1) write the opposite: **255 = subject**
+(the thing to ignore). They keep that format on disk, because their files are already in the bucket and fingerprinted.
+They are converted in exactly one place, `training_masks.ignore_region(mask, polarity)`, where `"use"` means
+0 = ignore and `"subject"` means 255 = subject. No other code inverts a mask. A people-mask directory in the
+255 = person layout (`pass.json`, the earlier `people_masks` branch kept on the 2TB drive) is refused rather than
+inverted. A Resolve matte that should join the union (the `mask_people` cross-check) must be added as another
+`"subject"` input of this stage, not read anywhere else.
+
+Every other pass (`use = analysis`) is for this Mac's CAD-tracing and review tools, and molab must not read it.
+The `use` field in `pass.json` is the machine-readable form of this rule.
 
 ## 3. Machine setup (once per Mac) — verified 2026-11-12
 
