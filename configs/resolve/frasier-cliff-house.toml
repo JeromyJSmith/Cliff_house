@@ -80,8 +80,8 @@ lenses = ["cam0"]          # the downward lens sees both struts and feet on its 
 absent_lenses = ["cam1"]   # the upward lens never sees the gear: the derivation must find nothing there
 full_size = 3840
 # The gear is fixed within a clip but has two positions: folded along the left/right rim (clips 035–041) and lowered
-# into the upper left/right of the image (clip 042). So it is one mask per clip and lens (scope "clip"), checked
-# against that clip's own frames; rim_band 0.55 reaches the lowered legs.
+# into the upper left/right of the image (clip 042). OPEN: scope "clip" proved unreliable (see
+# stages/static_mask/README.txt and docs/resolve-pipeline.md §6.1); the next version groups clips by gear position.
 params = { scope = "clip", rim_band = 0.55, min_clip_fraction = 0.8 }
 
 # ---------------------------------------------------------------- SAM 3 people masks (cliff_house.people_masks)

@@ -172,15 +172,22 @@ config:
 |---|---|---|---|---|
 | **people** | every person, the operator included | **primary: SAM 3 with the text prompt `person`, run on this Mac** (owner decisions, 2026-11-12: SAM 3 primary; SAM 3 runs locally, not in molab). Secondary: Resolve `mask_people` (Magic Mask, several clicks unioned, below), a cross-check whose union with SAM 3 can only remove more pixels | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
 | **aircraft body** (`static_mask aircraft_body`) | the dark arc of the aircraft's body across the top rim of both lenses, and on cam0 the dark arm arcs above the gear | one static mask per lens, criterion "dark" (V ≤ 80) | `[static_masks.aircraft_body]`: lenses `cam0`, `cam1`; `min_clip_fraction = 0.75` | each part darker than its surroundings in ≥ 6/8 clips (it is lit, and no darker than the scene, in bright outdoor clips) |
-| **landing gear** (`static_mask landing_gear`) | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | **one static mask per clip and lens** (scope "clip"), derived from that clip ([`static_mask.py`](../src/cliff_house/static_mask.py)): the gear is fixed within a clip but has two positions | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`); `scope = "clip"`, `rim_band = 0.55` | each part whiter than its surroundings on ≥ 80 % of that clip's sampled frames; empty on the absent lens |
+| **landing gear** (`static_mask landing_gear`), **open** | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | static mask per gear position (planned; see Status below). Tried: per lens (wrong for clip 042) and per clip (unreliable). Current attempt: scope "clip", derived from that clip ([`static_mask.py`](../src/cliff_house/static_mask.py)): the gear is fixed within a clip but has two positions | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`); `scope = "clip"`, `rim_band = 0.55` | each part whiter than its surroundings on ≥ 80 % of that clip's sampled frames; empty on the absent lens |
 
 **Recommendation for the landing gear: a static mask per clip and lens, not tracking.** The gear does not move
 relative to the lens within a clip. It is **not** one fixed shape per lens, though: in 7 of the 8 clips of
 2026-11-10 it is folded along the left and right rim of cam0, and in clip 042 (outdoor) it is lowered into the
-upper left and right of the image for the whole clip. A first per-lens mask pooled over all clips
-(`379006cbe2bfcc41`, later `a2c308df0a6904ce`) passed its checks but was wrong for clip 042. It masked the empty rim
-and missed the lowered legs, which shows that a clip-level check is needed. The gear is therefore derived per clip
-and checked against that clip's own frames. Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was
+upper left and right of the image for the whole clip. **Status: open, no gear mask is current.** A per-lens mask pooled over all clips (`379006cbe2bfcc41`,
+`a2c308df0a6904ce`) is good for the 7 folded clips but wrong for clip 042: it masks the empty rim and misses the
+lowered legs. Per-clip masks (scope "clip", 2026-11-12) are worse. One clip's median does not average the scene
+out, so they miss most of the struts and take wall pictures or sky. On clip 041 a painting was masked; on cam1, which
+never sees the gear, the absence check failed on clips 040 and 041. Their acceptance values passed anyway, so
+`stages/static_mask/README.txt` lists which fingerprints may be used: only `aircraft_body`. **Next:** one mask per
+gear *position*, pooled over the clips in that position, with many more frames for a position seen in only one clip
+(042 has 3,371 frames). The checks must include the absence lens and a visual check, because a coverage or contrast
+check alone passed wrong masks twice. Until then SAM 3 and `aircraft_body` are the reconstruction masks and the
+gear is unmasked.
+Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was
 worse on every count. It recovered a median 13 % of the static mask (IoU 0.13), usually only the feet, never the
 full struts. It varied from frame to frame (0.14–1.5 % coverage) and lost the right foot entirely on some frames. At
 the 95th percentile, 10 % of its mask spilled onto nearby walls and pictures. A static mask needs no Resolve and no
@@ -260,7 +267,7 @@ coarse ceiling map described in §6.2.
 |---|---|---|---|---|---|---|
 | `depth_map` cam0 | `64f681af1176a76e` | **365 / 365**, 3840×3840 16-bit L | ok: every frame non-constant | 160 s | 5.3 GB | 8.3 GB |
 | `magic_mask` cam0 (earlier single-click pass, before the mask classes), click on the jacket (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
-| **landing gear, static** (`static_mask`) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
+| landing gear, static per lens, **superseded** (wrong for clip 042, see §6.1 Status) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
 | landing gear, tracked (`mask_landing_gear_tracked`, 2 clicks on the feet) cam0 | `29f3d7580cc357aa` | **365 / 365** | ok by its own check (mask on every frame), but see the comparison below | 729 s | ≈ 70 MB | 32 GB |
 | people, Resolve cross-check (`mask_people`, 4 clicks: jacket, trousers, boots, head) cam0 | `17ec183c3b0fb611` | **365 / 365** | ok by its band: mask on every frame, median coverage 4.6 % (3.7–6.7 %), inside 4–15 %, but **visibly incomplete** (below) | 1427 s | ≈ 80 MB | 64 GB |
 
