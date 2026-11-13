@@ -24,6 +24,10 @@ from packaging.requirements import Requirement
 
 REPO = Path(__file__).resolve().parents[1]
 NOTEBOOK = REPO / "notebooks" / "workbench.py"
+# Cliff House is its own project, not a MARPA one: its QA namespace and run records are named for it, even though they
+# live in the machine's one Pixeltable home (owner, 2026-11-12). The project's main Pixeltable runs in molab.
+PROJECT = "cliff_house"
+PIXELTABLE_CONFIG = REPO / "configs" / "pixeltable" / "config.toml"
 # The repository that owns the one-home QA scope (and its pixeltable.env).
 MARPA_DESK = Path(os.environ.get("MARPA_DESK", "/Volumes/MARPA/apps/marpa-desk"))
 
@@ -73,7 +77,7 @@ def test_notebook_runs_against_hugging_face(tmp_path, qa_scope):
     server_pid = int(pid_file.read_text().split()[0])
     assert server_pid in _postgres_pids(str(pgdata)), f"postmaster.pid names {server_pid}, which is not running"
 
-    prefix = qa_scope.new_prefix("cliff_house_test_notebook")
+    prefix = qa_scope.new_prefix(f"{PROJECT}_test_notebook")
     env = qa_scope.child_env(prefix, base=os.environ | {
         # The working tree, read through fsspec's file filesystem exactly as molab reads GitHub.
         "CLIFF_HOUSE_REPO": REPO.as_uri(),
@@ -81,6 +85,8 @@ def test_notebook_runs_against_hugging_face(tmp_path, qa_scope):
         "CLIFF_HOUSE_FRAME_CLIPS": "VID_20261110_132328_041",
         # Intel Macs report MPS but cannot run it (no unified memory); Apple silicon and CUDA hosts are unaffected.
         "PIXELTABLE_ENABLE_MPS": os.environ.get("PIXELTABLE_ENABLE_MPS", "false"),
+        # Cliff House's own Pixeltable settings: the home's config.toml carries an option only MARPA's Pixeltable accepts.
+        "PIXELTABLE_CONFIG": str(PIXELTABLE_CONFIG),
     })
     assert (env["PIXELTABLE_HOME"], env["PIXELTABLE_DB"]) == (home, db)
 
@@ -91,7 +97,7 @@ def test_notebook_runs_against_hugging_face(tmp_path, qa_scope):
             outcome = "pass" if result.returncode == 0 else f"exit {result.returncode}"
         finally:
             qa_scope.record_run(prefix, "Cliff_house tests/test_notebook.py::test_notebook_runs_against_hugging_face",
-                                outcome, {"repo": str(REPO), "python": sys.executable})
+                                outcome, {"project": PROJECT, "repo": str(REPO), "python": sys.executable})
 
     assert result.returncode == 0, result.stderr[-4000:]
     # Still the one home's server, and no postgres of the run's own (in its working dir or a fallback home) left behind.
