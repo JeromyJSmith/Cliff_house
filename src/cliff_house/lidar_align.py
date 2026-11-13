@@ -253,7 +253,9 @@ def align(prep_root: Path, out_root: Path, workers: int = 4, max_load: float = 1
                     row = done[key] = json.loads((out / "pairs" / f"{pair_name(*key)}.json").read_text())
                     log(json.dumps({"pair": pair_name(*key), "icp_rmse_m": round(row["icp_rmse_m"], 4),
                                     "icp_fitness": round(row["icp_fitness"], 3),
-                                    "ransac_inlier_ratio": round(row["ransac_fitness"], 3),
+                                    # share of FPFH matches inside the best RANSAC hypothesis: ~1e-5..1e-4 here,
+                                    # so 3 decimals printed a misleading 0.0
+                                    "ransac_fitness": float(f"{row['ransac_fitness']:.3g}"),
                                     "check_fitness_2cm": round(row["check_fitness_2cm"], 3),
                                     "tilt_deg": round(row["tilt_deg"], 2), "register_s": round(row["register_s"], 1)}))
                 finished += 1
