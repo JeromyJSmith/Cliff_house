@@ -713,9 +713,21 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, mo, pl, retry, sync_bucket, traini
         _work = WORK / "poses" / _fp
         _sets = [_frame_set(r) for r in mo.status.progress_bar(list(training_clips.iter_rows(named=True)),
                                                                 title="Poses: fetching frames and masks")]
-        with mo.status.spinner(title="COLMAP: features, matching, incremental mapping",
-                               subtitle=f"{sum(len(s.frames) for s in _sets):,} images from {len(_sets)} clips"):
-            _rec = poses_stage.solve(_sets, _work, POSE_PARAMS)
+        _subtitles = {"features": "SIFT on {done:,} / {total:,} images",
+                      "rig": "{done:,} / {total:,} rig frames (lens0 + lens1 at one instant)",
+                      "matching": "{done:,} / {total:,} images matched to their neighbours",
+                      "mapping": "{done:,} / {total:,} images registered"}
+        # One bar per COLMAP step, each opened when its step first reports; finished bars stay visible.
+        _bars = {}
+
+        def _progress(step, done, total):
+            if step not in _bars:
+                _bars[step] = mo.status.progress_bar(
+                    total=total, title=f"COLMAP {poses_stage.STEPS.index(step) + 1}/{len(poses_stage.STEPS)} · {step}",
+                    show_eta=True, show_rate=True).__enter__()
+            _bar = _bars[step]
+            _bar.update(increment=done - _bar.current, subtitle=_subtitles[step].format(done=done, total=total))
+        _rec = poses_stage.solve(_sets, _work, POSE_PARAMS, _progress)
         (_work / "summary.json").write_text(
             _json.dumps(poses_stage.summary(_rec, sum(len(s.frames) for s in _sets)), indent=1))
         retry(sync_bucket, str(_work), f"hf://buckets/{BUCKET}/{_remote}", token=HF_STORAGE["token"],
