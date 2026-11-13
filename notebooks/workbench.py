@@ -13,6 +13,9 @@
 #     "torch>=2.8",
 #     "torchvision>=0.23",
 #     "transformers>=5.0",
+#     "scipy>=1.14",
+#     "pycolmap-cuda12==4.2.1; sys_platform == 'linux'",
+#     "pycolmap==4.2.1; sys_platform == 'darwin'",
 #     "pyyaml>=6.0",
 # ]
 # ///
@@ -448,6 +451,65 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
     mo.md(f"Masks: **{mask_rows.height:,}** frames, median ignored "
           f"{mask_rows['ignored_fraction'].median():.1%} ({len(masks_missing)} clips processed this session)")
     return MASK_PARAMS, mask_rows, masks, masks_stage
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## Stage 4 — poses (COLMAP)
+
+    One structure-from-motion solve over every clip's frames and masks. The A1's lenses are one rig whose
+    lens-to-lens transform comes from the camera's factory calibration (telemetry `lens.json`); each A1 lens is one
+    camera across all clips; each phone clip is its own camera. Keyed by the masks' fingerprints and the solver
+    parameters. The solve is in metres via the 71.3 mm factory baseline — a hint until LiDAR confirms it.
+    """)
+    return
+
+
+@app.cell
+def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket):
+    import json as _json
+
+    from cliff_house import poses as poses_stage
+
+    _fs = HfFileSystem(token=HF_STORAGE["token"])
+    # The factory rig must be the same on every A1 clip; a disagreement means mixed cameras, which must stop the solve.
+    _lens_files = sorted(_fs.glob(f"buckets/{BUCKET}/stages/telemetry/*/*/lens.json"))
+    _rigs = {poses_stage.insta360_rig(_json.loads(_fs.read_text(f))) for f in _lens_files}
+    if len(_rigs) != 1:
+        raise ValueError(f"factory rig differs across {len(_lens_files)} telemetry records: {_rigs}")
+    POSE_PARAMS = poses_stage.Params(rig=_rigs.pop())
+
+    pose_fp = poses_stage.fingerprint(clips["mask_fingerprint"].to_list(), POSE_PARAMS)
+    _remote = f"stages/poses/{pose_fp}"
+    pose_missing = [] if _fs.exists(f"buckets/{BUCKET}/{_remote}/summary.json") else [pose_fp]
+
+    def _frame_set(row):
+        frames_dir = WORK / "frames" / f"stages/frames/{row['fingerprint']}/{row['clip']}"
+        masks_dir = WORK / "masks" / f"stages/masks/{row['mask_fingerprint']}/{row['clip']}"
+        for remote_dir, local in ((f"stages/frames/{row['fingerprint']}/{row['clip']}", frames_dir),
+                                  (f"stages/masks/{row['mask_fingerprint']}/{row['clip']}", masks_dir)):
+            retry(_fs.get, f"buckets/{BUCKET}/{remote_dir}/", str(local) + "/", recursive=True)
+        table = pl.read_parquet(frames_dir / "frames.parquet")
+        cameras = sorted(table["camera"].unique())
+        # Two synchronized streams are the A1 rig (shared lens cameras); one stream is a phone clip (its own camera).
+        folders = {c: c for c in cameras} if len(cameras) == 2 else {c: row["clip"] for c in cameras}
+        return poses_stage.FrameSet(row["clip"], frames_dir, masks_dir, folders,
+                                    tuple((r["camera"], r["frame"]) for r in table.iter_rows(named=True)))
+
+    for _fp in pose_missing:
+        _work = WORK / "poses" / _fp
+        _sets = [_frame_set(r) for r in clips.iter_rows(named=True)]
+        _rec = poses_stage.solve(_sets, _work, POSE_PARAMS)
+        (_work / "summary.json").write_text(
+            _json.dumps(poses_stage.summary(_rec, sum(len(s.frames) for s in _sets)), indent=1))
+        retry(sync_bucket, str(_work), f"hf://buckets/{BUCKET}/{_remote}", token=HF_STORAGE["token"],
+              include=["sparse/**", "summary.json"])
+    pose_summary = _json.loads(_fs.read_text(f"buckets/{BUCKET}/{_remote}/summary.json"))
+    mo.md(f"Poses `{pose_fp}`: **{pose_summary['registered_images']:,} / {pose_summary['total_images']:,}** images "
+          f"registered, {pose_summary['points3D']:,} points, {pose_summary['mean_reprojection_error_px']} px; "
+          f"rig baselines {pose_summary['rig_baselines_m']} m")
+    return POSE_PARAMS, pose_fp, pose_missing, pose_summary, poses_stage
 
 
 @app.cell

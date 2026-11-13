@@ -24452,6 +24452,8 @@ packages:
   - torch>=2.8 ; extra == 'ml'
   - torchvision>=0.23 ; extra == 'ml'
   - transformers>=5.0 ; extra == 'ml'
+  - pycolmap-cuda12==4.2.1 ; sys_platform == 'linux' and extra == 'sfm'
+  - pycolmap==4.2.1 ; sys_platform == 'darwin' and extra == 'sfm'
   requires_python: '>=3.12,<3.13'
 - pypi: https://files.pythonhosted.org/packages/00/8d/74a8649d2787dae0a661855cdf09a8e2238fa741689bb368ca1b4f6d5b6f/grpcio-1.85.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
   name: grpcio

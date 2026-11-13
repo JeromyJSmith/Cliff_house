@@ -5,8 +5,11 @@ images taken at the same instant (`lens0/<clip>__000005.jpg` and `lens1/<clip>__
 across every clip that used it, so each lens is calibrated once from all its frames. Masks follow COLMAP's convention
 (`<mask root>/<image name>.png`, 0 = ignore), which is the masks stage's convention too.
 
-Following COLMAP 4's rig workflow: solve once without the rig, derive the lens-to-lens transform from that solve
-(`apply_rig_config`), then solve again with the rig constraint. Scale stays arbitrary: nothing here is metric.
+The lens-to-lens transform comes from the camera's factory rig calibration (Insta360 `lens.json`, decoded by the
+telemetry stage): lens 1 is rotated ~180° from lens 0 and offset 71.3 mm. On clip 041 every reading of that record
+converged under bundle adjustment to the same transform, with the translation sign as stored, so the stored record
+is used as-is. Because the baseline is a factory length in metres and bundle adjustment holds its norm, the solve is
+expressed in metres — a scale hint from a 7 cm baseline, to be checked against LiDAR, not a survey measurement.
 """
 from __future__ import annotations
 
@@ -17,7 +20,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable, Literal
 
+import numpy as np
 import pycolmap
+from scipy.spatial.transform import Rotation
 
 
 @dataclass(frozen=True)
@@ -35,13 +40,29 @@ A1_LENS_PRIORS = {
 
 
 @dataclass(frozen=True)
+class RigSensor:
+    folder: str
+    quat_xyzw: tuple[float, float, float, float]   # cam_from_rig rotation
+    translation: tuple[float, float, float]        # cam_from_rig translation, metres
+
+
+def insta360_rig(lens_json: dict, folders: tuple[str, ...] = ("lens0", "lens1")) -> tuple[RigSensor, ...]:
+    """Rig sensors from an Insta360 lens.json: the first camera is the reference; the others get R_i · R_0⁻¹ and their
+    stored translation (the reading bundle adjustment confirmed on clip 041)."""
+    cams = lens_json["rig"]["projection"]["kind"]["Rig"]["cameras"]
+    rot = [Rotation.from_quat([c["rotation"][k] for k in "xyzw"]) for c in cams]
+    return tuple(RigSensor(folder, tuple((rot[i] * rot[0].inv()).as_quat()), tuple(cams[i]["translation"]))
+                 for i, folder in enumerate(folders))
+
+
+@dataclass(frozen=True)
 class Params:
-    rig_folders: tuple[str, ...] = ("lens0", "lens1")   # first is the rig's reference sensor
+    rig: tuple[RigSensor, ...] = ()                  # first entry is the reference sensor; empty = no rig
     priors: dict[str, CameraPrior] = field(default_factory=lambda: dict(A1_LENS_PRIORS))
-    unknown_camera_model: str = "OPENCV"                 # cameras without a prior (phones) are estimated
+    unknown_camera_model: str = "OPENCV"             # cameras without a prior (phones) are estimated
     overlap: int = 15
-    mapper: Literal["global", "incremental"] = "global"
-    max_image_size: int = 3200
+    mapper: Literal["global", "incremental"] = "incremental"   # global (GLOMAP) fragmented short walkthroughs
+    max_image_size: int = 1600                       # SIFT on 3840² fisheye at 1600 px: 4x faster, same solve
 
 
 @dataclass(frozen=True)
@@ -90,8 +111,14 @@ def _extract(db: Path, out: Path, by_folder: dict[str, list[str]], params: Param
 
 def _rig_config(params: Params) -> pycolmap.RigConfig:
     config = pycolmap.RigConfig()
-    config.cameras = [pycolmap.RigConfigCamera(ref_sensor=(i == 0), image_prefix=f"{f}/")
-                      for i, f in enumerate(params.rig_folders)]
+    cameras = []
+    for i, sensor in enumerate(params.rig):
+        cam = pycolmap.RigConfigCamera(ref_sensor=(i == 0), image_prefix=f"{sensor.folder}/")
+        if i:
+            cam.cam_from_rig = pycolmap.Rigid3d(pycolmap.Rotation3d(np.array(sensor.quat_xyzw)),
+                                                np.array(sensor.translation))
+        cameras.append(cam)
+    config.cameras = cameras
     return config
 
 
@@ -109,21 +136,18 @@ def largest(models: dict[int, pycolmap.Reconstruction]) -> pycolmap.Reconstructi
 
 
 def solve(sets: Iterable[FrameSet], out: Path, params: Params) -> pycolmap.Reconstruction:
-    """Two-pass rig-aware SfM; writes <out>/sparse/0 (final) and returns the final reconstruction."""
-    sets = list(sets)
+    """Rig-constrained SfM; writes <out>/sparse/0 and returns the largest reconstruction."""
     by_folder = stage_workspace(sets, out)
     db = out / "database.db"
     db.unlink(missing_ok=True)
     _extract(db, out, by_folder, params)
+    with pycolmap.Database.open(db) as database:
+        pycolmap.apply_rig_config([_rig_config(params)] if params.rig else [], database)
     pairing = pycolmap.SequentialPairingOptions()
     pairing.overlap = params.overlap
     pairing.quadratic_overlap = True
     pycolmap.match_sequential(db, pairing_options=pairing)
-
-    unconstrained = largest(_map(db, out, out / "sparse_norig", params))
-    with pycolmap.Database.open(db) as database:
-        pycolmap.apply_rig_config([_rig_config(params)], database, unconstrained)
-    final = largest(_map(db, out, out / "sparse_rig", params))
+    final = largest(_map(db, out, out / "sparse_all", params))
     (out / "sparse" / "0").mkdir(parents=True, exist_ok=True)
     final.write(out / "sparse" / "0")
     return final
@@ -140,4 +164,6 @@ def summary(rec: pycolmap.Reconstruction, total_images: int) -> dict:
     return {"registered_images": rec.num_reg_images(), "total_images": total_images,
             "points3D": rec.num_points3D(), "mean_track_length": round(float(rec.compute_mean_track_length()), 3),
             "mean_reprojection_error_px": round(float(rec.compute_mean_reprojection_error()), 3),
-            "rigs": len(rec.rigs), "frames": len(rec.frames), "cameras": cameras}
+            "rigs": len(rec.rigs), "frames": len(rec.frames), "cameras": cameras,
+            "rig_baselines_m": [round(float(np.linalg.norm(t.translation)), 4) for rig in rec.rigs.values()
+                                for t in rig.non_ref_sensors.values()]}
