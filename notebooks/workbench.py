@@ -306,10 +306,12 @@ def _():
 
 @app.cell
 def _():
+    import io
+
     import PIL.Image as Image
     import plotly.express as px
     import plotly.graph_objects as go
-    return Image, go, px
+    return Image, go, io, px
 
 
 @app.cell
@@ -412,7 +414,7 @@ def _(mo):
     mo.md("""
     ## Stage 3 — masks (SAM 3)
 
-    SAM 3 concept segmentation (Pixeltable `sam3_for_segmentation`, one column per prompt) finds people (`person`,
+    SAM 3 concept segmentation (`cliff_house.sam3_batch`: each frame encoded once for every prompt) finds people (`person`,
     `hand`), what they carry (keys, controller, phone, strap, …) and pictures (artwork, painting, picture) on every
     frame. `cliff_house.masks.combine` keeps carried items only where they overlap a person, drops "people" inside
     pictures (posters are walls), fills enclosed holes, grows the region and, on fisheye sources, carries it out to
@@ -423,13 +425,14 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, pl, pxt, retry, shutil,
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, io, mo, pl, pxt, retry, shutil,
       sync_bucket, videos):
     import itertools as _it
 
-    from pixeltable.functions.huggingface import sam3_for_segmentation as _sam3
+    import torch as _torch
 
     from cliff_house import masks as masks_stage
+    from cliff_house import sam3_batch
 
     # This footage's operator carries a yellow strap over the shoulder that no generic prompt finds reliably.
     MASK_PARAMS = masks_stage.Params(carried=(*masks_stage.Params().carried, "yellow object"))
@@ -441,37 +444,30 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, 
     masks_missing = [r for r in clips.iter_rows(named=True)
                      if not _fs.exists(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet")]
 
+    # One SAM 3 for the stage: each frame is encoded once for all prompts (the per-prompt Pixeltable column
+    # re-encoded it once per prompt); results are identical, see tests/test_sam3_batch.py.
+    _sam = sam3_batch.Sam3.load(MASK_PARAMS.model_id, MASK_PARAMS.revision, MASK_PARAMS.prompts,
+                                "cuda" if _torch.cuda.is_available() else "cpu")
+
+    def _as_segmented(im):
+        # Masks keyed by this fingerprint were made from the downscaled frame saved as a quality-95 JPEG; the same
+        # round trip, in memory, keeps every mask under the fingerprint identical whichever run made it.
+        buf = io.BytesIO()
+        im.resize(masks_stage.segmentation_size(*im.size, MASK_PARAMS)).save(buf, "JPEG", quality=95)
+        return Image.open(buf)
+
     def _segment(clip, clip_frames, frames_dir, fisheye):
-        work = pxt.create_table(f"{PXT_DIR}/mask_work", {"camera": pxt.String, "frame": pxt.Int,
-                                                          "batch": pxt.Int, "image": pxt.Image},
-                                 if_exists="replace")
-        for i, prompt in enumerate(MASK_PARAMS.prompts):
-            work.add_computed_column(**{f"p{i}": _sam3(
-                work.image, text=prompt, model_id=MASK_PARAMS.model_id, revision=MASK_PARAMS.revision,
-                threshold=MASK_PARAMS.detection_threshold, mask_threshold=MASK_PARAMS.mask_threshold)})
-        small_dir = frames_dir / "_seg"
-        small_dir.mkdir(exist_ok=True)
-        batches = list(_it.batched(clip_frames.iter_rows(named=True), 16))
-        for b, batch in enumerate(mo.status.progress_bar(batches, title=f"SAM 3 · {clip}",
-                                                         subtitle=f"{clip_frames.height:,} frames in batches of 16",
-                                                         show_eta=True, show_rate=True, remove_on_exit=True)):
-            rows = []
-            for r in batch:
-                img = Image.open(frames_dir / r["file"])
-                size = masks_stage.segmentation_size(*img.size, MASK_PARAMS)
-                small = small_dir / f"{r['camera']}_{r['frame']:06d}.jpg"
-                img.resize(size).save(small, quality=95)
-                rows.append({"camera": r["camera"], "frame": r["frame"], "batch": b, "image": str(small),
-                             "_full": img.size})
-            work.insert([{k: v for k, v in r.items() if k != "_full"} for r in rows])
-            cols = [getattr(work, f"p{i}") for i in range(len(MASK_PARAMS.prompts))]
-            results = {(x["camera"], x["frame"]): x for x in
-                       work.where(work.batch == b).select(work.camera, work.frame, *cols).collect()}
-            for r in rows:
-                res = results[(r["camera"], r["frame"])]
-                w, h = r["_full"]
-                found = masks_stage.by_group({q: res[f"p{i}"] for i, q in enumerate(MASK_PARAMS.prompts)}, (h, w),
-                                             MASK_PARAMS)
+        batches = list(_it.batched(clip_frames.iter_rows(named=True), 8))
+        for batch in mo.status.progress_bar(batches, title=f"SAM 3 · {clip}",
+                                            subtitle=f"{clip_frames.height:,} frames, {len(MASK_PARAMS.prompts)} "
+                                                     "prompts, each frame encoded once",
+                                            show_eta=True, show_rate=True, remove_on_exit=True):
+            full = [Image.open(frames_dir / r["file"]) for r in batch]
+            results = _sam.segment([_as_segmented(im) for im in full],
+                                   MASK_PARAMS.detection_threshold, MASK_PARAMS.mask_threshold)
+            for r, im, res in zip(batch, full, results):
+                w, h = im.size
+                found = masks_stage.by_group(res, (h, w), MASK_PARAMS)
                 region, _ = masks_stage.combine(found["people"], found["carried"], found["depictions"], (h, w),
                                                 MASK_PARAMS, fisheye)
                 yield r["camera"], r["frame"], masks_stage.training_mask(region)
@@ -636,9 +632,8 @@ def _(browse_clip, mo, pl, training_rows):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_rows, mo, pl, training_rows,
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, io, browse_clip, browse_frame, frame_rows, mo, pl, training_rows,
       views):
-    import io as _io
 
     import numpy as _np
 
@@ -648,7 +643,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_
                    on=["clip", "camera", "frame"]).sort("camera"))
 
     def _load(path, mode, resample):
-        img = Image.open(_io.BytesIO(_fs.read_bytes(f"buckets/{BUCKET}/{path}"))).convert(mode)
+        img = Image.open(io.BytesIO(_fs.read_bytes(f"buckets/{BUCKET}/{path}"))).convert(mode)
         return _np.asarray(img.resize((720, 720 * img.height // img.width), resample))
 
     def _share(x):
