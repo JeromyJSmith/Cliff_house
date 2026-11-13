@@ -342,9 +342,10 @@ bucket (waits for approval), and any of the §6.3 passes.
 3. **Clicks for people:** picked by a person per clip/lens, or derived from the local SAM 3 masks. Also decide
    whether multi-click authoring inside one grade is worth building, since today each click costs one track and
    two renders.
-4. **Render intermediates** (`resolve/_render/…`) are reproducible from the fingerprint, but large: 16 GB per
-   lens-clip for a matte pass and 8.3 GB for depth, all at 3840² for 365 frames. The proof left **56 GB**
-   (including the two kept failed attempts) on the 2TB drive. Keep them, or delete them after acceptance?
+4. **Render intermediates** (`resolve/_render/…`): decided 2026-11-12, deleted. Nothing reads them and they are
+   reproducible from the fingerprint. The proof's 158 GB of render PNGs were removed after every output had been
+   uploaded and verified in the bucket. The `click.drx` grades beside them are kept, locally and in the bucket.
+   Open: whether passes should delete their own renders automatically once their output passes acceptance.
 5. **Which frames to render.** Measured on clip 041: Magic Mask 0.93 s/frame and Depth Map 0.44 s/frame, per lens.
    All 8 clips are 21,689 frames per lens (12.1 min). At full frame rate, both lenses: Magic Mask ≈ 11 h,
    Depth ≈ 5.3 h, depth outputs ≈ 630 GB, and renders ≈ 2.9 TB. The 2TB drive has 171 GB free. **Recommended:**
