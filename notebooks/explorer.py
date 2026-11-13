@@ -146,26 +146,32 @@ def _(mo):
 
 @app.cell
 def _(pl):
+    # method: where the technique comes from (docs/poses-explorer-plan.md, "Methods source"); "Poux …" = Florent
+    # Poux's MIT kits in florentPoux/3d-data-materials unless named otherwise.
     use_cases = pl.DataFrame([
-        (1, "Camera paths", "have", "poses", "Trajectory per clip in metres, speed over time — shown below."),
-        (2, "Point cloud viewer / export", "have", "poses", "549 k coloured points; filter by error and track length — below."),
-        (3, "Lens calibration report", "partial", "poses + Spirula", "Our fisheye models + rig; Spirula's rig disagrees on baseline (71.3 vs 63.7 mm)."),
-        (4, "Measurements", "next", "poses + LiDAR", "Triangulate picked pixels; metric once LiDAR confirms scale."),
-        (5, "Coverage / reshoot planner", "partial", "poses", "Top-down coverage heat map below (approximate level); map overlay needs #9."),
-        (6, "Frame quality", "partial", "poses + frames", "Points seen per frame, sharpness — below; exclusion list next."),
-        (7, "Dense reconstruction", "partial", "Spirula (033)", "Spirula's RoMa dense cloud for 033 exists (32 M points) — preview below; ours not run."),
-        (8, "LiDAR registration", "next", "LiDAR scans", "24 SiteScape scans (~24 M points each) to align; confirms scale."),
-        (9, "Levelling + georeferencing", "partial", "Spirula (033), GPS", "Spirula's 033 model is GPS-scaled and east/north-up; ours not yet."),
-        (10, "Metric depth per frame", "next", "poses + depth model", "Monocular depth scaled by sparse points."),
-        (11, "Perspective views", "next", "poses + frames", "Flat views from the fisheyes at any direction."),
-        (12, "Labelled 3D points", "next", "poses + masks", "SAM 3 classes carried onto 3D points."),
-        (13, "Placing new photos", "next", "poses", "Localise any new photo inside the model."),
-        (14, "Camera tracking (USD)", "partial", "poses", "resolve/usd_scene.py exists; export from these poses next."),
-        (15, "Stabilised / reframed video", "next", "poses + frames", "Smooth paths and reframes from known poses."),
-        (16, "Plan geometry", "next", "levelled cloud", "Slices to floor outlines, planes to walls/floors/roof."),
-        (17, "Scan-to-BIM (Cloud2BIM → IFC)", "next", "merged LiDAR / dense", "Slabs, walls, openings, spaces as an IFC proposal."),
-        (18, "Gaussian splats", "partial", "Spirula (033)", "Spirula splat of 033: step 16 k done, 28 k of 50 k training on the MacBook — preview below."),
-    ], orient="row", schema=["id", "use_case", "status", "uses", "what"])
+        (1, "Camera paths", "have", "poses", "COLMAP", "Trajectory per clip in metres, speed over time — shown below."),
+        (2, "Point cloud viewer / export", "have", "poses", "COLMAP", "549 k coloured points; filter by error and track length — below."),
+        (3, "Lens calibration report", "partial", "poses + Spirula", "COLMAP", "Our fisheye models + rig; Spirula's rig disagrees on baseline (71.3 vs 63.7 mm)."),
+        (4, "Measurements", "next", "poses + LiDAR", "COLMAP triangulation", "Triangulate picked pixels; metric once LiDAR confirms scale."),
+        (5, "Coverage / reshoot planner", "partial", "poses", "views per cell", "Top-down coverage heat map below (approximate level); map overlay needs #9."),
+        (6, "Frame quality", "partial", "poses + frames", "COLMAP + sharpness", "Points seen per frame, sharpness — below; exclusion list next."),
+        (7, "Dense reconstruction", "partial", "Spirula (033)", "Spirula RoMa / OpenMVS", "Spirula's RoMa dense cloud for 033 exists (32 M points) — preview below; ours not run."),
+        (8, "LiDAR registration", "next", "LiDAR scans", "ICP (Open3D/PDAL)", "24 SiteScape scans (~24 M points each) to align; confirms scale."),
+        (9, "Levelling + georeferencing", "partial", "Spirula (033), GPS", "Poux level_scan + GPS fit", "Spirula's 033 model is GPS-scaled and east/north-up; ours not yet."),
+        (10, "Metric depth per frame", "next", "poses + depth model", "Poux 3d-models-from-images", "Monocular depth scaled by sparse points."),
+        (11, "Perspective views", "next", "poses + frames", "cliff_house.equirect", "Flat views from the fisheyes at any direction."),
+        (12, "Labelled 3D points", "next", "poses + masks", "Poux open-vocabulary-3d-semantics", "SAM 3 classes lifted onto 3D points, fused and voted across cameras."),
+        (13, "Placing new photos", "next", "poses", "COLMAP absolute pose", "Localise any new photo inside the model."),
+        (14, "Camera tracking (USD)", "partial", "poses", "resolve/usd_scene.py", "Export these poses as USD cameras for Resolve/Blender."),
+        (15, "Stabilised / reframed video", "next", "poses + frames", "path smoothing", "Smooth paths and reframes from known poses."),
+        (16, "Plan geometry", "next", "levelled cloud", "Poux scan-to-floor-plan-dxf, multi-RANSAC+DBSCAN", "Floor outlines, wall lines, openings → DXF."),
+        (17, "Scan-to-BIM → IFC", "next", "merged LiDAR / dense", "Cloud2BIM + Poux wall-thickness-to-ifc", "Slabs, walls (measured thickness), openings, spaces as an IFC proposal."),
+        (18, "Gaussian splats", "partial", "Spirula (033)", "Spirula", "033 splat: step 16 k done, 28 k of 50 k training — real render in SuperSplat, preview below."),
+        (19, "Site terrain (DTM)", "next", "outdoor dense / LiDAR", "Poux lidar-ground-to-dtm", "Ground filter → terrain model; slope, drainage, access."),
+        (20, "Accessibility audit", "next", "levelled interior", "Poux wheelchair-accessibility-audit", "Clear width, turning space, reach → numbered issues."),
+        (21, "Egress / walking distance", "next", "plan + openings", "Poux evacuation-distance-map", "Distance to nearest exit, dead ends, blocked-door what-ifs."),
+        (22, "Splat → textured mesh", "next", "Spirula (033) splat", "Poux gaussian-splat-to-mesh", "Opacity/scale filter → Poisson mesh → baked texture."),
+    ], orient="row", schema=["id", "use_case", "status", "uses", "method", "what"])
     return (use_cases,)
 
 
@@ -187,7 +193,7 @@ def _(mo, pl, status_chart, use_cases):
     _picked = status_chart.value
     _shown = use_cases if _picked.is_empty() else use_cases.filter(
         pl.col("status").is_in(_picked["status"].unique().to_list()))
-    use_case_table = mo.ui.table(_shown, selection="multi", page_size=18, label="Use cases")
+    use_case_table = mo.ui.table(_shown, selection="multi", page_size=22, label="Use cases")
     use_case_table
     return (use_case_table,)
 
@@ -195,7 +201,7 @@ def _(mo, pl, status_chart, use_cases):
 @app.cell
 def _(mo, use_case_table):
     _rows = use_case_table.value
-    mo.md("\n".join(f"- **{r['id']}. {r['use_case']}** ({r['status']}, uses {r['uses']}): {r['what']}"
+    mo.md("\n".join(f"- **{r['id']}. {r['use_case']}** ({r['status']}; uses {r['uses']}; method {r['method']}): {r['what']}"
                     for r in _rows.iter_rows(named=True))
           if not _rows.is_empty() else "_Select use cases above to see what each needs._")
     return

@@ -1,4 +1,4 @@
-# Poses explorer: 17 uses of the data we already have, as one reactive marimo notebook
+# Poses explorer: 22 uses of the data we already have, as one reactive marimo notebook
 
 Status: **plan**, 2026-11-13. Nothing here is built yet.
 
@@ -46,7 +46,7 @@ Base maps: open tiles only (OpenFreeMap / OSM vector styles, MapLibre demo terra
 
 ---
 
-## The 17 use cases
+## The 22 use cases
 
 Each entry gives: what it is → the data it uses → at least two visualizations → interactive pieces → a machine-checkable "done".
 
@@ -339,6 +339,78 @@ Outdoor areas are out of scope. Clip them to the building footprint (use case 16
 - every `IfcSpace` is a closed polygon;
 - wall lengths are compared with LiDAR measurements (use case 8), and the deviation is reported per wall, not assumed.
 
+### 18. Gaussian splats (Spirula)
+
+Spirula's clip-033 splat exists: step 16 k is done, and 50 k is training on the MacBook.
+
+- **View:** the real render in SuperSplat, and a Gaussian-centre preview in the explorer.
+- **Next:** an 8-clip splat trained on molab.
+
+### 19. Site terrain model (DTM)
+
+The ground around the house as a terrain surface, for site analysis: grading, drainage, slope, and access to the hillside.
+
+- **Method:** Poux `lidar-ground-to-dtm`. Ground classified with a cloth filter, thinned and indexed, graded against survey points, written as a DTM raster.
+- **Input:** outdoor parts of the dense cloud or the SiteScape scans, georeferenced (use case 9).
+- **Visualizations:** hillshade and slope maps on MapLibre; a profile line tool (`EdgeDraw`) giving an elevation chart.
+- **Done:** a DTM raster plus its residuals against any surveyed points, reported.
+
+### 20. Accessibility audit
+
+Clear width, turning space and reach through the building, as a numbered issue list on the plan.
+
+- **Method:** Poux `wheelchair-accessibility-audit` (distance transform, morphological opening, connected components).
+- **Input:** floor-level slice of the levelled interior cloud (use cases 9 and 16).
+- **Visualizations:** issue markers on the floor plan; a width heat map; a `SortableList` triage of issues.
+- **Done:** every issue has a location, a measured value and the rule it fails.
+
+### 21. Egress / walking-distance map
+
+Walking distance to the nearest exit from every floor point, dead-end corridors, and what-if blocked doors.
+
+- **Method:** Poux `evacuation-distance-map` (multi-source Dijkstra over a 16-neighbour grid).
+- **Input:** a floor occupancy grid from use case 16, and exits from use case 17's openings.
+- **Visualizations:** a distance field on the plan; routes; a `multiselect` to block doors and re-solve live.
+- **Done:** distances are monotone along routes. A blocked door changes only the cells routed through it.
+
+### 22. Splat → textured mesh
+
+Convert a trained splat into a solid textured mesh for Blender, Resolve and BIM context.
+
+- **Method:** Poux `gaussian-splat-to-mesh`: filter by opacity and scale, densify, Poisson-mesh, bake the texture. A prior adaptation on a basement splat kept 370,781 of 751,619 Gaussians by opacity.
+- **Input:** Spirula's clip-033 splat now; ours later.
+- **Visualizations:** splat vs mesh side by side (`ThreeWidget`); opacity and scale filter sliders with a kept-count chart.
+- **Done:** the mesh's bounds fall within the splat's. Kept counts are reported per filter.
+
+## Methods source: Florent Poux's published code
+
+For use cases 5, 7, 12, 16 and 17–22, the methods come from Florent Poux's open code:
+
+- **[`3d-data-materials`](https://github.com/florentPoux/3d-data-materials):** MIT code. Its kit **datasets are not MIT**, so we don't vendor them and use only our own scans.
+- **[`point-cloud-processing`](https://github.com/florentPoux/point-cloud-processing), [`3d-reconstruction-depth-anything`](https://github.com/florentPoux/3d-reconstruction-depth-anything):** MIT.
+- **[`3D-Data-Science`](https://github.com/florentPoux/3D-Data-Science):** the book code, dual-licensed: book owners, otherwise CC BY-NC 4.0. This project is non-commercial.
+
+Code reused from these keeps its licence notice and attribution. The book's prose and the video transcripts are read locally and never copied into this public repository.
+
+| Need | Poux method | Use case |
+|---|---|---|
+| thresholds from the data | nearest-neighbour spacing: RANSAC distance = min + std of mean k-NN distance; normal radius = 3 × mean spacing | all |
+| level and local origin | `wall-thickness-to-ifc` `level_scan` (floor/ceiling plane bisector; SVD refit) | 9, 16, 17 |
+| per-point shape features | PCA eigen-features: planarity, linearity, verticality | 12, 16, 17 |
+| planes kept apart | multi-RANSAC + keep the largest DBSCAN cluster per plane | 16, 17 |
+| rectangular patches | Open3D `detect_planar_patches` (treads, risers, wall faces as oriented boxes) | 16, 17 (stairs) |
+| wall thickness | density-peak faces → pairing → 25 cm cells, Theil-Sen per face, bootstrap interval → `IfcWall`, read back | 17 (complements Cloud2BIM's fixed thickness parameters) |
+| floor plan and openings | wall raster → skeleton → vector lines → DXF; openings as unseen stretches | 16, 17 |
+| footprint | DBSCAN → alpha shape → polygon | 16, 19 |
+| terrain | cloth ground filter → DTM | 19 |
+| accessibility, egress | distance transform, morphology; multi-source Dijkstra | 20, 21 |
+| labels in 3D | lift, fuse and vote 2D labels across cameras | 12 |
+| splat → mesh | opacity and scale filter → Poisson → baked texture | 22 |
+
+Known gaps:
+- **Avoid the book's numpy `ransac_plane`:** it computes `d` from the un-normalised normal. Use Open3D's or the depth-anything SVD-refit version.
+- **No cylinder or line RANSAC exists in his code.** Balusters and handrails need an explicit line or circle fit, documented as not Poux.
+
 ---
 
 ## Build order (by dependency)
@@ -348,7 +420,8 @@ Outdoor areas are out of scope. Clip them to the building footprint (use case 16
 3. 5, 11, 12, 14, 15: local compute on existing data.
 4. **Pipeline stages on molab:** 7 (dense), 10 (depth), 8 (LiDAR). Then their explorer views.
 5. 4, 13, 16: these benefit from 8 (confirmed scale) and 9 (map).
-6. **17 (Cloud2BIM):** after the LiDAR scans are merged into one frame and levelled (8, 9), with 16's footprint used to clip outdoor points. Smoke-test it first on the sparse cloud so the stage and the views exist before the real input is ready.
+6. **17 (Cloud2BIM) with Poux wall thickness (T8), then 20–21** on its plan: after the LiDAR scans are merged into one frame and levelled (8, 9), with 16's footprint used to clip outdoor points. Smoke-test it first on the sparse cloud so the stage and the views exist before the real input is ready.
+7. **19 (terrain)** once outdoor points are georeferenced; **22 (splat → mesh)** can start now on Spirula's 033 splat.
 
 Prerequisite worth doing first for 5 and 9: join **039** (dining room) and **040** (gravel courtyard) into the main model with retrieval-based cross-clip matching. Until then their coverage shows up as cold.
 
