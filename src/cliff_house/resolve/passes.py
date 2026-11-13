@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator, Literal
@@ -63,6 +64,9 @@ class PassSpec:
 
 
 MAGIC_MASK = {"method": "magic_mask", "track": "BI", "render": "png8"}
+SAMPLED = {"input": "sample", "resolution": 1920}
+DCTL_DIR = Path(__file__).parent / "dctl"
+LUT_ROOT = Path("/Library/Application Support/Blackmagic Design/DaVinci Resolve/LUT")
 
 PASSES = {
     # Mask class "people": every person, the operator included. Magic Mask 2 tracks the object under one click
@@ -73,9 +77,22 @@ PASSES = {
     # Mask class "landing gear", tracked with Magic Mask: kept only to compare with the static per-lens mask
     # (cliff_house.static_mask), which is the reconstruction mask for rigid parts of the aircraft.
     "mask_landing_gear_tracked": PassSpec("mask_landing_gear_tracked", "analysis", MAGIC_MASK),
+    # Site-analysis layers (CAD tracing and review, never reconstruction), on the 3 fps sample (cliff_house.resolve.
+    # sample) at 1920² to keep storage sane: depth, edges, vegetation, surface normals.
     # Fusion Depth Map (DaVinci Neural Engine), Better mode, map output (preview on), everything else default.
     # Relative depth, 1 = near, 0 = far, per frame: not metric, not temporally normalised.
-    "depth_map": PassSpec("depth_map", "analysis", {"Mode": "Better", "DepthMapPreview": 1, "render": "png16"}),
+    "depth_map": PassSpec("depth_map", "analysis", {"method": "fusion_depth", "Mode": "Better", "DepthMapPreview": 1,
+                                                    "render": "RGB16", **SAMPLED}),
+    # DCTLs in src/cliff_house/resolve/dctl/, applied as the node LUT on the Color page; their bytes are fingerprinted.
+    "edges_sobel": PassSpec("edges_sobel", "analysis", {"method": "dctl", "dctl": "edges_sobel.dctl",
+                                                        "render": "RGB8", **SAMPLED}),
+    "vegetation_vari": PassSpec("vegetation_vari", "analysis", {"method": "dctl", "dctl": "vegetation_vari.dctl",
+                                                                "render": "RGB8", **SAMPLED}),
+    "vegetation_exg": PassSpec("vegetation_exg", "analysis", {"method": "dctl", "dctl": "vegetation_exg.dctl",
+                                                              "render": "RGB8", **SAMPLED}),
+    # Fusion Relight with Output Surface Map: the surface (normal) map Relight builds from the image, RGB.
+    "normals_relight": PassSpec("normals_relight", "analysis", {"method": "fusion_relight", "render": "RGB8",
+                                                                "channels": 3, **SAMPLED}),
 }
 
 
@@ -88,6 +105,8 @@ def code_version(spec: PassSpec) -> str:
     parts = [_MODULE_BYTES]
     if spec.params.get("method") == "magic_mask":
         parts += [MM_AUTHOR.read_bytes(), MM_TEMPLATE.read_bytes()]
+    if spec.params.get("method") == "dctl":
+        parts.append((DCTL_DIR / spec.params["dctl"]).read_bytes())
     return hashlib.sha256(b"".join(hashlib.sha256(p).digest() for p in parts)).hexdigest()[:12]
 
 
@@ -103,9 +122,10 @@ def fingerprint(source_sha256: str, spec: PassSpec, extra: dict) -> str:
 class Source:
     clip: str
     lens: str
-    path: Path
-    sha256: str
-    frames: int
+    path: Path               # a lens MP4, or a folder holding a numbered image sequence (the 3 fps sample)
+    sha256: str              # identity of the input: the lens file's SHA-256, or "sample:<fp>:<lens sha>"
+    frames: int              # frames Resolve must read
+    frame_numbers: tuple = ()  # source frame of each input frame, when the input is a sample (else 0..frames-1)
 
 
 def find_source(cfg: ProjectConfig, clip: str, lens: str) -> Source:
@@ -119,6 +139,21 @@ def find_source(cfg: ProjectConfig, clip: str, lens: str) -> Source:
     return Source(clip=row["clip"], lens=lens, path=path, sha256=row["sha256"], frames=row["packets"])
 
 
+def find_sample_source(cfg: ProjectConfig, clip: str, lens: str, sample_params: dict) -> Source:
+    """The 3 fps sample of a lens (cliff_house.resolve.sample), found by its fingerprint, as an image sequence."""
+    from . import sample as smp
+
+    full = find_source(cfg, clip, lens)
+    p = smp.Params(**sample_params)
+    fp = smp.fingerprint(full.sha256, p)
+    folder = cfg.local_stage_root / "sample" / fp / full.clip / lens
+    if not (folder / "frames.parquet").exists():
+        raise RuntimeError(f"no sample at {folder}: run cliff_house.resolve.sample first")
+    table = pl.read_parquet(folder / "frames.parquet")
+    return Source(clip=full.clip, lens=lens, path=folder, sha256=f"sample:{fp}:{full.sha256}", frames=table.height,
+                  frame_numbers=tuple(table["frame"].to_list()))
+
+
 # ---------------------------------------------------------------- Resolve side
 
 def _folder(media_pool, parent, name):
@@ -128,8 +163,9 @@ def _folder(media_pool, parent, name):
     return media_pool.AddSubFolder(parent, name)
 
 
-def timeline_for(project, source: Source, name: str):
-    """One timeline per (pass, fingerprint, lens), holding only the source clip, so grades and comps never mix."""
+def timeline_for(project, source: Source, name: str, resolution: int | None = None):
+    """One timeline per (pass, fingerprint, lens), holding only the source clip, so grades and comps never mix.
+    A folder source is imported as one image-sequence clip. `resolution` sets the timeline's own (square) size."""
     for i in range(1, project.GetTimelineCount() + 1):
         tl = project.GetTimelineByIndex(i)
         if tl.GetName() == name:
@@ -137,7 +173,8 @@ def timeline_for(project, source: Source, name: str):
     mp = project.GetMediaPool()
     folder = _folder(mp, _folder(mp, mp.GetRootFolder(), "inputs"), source.clip)
     clips = {c.GetClipProperty("File Path"): c for c in folder.GetClipList() or []}
-    item = clips.get(str(source.path))
+    item = clips.get(str(source.path)) or next(
+        (c for p_, c in clips.items() if source.path.is_dir() and p_.startswith(str(source.path) + "/")), None)
     if item is None:
         mp.SetCurrentFolder(folder)
         imported = mp.ImportMedia([str(source.path)]) or []
@@ -151,6 +188,11 @@ def timeline_for(project, source: Source, name: str):
     tl = mp.CreateTimelineFromClips(name, [item])
     if tl is None:
         raise RuntimeError(f"CreateTimelineFromClips({name}) failed")
+    if resolution:
+        for key, value in (("useCustomSettings", "1"), ("timelineResolutionWidth", str(resolution)),
+                           ("timelineResolutionHeight", str(resolution)), ("timelineOutputResMatchTimelineRes", "1")):
+            if not tl.SetSetting(key, value):
+                raise RuntimeError(f"timeline {name}: SetSetting({key}, {value}) failed")
     return tl
 
 
@@ -162,7 +204,7 @@ def render(project, timeline, target: Path, codec: str, timeout_s: float = 7200)
     project.SetCurrentTimeline(timeline)
     if not project.SetCurrentRenderFormatAndCodec("png", codec):
         raise RuntimeError(f"png/{codec} not accepted")
-    w, h = int(project.GetSetting("timelineResolutionWidth")), int(project.GetSetting("timelineResolutionHeight"))
+    w, h = int(timeline.GetSetting("timelineResolutionWidth")), int(timeline.GetSetting("timelineResolutionHeight"))
     ok = project.SetRenderSettings({"SelectAllFrames": True, "TargetDir": str(target), "CustomName": "f",
                                     "ExportVideo": True, "ExportAudio": False, "FormatWidth": w,
                                     "FormatHeight": h, "ExportAlpha": False, "DataBurnIn": "None"})
@@ -259,21 +301,65 @@ def _matte(black: Path, white: Path, level: float = 1.0) -> np.ndarray:
     return np.clip((b - a).mean(axis=2) / level, 0, 255).round().astype(np.uint8)
 
 
-def run_depth_map(project, resolve, source: Source, spec: PassSpec, fp: str,
-                  work: Path) -> tuple[Iterator[np.ndarray], dict]:
-    params = spec.params
-    timeline = timeline_for(project, source, f"{spec.name}-{fp}-{source.lens}")
+def _read(files: list[Path], channels: int):
+    """Rendered PNGs → arrays: one channel for grey layers (R = G = B), else the three colour channels."""
+    for f in files:
+        img = cv2.imread(str(f), cv2.IMREAD_UNCHANGED)
+        yield img[:, :, 2] if channels == 1 else img[:, :, :3]
+
+
+def _timeline(project, source: Source, spec: PassSpec, fp: str):
+    return timeline_for(project, source, f"{spec.name}-{fp}-{source.lens}", spec.params.get("resolution"))
+
+
+def _fusion_chain(timeline, tool_id: str, inputs: dict):
+    """MediaIn → <tool> → MediaOut on the timeline's only clip, with the tool's inputs set."""
     item = timeline.GetItemListInTrack("video", 1)[0]
     comp = item.GetFusionCompByIndex(1) if item.GetFusionCompCount() else item.AddFusionComp()
     media_in, media_out = comp.FindTool("MediaIn1"), comp.FindTool("MediaOut1")
-    depth = comp.FindTool("DepthMap1") or comp.AddTool("DepthMap", -32768, -32768)
-    for key in ("Mode", "DepthMapPreview"):
-        depth.SetInput(key, params[key])
-    depth.ConnectInput("Input", media_in)
-    media_out.ConnectInput("Input", depth)
-    files = render(project, timeline, work / "map", "RGB16")
-    # The map is grey (R = G = B); keep one channel.
-    return (cv2.imread(str(f), cv2.IMREAD_UNCHANGED)[:, :, 2] for f in files), {"timeline": timeline.GetName()}
+    tool = comp.FindTool(f"{tool_id}1") or comp.AddTool(tool_id, -32768, -32768)
+    for key, value in inputs.items():
+        tool.SetInput(key, value)
+    tool.ConnectInput("Input", media_in)
+    media_out.ConnectInput("Input", tool)
+    return tool
+
+
+def run_depth_map(project, resolve, source: Source, spec: PassSpec, fp: str,
+                  work: Path) -> tuple[Iterator[np.ndarray], dict]:
+    timeline = _timeline(project, source, spec, fp)
+    _fusion_chain(timeline, "DepthMap", {k: spec.params[k] for k in ("Mode", "DepthMapPreview")})
+    files = render(project, timeline, work / "map", spec.params.get("render", "RGB16"))
+    return _read(files, 1), {"timeline": timeline.GetName()}
+
+
+def run_relight(project, resolve, source: Source, spec: PassSpec, fp: str,
+                work: Path) -> tuple[Iterator[np.ndarray], dict]:
+    timeline = _timeline(project, source, spec, fp)
+    _fusion_chain(timeline, "Relight", {"OutputSurfaceMap": 1})
+    files = render(project, timeline, work / "map", spec.params.get("render", "RGB8"))
+    return _read(files, spec.params.get("channels", 3)), {"timeline": timeline.GetName()}
+
+
+def run_dctl(project, resolve, source: Source, spec: PassSpec, fp: str,
+             work: Path) -> tuple[Iterator[np.ndarray], dict]:
+    """Install the pass's DCTL (from the repo) under the LUT folder and set it as the clip's node LUT."""
+    name = spec.params["dctl"]
+    target = LUT_ROOT / "CliffHouse" / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes((DCTL_DIR / name).read_bytes())
+    project.RefreshLUTList()
+    timeline = _timeline(project, source, spec, fp)
+    resolve.OpenPage("color")
+    project.SetCurrentTimeline(timeline)
+    item = timeline.GetItemListInTrack("video", 1)[0]
+    if not item.GetNodeGraph().SetLUT(1, f"CliffHouse/{name}"):
+        raise RuntimeError(f"SetLUT(1, CliffHouse/{name}) failed")
+    files = render(project, timeline, work / "map", spec.params.get("render", "RGB8"))
+    return _read(files, spec.params.get("channels", 1)), {"timeline": timeline.GetName(), "dctl": f"CliffHouse/{name}"}
+
+
+RUNNERS = {"fusion_depth": run_depth_map, "fusion_relight": run_relight, "dctl": run_dctl}
 
 
 # ---------------------------------------------------------------- outputs and acceptance
@@ -291,13 +377,16 @@ def write_outputs(frames: Iterable[np.ndarray], source: Source, spec: PassSpec, 
     """Write each frame as it comes (a clip at 3840² does not fit in memory as a list) and its statistics."""
     out.mkdir(parents=True, exist_ok=True)
     rows, shape, non_constant = [], None, 0
+    numbers = list(source.frame_numbers)
     for i, img in enumerate(frames):
         name = f"{i:06d}.png"
+        frame = numbers[i] if i < len(numbers) else i
         cv2.imwrite(str(out / name), img)
         full = float(np.iinfo(img.dtype).max)
         shape = shape or img.shape
         non_constant += int(img.min() != img.max())
-        rows.append({"frame": i, "t_ms": round(i * 1001 / 30, 3), "file": name, "dtype": str(img.dtype),
+        rows.append({"index": i, "frame": frame, "t_ms": round(frame * 1001 / 30, 3), "file": name,
+                     "dtype": str(img.dtype),
                      "mean": float(img.mean() / full), "coverage": float((img > full / 2).mean())})
     table = pl.DataFrame(rows)
     table.write_parquet(out / "frames.parquet")
@@ -347,7 +436,11 @@ def delete_renders(work: Path) -> int:
 def run(config_path: Path, pass_name: str, clip: str, lens: str) -> dict:
     cfg = load(config_path)
     spec = PASSES[pass_name]
-    source = find_source(cfg, clip, lens)
+    if spec.params.get("input") == "sample":
+        sample_params = tomllib.loads(Path(config_path).read_text()).get("sample", {}).get("params", {})
+        source = find_sample_source(cfg, clip, lens, sample_params)
+    else:
+        source = find_source(cfg, clip, lens)
     extra = {}
     clicks = []
     if spec.params.get("method") == "magic_mask":
@@ -369,7 +462,7 @@ def run(config_path: Path, pass_name: str, clip: str, lens: str) -> dict:
     if clicks:
         frames, details = run_magic_mask(project, resolve, source, spec, fp, clicks, work)
     else:
-        frames, details = run_depth_map(project, resolve, source, spec, fp, work)
+        frames, details = RUNNERS[spec.params["method"]](project, resolve, source, spec, fp, work)
     record = {"resolve_version": resolve.GetVersionString(), "render_dir": str(work), **details}
     meta = write_outputs(frames, source, spec, fp, out, record, lens_rule(cfg.acceptance.get(spec.name, {}), lens))
     meta["seconds"] = round(time.time() - started, 1)

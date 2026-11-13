@@ -1,0 +1,24 @@
+// Sobel edge magnitude on Rec.709 luma, for CAD tracing (analysis layer, never reconstruction).
+// Output: grey, 2 × magnitude clamped to 0..1: a 10 % contrast step reads ~0.8, so edges are traceable by eye.
+__DEVICE__ float luma(__TEXTURE__ r, __TEXTURE__ g, __TEXTURE__ b, int x, int y, int w, int h)
+{
+    int xx = x < 0 ? 0 : (x >= w ? w - 1 : x);
+    int yy = y < 0 ? 0 : (y >= h ? h - 1 : y);
+    return 0.2126f * _tex2D(r, xx, yy) + 0.7152f * _tex2D(g, xx, yy) + 0.0722f * _tex2D(b, xx, yy);
+}
+
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, __TEXTURE__ p_TexR, __TEXTURE__ p_TexG, __TEXTURE__ p_TexB)
+{
+    float tl = luma(p_TexR, p_TexG, p_TexB, p_X - 1, p_Y - 1, p_Width, p_Height);
+    float tc = luma(p_TexR, p_TexG, p_TexB, p_X,     p_Y - 1, p_Width, p_Height);
+    float tr = luma(p_TexR, p_TexG, p_TexB, p_X + 1, p_Y - 1, p_Width, p_Height);
+    float ml = luma(p_TexR, p_TexG, p_TexB, p_X - 1, p_Y,     p_Width, p_Height);
+    float mr = luma(p_TexR, p_TexG, p_TexB, p_X + 1, p_Y,     p_Width, p_Height);
+    float bl = luma(p_TexR, p_TexG, p_TexB, p_X - 1, p_Y + 1, p_Width, p_Height);
+    float bc = luma(p_TexR, p_TexG, p_TexB, p_X,     p_Y + 1, p_Width, p_Height);
+    float br = luma(p_TexR, p_TexG, p_TexB, p_X + 1, p_Y + 1, p_Width, p_Height);
+    float gx = (tr + 2.0f * mr + br) - (tl + 2.0f * ml + bl);
+    float gy = (bl + 2.0f * bc + br) - (tl + 2.0f * tc + tr);
+    float m = _clampf(2.0f * _sqrtf(gx * gx + gy * gy), 0.0f, 1.0f);
+    return make_float3(m, m, m);
+}
