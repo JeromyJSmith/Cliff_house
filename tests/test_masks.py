@@ -8,8 +8,8 @@ import pytest
 from PIL import Image
 
 from cliff_house import masks
-from cliff_house.masks import (Params, acceptance, combine, compare, coverage, fill_holes, fingerprint, grow, t_ms,
-                               write_png)
+from cliff_house.masks import (Params, acceptance, combine, compare, coverage, fill_holes, fingerprint, grow,
+                               lens_rule, t_ms, write_png)
 
 
 def test_t_ms_is_source_frame_time_at_2997():
@@ -212,3 +212,12 @@ def test_decode_yields_every_frame_at_model_size(tmp_path):
     frames = list(masks.decode(clip, 16))
     assert len(frames) == 30 and frames[0].shape == (16, 16, 3) and frames[0].dtype == np.uint8
     assert masks.probe_size(clip) == (64, 64)
+
+
+def test_lens_rule_takes_a_per_lens_override():
+    rule = {"every_frame": True, "coverage": [0.04, 0.15], "cam1": {"every_frame": True}}
+    assert lens_rule(rule, "cam0") == {"every_frame": True, "coverage": [0.04, 0.15]}
+    # cam1 sees only the operator's head at the rim: every frame, but not cam0's coverage band
+    assert lens_rule(rule, "cam1") == {"every_frame": True}
+    assert lens_rule({"every_frame": True, "cam1": {"coverage": [0.01, 0.05]}}, "cam1") == {
+        "every_frame": True, "coverage": [0.01, 0.05]}

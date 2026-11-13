@@ -234,6 +234,16 @@ def acceptance(table: pl.DataFrame, expected_frames: int, rule: dict) -> dict:
     return {"ok": all(c["ok"] for c in checks.values()), "checks": checks}
 
 
+def lens_rule(rule: dict, lens: str) -> dict:
+    """The acceptance rule for one lens: the table's plain keys, updated by its `<lens>` sub-table if there is one
+    (`[acceptance.mask_people.cam1]`). Lenses see different amounts of the operator (cam0 the whole body, cam1 the
+    head at the rim), so a coverage band is per lens."""
+    base = {k: v for k, v in rule.items() if not isinstance(v, dict)}
+    if lens in rule and isinstance(rule[lens], dict):
+        base = {k: v for k, v in base.items() if k not in ("coverage",)} | rule[lens]
+    return base
+
+
 def compare(a_dir: Path, b_dir: Path, frames: list[int] | None = None) -> pl.DataFrame:
     """Per-frame agreement of two mask folders with the same `<frame:06d>.png` naming (subject > 127):
     IoU, and each side's pixels the other lacks as a fraction of the frame. Frames missing on either side are
@@ -413,10 +423,7 @@ def main(argv: list[str] | None = None) -> None:
     params = Params(**prompts)
     stages = Path(config["stages"]["local_root"])
     remux_manifest = Path(config["stages"]["remux_manifest"])
-    # The rule is per lens: the operator is in view on the lens listed in `lenses` (default every lens).
-    rule = dict(config.get("acceptance", {}).get(PASS, {}))
-    if args.lens not in rule.pop("lenses", [args.lens]):
-        rule = {}
+    rule = lens_rule(config.get("acceptance", {}).get(PASS, {}), args.lens)
     manifest = pl.read_parquet(remux_manifest)
     rows = manifest.filter(pl.col("clip").str.ends_with(args.clip) & (pl.col("cam") == args.lens))
     if rows.height != 1:
