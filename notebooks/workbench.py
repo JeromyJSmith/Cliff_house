@@ -714,8 +714,8 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, fetch, mo, pl, retry, sync_bucket,
         _sets = [_frame_set(r) for r in mo.status.progress_bar(list(training_clips.iter_rows(named=True)),
                                                                 title="Poses: fetching frames and masks")]
         _subtitles = {"features": "SIFT on {done:,} / {total:,} images",
-                      "rig": "{done:,} / {total:,} rig frames (lens0 + lens1 at one instant)",
-                      "matching": "{done:,} / {total:,} images matched to their neighbours",
+                      "rig": "{done:,} rig frames (lens0 + lens1 at one instant)",
+                      "matching": "{done:,} / {total:,} image pairs matched",
                       "mapping": "{done:,} / {total:,} images registered"}
         # One bar per COLMAP step, each opened when its step first reports; finished bars stay visible.
         _bars = {}
