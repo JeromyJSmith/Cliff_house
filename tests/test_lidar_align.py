@@ -154,7 +154,7 @@ def test_register_pair_recovers_known_transform(prepared):
 
 def test_driver_runs_both_directions_and_resumes_without_rewriting(prepared, tmp_path):
     root, T_true = prepared
-    out = la.align(root, tmp_path, workers=2, max_load=1e9, poll_s=0.5, log=lambda m: None)
+    out = la.align(root, tmp_path, workers=2, max_load=1e9, poll_s=0.2, ramp_s=0, log=lambda m: None)
     rows = {(r["a"], r["b"]): r for r in json.loads(json.dumps(
         [json.loads(p.read_text()) for p in sorted((out / "pairs").glob("*.json"))]))}
     assert set(rows) == {("SCAN_A", "SCAN_B"), ("SCAN_B", "SCAN_A")}
@@ -173,10 +173,36 @@ def test_driver_runs_both_directions_and_resumes_without_rewriting(prepared, tmp
     # Same inputs, code and parameters → same fingerprint; nothing re-registered, existing results untouched.
     mtimes = {p: p.stat().st_mtime_ns for p in (out / "pairs").glob("*.json")}
     msgs = []
-    out2 = la.align(root, tmp_path, workers=2, max_load=1e9, poll_s=0.5, log=msgs.append)
+    out2 = la.align(root, tmp_path, workers=2, max_load=1e9, poll_s=0.2, ramp_s=0, log=msgs.append)
     assert out2 == out
     assert any("0 to run" in m for m in msgs)
     assert {p: p.stat().st_mtime_ns for p in (out / "pairs").glob("*.json")} == mtimes
+    assert (out / "logs" / "SCAN_A__SCAN_B.log").exists()
+    assert "fingerprint " + out.name in (out / "run.log").read_text()
+
+
+def test_pair_results_are_never_overwritten(prepared, tmp_path):
+    root, _ = prepared
+    dirs = la.scan_dirs(root)
+    (tmp_path / "SCAN_A__SCAN_B.json").write_text("{}")
+    with pytest.raises(FileExistsError):
+        la.run_unordered(dirs["SCAN_A"], dirs["SCAN_B"], tmp_path, (True, False))
+    assert (tmp_path / "SCAN_A__SCAN_B.json").read_text() == "{}"
+
+
+def test_throttle_ramps_admits_and_backs_off_under_load():
+    th = la.Throttle(workers=3, max_load=16, ramp_s=60, hysteresis=3, over_polls=2)
+    assert th.step(0, 30.0, active=0, paused=0, queued=5) == "admit"      # nothing running: always start one
+    assert th.step(10, 8.0, active=1, paused=0, queued=4) is None         # headroom, but ramping
+    assert th.step(61, 8.0, active=1, paused=0, queued=4) == "admit"
+    assert th.step(122, 15.5, active=2, paused=0, queued=3) is None       # within 1 of the cap: no new pair
+    assert th.step(130, 16.5, active=2, paused=0, queued=3) is None       # first poll over the cap
+    assert th.step(140, 17.0, active=2, paused=0, queued=3) == "pause"    # sustained: pause one
+    assert th.step(150, 18.0, active=1, paused=1, queued=3) is None       # never pauses the last active pair
+    assert th.step(160, 14.0, active=1, paused=1, queued=3) is None       # not clearly under yet
+    assert th.step(205, 12.0, active=1, paused=1, queued=3) == "resume"
+    assert th.step(400, 5.0, active=2, paused=0, queued=3) == "admit"
+    assert th.step(500, 5.0, active=3, paused=0, queued=2) is None        # at the worker limit
 
 
 def test_fingerprint_changes_with_inputs_params_and_code():
