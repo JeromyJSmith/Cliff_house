@@ -90,3 +90,18 @@ def test_per_lens_acceptance_replaces_the_class_rule():
     assert passes.lens_rule(bands, "cam1") == {"every_frame": True}
     cfg = config.load(CONFIG_DIR / "frasier-cliff-house.toml")
     assert "coverage" not in passes.lens_rule(cfg.acceptance["mask_people"], "cam1")
+
+
+def test_delete_renders_removes_pngs_and_keeps_click_grades(tmp_path):
+    for k in ("k0", "k1"):
+        for variant in ("inside_black", "inside_white"):
+            d = tmp_path / k / variant
+            d.mkdir(parents=True)
+            for i in range(3):
+                (d / f"f{i:08d}.png").write_bytes(b"png")
+        (tmp_path / k / "click.drx").write_text("<drx/>")
+    assert passes.delete_renders(tmp_path) == 12
+    assert not list(tmp_path.rglob("*.png"))
+    assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file()) == [
+        "k0/click.drx", "k1/click.drx"]
+    assert not (tmp_path / "k0" / "inside_black").exists()

@@ -345,7 +345,8 @@ bucket (waits for approval), and any of the §6.3 passes.
 4. **Render intermediates** (`resolve/_render/…`): decided 2026-11-12, deleted. Nothing reads them and they are
    reproducible from the fingerprint. The proof's 158 GB of render PNGs were removed after every output had been
    uploaded and verified in the bucket. The `click.drx` grades beside them are kept, locally and in the bucket.
-   Open: whether passes should delete their own renders automatically once their output passes acceptance.
+   Since 2026-11-12 every pass deletes its own render PNGs once its output passes acceptance (`delete_renders`,
+   count recorded as `renders_deleted` in `pass.json`). A failed pass keeps them for debugging.
 5. **Which frames to render.** Measured on clip 041: Magic Mask 0.93 s/frame and Depth Map 0.44 s/frame, per lens.
    All 8 clips are 21,689 frames per lens (12.1 min). At full frame rate, both lenses: Magic Mask ≈ 11 h,
    Depth ≈ 5.3 h, depth outputs ≈ 630 GB, and renders ≈ 2.9 TB. The 2TB drive has 171 GB free. **Recommended:**

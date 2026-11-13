@@ -332,6 +332,18 @@ def acceptance(table: pl.DataFrame, shape: tuple, non_constant: int, source: Sou
     return checks
 
 
+def delete_renders(work: Path) -> int:
+    """Delete the rendered PNG sequences under a pass's render directory and the folders they leave empty. Every
+    other file (click.drx grades) stays. Returns the number of files deleted."""
+    pngs = list(work.rglob("*.png"))
+    for f in pngs:
+        f.unlink()
+    for d in sorted((d for d in work.rglob("*") if d.is_dir()), key=lambda d: -len(d.parts)):
+        if not any(d.iterdir()):
+            d.rmdir()
+    return len(pngs)
+
+
 def run(config_path: Path, pass_name: str, clip: str, lens: str) -> dict:
     cfg = load(config_path)
     spec = PASSES[pass_name]
@@ -361,6 +373,10 @@ def run(config_path: Path, pass_name: str, clip: str, lens: str) -> dict:
     record = {"resolve_version": resolve.GetVersionString(), "render_dir": str(work), **details}
     meta = write_outputs(frames, source, spec, fp, out, record, lens_rule(cfg.acceptance.get(spec.name, {}), lens))
     meta["seconds"] = round(time.time() - started, 1)
+    # Renders are intermediates: once the output passed acceptance nothing reads them and the fingerprint reproduces
+    # them, so they are deleted (a 3840² matte pass leaves ~16 GB per lens-clip). A failed pass keeps them for
+    # debugging. The click grades beside them stay: they record what each mask was given.
+    meta["renders_deleted"] = delete_renders(work) if meta["acceptance"]["ok"] else 0
     (out / "pass.json").write_text(json.dumps(meta, indent=2, sort_keys=True))
     resolve.GetProjectManager().SaveProject()
     return meta | {"output_dir": str(out)}
