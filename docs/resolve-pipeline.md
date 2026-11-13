@@ -55,8 +55,11 @@ The bucket is the interface. Resolve reads the remux stage's lossless per-lens M
   packet count before anything renders.
 - **Acceptance** is computed by the code and written into `pass.json`. A failed check exits non-zero, and nothing
   downstream may read that fingerprint.
-- **Upload** (after acceptance): `hf` upload of the fingerprint directory to the bucket path above. Never
-  `hf sync --delete`. Outputs are additive.
+- **Upload:** `pixi run python -m cliff_house.resolve.upload configs/resolve/<project>.toml` mirrors
+  `stages/resolve/` and `stages/static_mask/` into the bucket (`sync_bucket` through `cliff_house.storage.retry`).
+  It never deletes, and it skips what is already there. Render intermediates (`resolve/_render/**/*.png`) are not
+  uploaded: nothing reads them and they are reproducible from the fingerprint; the `click.drx` grades beside them
+  are. First upload 2026-11-12: the clip-041 proof, 6.1 GB. Never `hf sync --delete`.
 
 ## 2a. What feeds molab, and how
 
