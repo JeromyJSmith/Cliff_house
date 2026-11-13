@@ -17,9 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Callable, Iterable, Literal
 
 import numpy as np
 import pycolmap
@@ -123,11 +125,12 @@ def _rig_config(params: Params) -> pycolmap.RigConfig:
     return config
 
 
-def _map(db: Path, out: Path, sparse: Path, params: Params) -> dict[int, pycolmap.Reconstruction]:
+def _map(db: Path, out: Path, sparse: Path, params: Params,
+         next_image: Callable[[], None]) -> dict[int, pycolmap.Reconstruction]:
     sparse.mkdir(parents=True, exist_ok=True)
     if params.mapper == "global":
         return pycolmap.global_mapping(db, out / "images", sparse)
-    return pycolmap.incremental_mapping(db, out / "images", sparse)
+    return pycolmap.incremental_mapping(db, out / "images", sparse, next_image_callback=next_image)
 
 
 def largest(models: dict[int, pycolmap.Reconstruction]) -> pycolmap.Reconstruction:
@@ -136,19 +139,74 @@ def largest(models: dict[int, pycolmap.Reconstruction]) -> pycolmap.Reconstructi
     return max(models.values(), key=lambda r: r.num_reg_images())
 
 
-def solve(sets: Iterable[FrameSet], out: Path, params: Params) -> pycolmap.Reconstruction:
+Progress = Callable[[str, int, int], None]
+"""(step, done, total), called from the caller's thread while a step runs and once more when it ends."""
+
+STEPS = ("features", "rig", "matching", "mapping")
+
+
+def _counts(db: Path) -> dict[str, int]:
+    # A second, read-only connection sees what the solver has committed; COLMAP commits per batch.
+    with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+        return {"features": con.execute("SELECT COUNT(*) FROM keypoints").fetchone()[0],
+                "rig": con.execute("SELECT COUNT(*) FROM frames").fetchone()[0],
+                # pair_id = image_id1 * 2147483647 + image_id2 and sequential matching walks image_id1 upward
+                "matching": con.execute("SELECT COUNT(DISTINCT pair_id / 2147483647) FROM two_view_geometries"
+                                        ).fetchone()[0]}
+
+
+def _run(step: str, work: Callable[[], object], total: int, done: Callable[[], int], progress: Progress):
+    """Run one solver step on a worker thread and report its progress from this one (pycolmap releases the GIL)."""
+    result: dict[str, object] = {}
+
+    def target():
+        try:
+            result["value"] = work()
+        except BaseException as e:  # re-raised below, in the caller's thread
+            result["error"] = e
+    worker = threading.Thread(target=target, name=f"colmap-{step}")
+    worker.start()
+    while worker.is_alive():
+        progress(step, done(), total)
+        worker.join(timeout=2.0)
+    progress(step, done(), total)
+    if "error" in result:
+        raise result["error"]
+    return result["value"]
+
+
+def solve(sets: Iterable[FrameSet], out: Path, params: Params, progress: Progress) -> pycolmap.Reconstruction:
     """Rig-constrained SfM; writes <out>/sparse/0 and returns the largest reconstruction."""
     by_folder = stage_workspace(sets, out)
+    images = sum(len(v) for v in by_folder.values())
+    frames = images // max(len(params.rig), 1)
     db = out / "database.db"
     db.unlink(missing_ok=True)
-    _extract(db, out, by_folder, params)
-    with pycolmap.Database.open(db) as database:
-        pycolmap.apply_rig_config([_rig_config(params)] if params.rig else [], database)
+    # COLMAP's per-image INFO log goes through the notebook's console capture. In the molab kernel, rig setup crawled
+    # under it (419 of 2,176 frames in 2.5 h); the same step on the same database in a plain process took 0.4 s.
+    # Progress comes from the step bars instead.
+    pycolmap.logging.minloglevel = pycolmap.logging.WARNING
+    _run("features", lambda: _extract(db, out, by_folder, params), images,
+         lambda: _counts(db)["features"] if db.exists() else 0, progress)
+
+    def rig():
+        with pycolmap.Database.open(db) as database:
+            pycolmap.apply_rig_config([_rig_config(params)] if params.rig else [], database)
+    _run("rig", rig, frames, lambda: _counts(db)["rig"], progress)
+
     pairing = pycolmap.SequentialPairingOptions()
     pairing.overlap = params.overlap
     pairing.quadratic_overlap = True
-    pycolmap.match_sequential(db, pairing_options=pairing)
-    final = largest(_map(db, out, out / "sparse_all", params))
+    _run("matching", lambda: pycolmap.match_sequential(db, pairing_options=pairing), images,
+         lambda: _counts(db)["matching"], progress)
+
+    registered = [0]
+
+    def next_image():
+        registered[0] += 1
+    models = _run("mapping", lambda: _map(db, out, out / "sparse_all", params, next_image), images,
+                  lambda: registered[0], progress)
+    final = largest(models)
     (out / "sparse" / "0").mkdir(parents=True, exist_ok=True)
     final.write(out / "sparse" / "0")
     return final
