@@ -1,0 +1,11 @@
+// VARI (Visible Atmospherically Resistant Index) = (G − R) / (G + R − B), on the display-referred Rec.709 values
+// (not reflectance: a relative vegetation layer for site review, never reconstruction).
+// Output: grey, 0.5 + 0.5 · VARI clamped to −1..1, so 0.5 = neutral, brighter = greener.
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B)
+{
+    float d = p_G + p_R - p_B;
+    float v = _fabs(d) < 1e-4f ? 0.0f : (p_G - p_R) / d;
+    v = _clampf(v, -1.0f, 1.0f);
+    float o = 0.5f + 0.5f * v;
+    return make_float3(o, o, o);
+}
