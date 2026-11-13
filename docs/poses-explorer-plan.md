@@ -1,4 +1,4 @@
-# Poses explorer: 16 uses of the poses we already have, as one reactive marimo notebook
+# Poses explorer: 17 uses of the data we already have, as one reactive marimo notebook
 
 Status: **plan**, 2026-11-13. Nothing here is built yet.
 
@@ -7,7 +7,7 @@ Input: the poses stage output, `stages/poses/9d611bc6c9a3d5f7/` in the HF bucket
 - 3,836 of 4,352 images registered, 548,933 points, 1.14 px.
 - Clips 039 and 040 are their own models, not part of the main one.
 
-Every use case below works from that output plus data already in the bucket. None needs a trained model (no splats, no NeRF).
+Every use case below works from that output plus data already in the bucket or the dataset (the SiteScape LiDAR scans included). None needs a trained model (no splats, no NeRF).
 
 ## Library check (versions installed and inspected 2026-11-13, not assumed)
 
@@ -18,6 +18,9 @@ Every use case below works from that output plus data already in the bucket. Non
 | maplibre (py-maplibregl) | 0.3.6 | `maplibre.ipywidget.MapWidget` (anywidget, so reactive in marimo), open basemaps, terrain, sky, 3D extrusions |
 | lonboard | 0.17.0 | `PointCloudLayer`, `HeatmapLayer`, `H3HexagonLayer`, `PathLayer`, `TripsLayer`, `ScatterplotLayer`, `ColumnLayer` (deck.gl via anywidget; GeoArrow from Polars/DuckDB) |
 | altair, plotly, polars, polars-st, duckdb (spatial) | in the project env | charts, frames, spatial SQL, GeoParquet |
+| open3d, pdal, shapely | in the project env (conda-forge) | Cloud2BIM's 3D/2D geometry; LiDAR reading and merging |
+| Cloud2BIM | upstream `VaclavNezerka/Cloud2BIM` (MIT); fork `jacobm85/Cloud2BIM` (MIT, adds LAS/LAZ and a web UI) | scan-to-BIM: point cloud → IFC (use case 17). Not vendored: pinned by commit, licence notice kept |
+| ifcopenshell, scikit-image | **not in the env yet** (fork pins ifcopenshell 0.8.1, scikit-image 0.25) | IFC writing, reading and validation; morphological masks. Added through pixi when use case 17 is built |
 
 Base maps: open tiles only (OpenFreeMap / OSM vector styles, MapLibre demo terrain). No Google tiles. Aerial imagery from an open source (e.g. a state or USGS orthophoto WMTS) is chosen and verified when built.
 
@@ -43,7 +46,7 @@ Base maps: open tiles only (OpenFreeMap / OSM vector styles, MapLibre demo terra
 
 ---
 
-## The 16 use cases
+## The 17 use cases
 
 Each entry gives: what it is → the data it uses → at least two visualizations → interactive pieces → a machine-checkable "done".
 
@@ -274,6 +277,68 @@ Floor-plan outlines from height slices, and planes for walls, floors and roof. T
   - `EdgeDraw` to correct an outline by hand.
 - **Done:** accepted geometry is written as a **proposal** (`agent_edit` with `expected_revision`), never straight to authoritative state. Its outline closes, and its area is reported.
 
+### 17. Scan-to-BIM: point cloud → IFC with Cloud2BIM
+
+Turn a building point cloud into an IFC model (slabs, walls, openings, rooms) automatically, then review and correct it in the notebook. References: Cloud2BIM, [arXiv 2503.11498v2](https://arxiv.org/abs/2503.11498v2); code at [jacobm85/Cloud2BIM](https://github.com/jacobm85/Cloud2BIM), a fork of [VaclavNezerka/Cloud2BIM](https://github.com/VaclavNezerka/Cloud2BIM), both MIT.
+
+What it does (paper §2, checked against the fork's README):
+
+1. Thin the cloud to a minimum spacing (`dilution_factor`; the paper pre-thins in CloudCompare to *d*<sub>min</sub> = 1–2.5 cm).
+2. Detect slabs from the z-height histogram: bins ≥ 50 % of the peak (`max_n_points_array` = 0.5, `z_step` = 0.05 m). Floor and ceiling surfaces are paired into slabs. 2D hulls come from a density histogram with dilation and erosion (`dilation_meters`, `erosion_meters` = 1 m), Suzuki–Abe contours and Douglas–Peucker simplification.
+3. Split the cloud into storeys between slabs, with 10 cm clearance.
+4. Segment walls from a horizontal section at 90–100 % of storey height (`z_section_boundaries`):
+   - build a density mask, take contours and merge collinear segments (`angle_tolerance` = 3°);
+   - pair opposite faces (adding a virtual face if one is missing), compute the wall axis, and snap endpoints (`snapping_distance`);
+   - PCA rotation handles buildings that aren't axis-aligned.
+5. Detect openings: each wall is rotated into the xz-plane, and low-density gaps in the x and z histograms are classed as doors or windows by sill height, aspect ratio and width.
+6. Build zones (`IfcSpace`) as closed polygons from the actual wall faces.
+7. Write IFC with IfcOpenShell. The paper writes IFC4 ADD2 TC1; the fork's README says IFC 2x3. Verify against the pinned commit.
+
+**Inputs we have, and the gap each one has:**
+
+| Candidate input | What it is | Fit for Cloud2BIM |
+|---|---|---|
+| SiteScape LiDAR (`source/lidar/2026-11-09/*.ply`, 24 scans, ~24 M coloured points each) | phone LiDAR, one local frame per scan | **Best first input.** It needs the scans merged into one frame first (the LiDAR pair alignment already on the MacBook brief), then converted PLY → XYZ or LAS (PDAL), levelled (use case 9's gravity), and thinned. Phone-LiDAR noise is above the paper's terrestrial scanners, so expect missed openings |
+| Dense photogrammetry cloud (use case 7) | millions of points from our poses | Usable once levelled and scale-confirmed (use cases 8 + 9). Untested by the paper, which uses terrestrial laser scans only |
+| Sparse cloud (`points3D.bin`, 549 k points, whole property inside and out) | what exists today | Too sparse for wall-face pairing; useful only to smoke-test the pipeline end to end |
+
+**Known limits that apply to the Cliff House** (paper §3.4):
+- straight walls only (curves are approximated);
+- rectangular openings only;
+- one ceiling height per storey (no mezzanines or steps);
+- furniture occlusion causes false or missed openings;
+- stairs are not reproduced.
+
+Outdoor areas are out of scope. Clip them to the building footprint (use case 16) first.
+
+**Pipeline stage** (molab, CPU): `stages/bim/<fp>/`.
+- The fingerprint is the input cloud's fingerprint + the Cloud2BIM commit + the full parameter set (Tables 5–6) + module code.
+- Outputs: `model.ifc`, element tables (walls, slabs, openings, zones) as GeoParquet in the property frame, and the intermediate z-histogram and 2D masks for review.
+- The IFC is a **projection / proposal**, never authoritative state (architecture rule). Corrections flow back as `agent_edit` proposals with `expected_revision`.
+
+**Visualizations:**
+- the z-histogram with detected floor and ceiling bins (altair; the 50 % threshold drawn as a rule);
+- the 2D density mask before and after dilation/erosion, with contours overlaid;
+- detected wall segments over the section mask, coloured by thickness and pairing status;
+- per-wall elevation (xz) histograms with detected openings boxed;
+- zone polygons on the MapLibre basemap (after use case 9) with area labels;
+- the IFC model itself in 3D (`ThreeWidget` fed by IfcOpenShell geometry: walls, slabs, openings and spaces as separate toggleable groups);
+- a comparison against use case 16's plane hypotheses and against LiDAR (per-wall deviation).
+
+**Interactive:**
+- a parameter panel (`mo.ui.form` or `mo.ui.dictionary`) for the Tables 5–6 parameters, with sensible bounds; submitting it reruns the stage under a new fingerprint;
+- a `Knob` for `angle_tolerance`, and `Slider2D` for (`dilation_meters`, `erosion_meters`) on a cheap in-notebook preview of the mask before the full run;
+- a `HeatmapSelect` on the density mask to inspect a cell's points;
+- a `ChartSelect` on the wall list to highlight walls in 3D and on the map;
+- a `SortableList` to accept or reject detected openings, and `EdgeDraw` to correct a wall axis; corrections are saved as proposals;
+- a `mo.ui.table` of elements (type, length, thickness, height, openings), plus `mo.download` for the IFC.
+
+**Done (machine-checkable):**
+- the IFC opens in IfcOpenShell and passes `ifcopenshell.validate` with no schema errors;
+- entity counts (`IfcWall`, `IfcSlab`, `IfcOpening`, `IfcSpace`) match the element tables;
+- every `IfcSpace` is a closed polygon;
+- wall lengths are compared with LiDAR measurements (use case 8), and the deviation is reported per wall, not assumed.
+
 ---
 
 ## Build order (by dependency)
@@ -283,6 +348,7 @@ Floor-plan outlines from height slices, and planes for walls, floors and roof. T
 3. 5, 11, 12, 14, 15: local compute on existing data.
 4. **Pipeline stages on molab:** 7 (dense), 10 (depth), 8 (LiDAR). Then their explorer views.
 5. 4, 13, 16: these benefit from 8 (confirmed scale) and 9 (map).
+6. **17 (Cloud2BIM):** after the LiDAR scans are merged into one frame and levelled (8, 9), with 16's footprint used to clip outdoor points. Smoke-test it first on the sparse cloud so the stage and the views exist before the real input is ready.
 
 Prerequisite worth doing first for 5 and 9: join **039** (dining room) and **040** (gravel courtyard) into the main model with retrieval-based cross-clip matching. Until then their coverage shows up as cold.
 
