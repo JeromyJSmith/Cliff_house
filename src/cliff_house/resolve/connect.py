@@ -1,5 +1,6 @@
 """Connect to a running DaVinci Resolve Studio through its external scripting API
-(Preferences → System → General → External scripting using: Local). Returns the `resolve` object or raises with the reason."""
+(Preferences → System → General → External scripting using: Local). Returns the `resolve` object or raises with
+the reason."""
 from __future__ import annotations
 
 import importlib

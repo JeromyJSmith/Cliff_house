@@ -2,13 +2,10 @@
 
     pixi run python -m cliff_house.static_mask configs/resolve/<project>.toml <class>
 
-Two classes use it on the A1. "aircraft_body" (criterion "dark", scope "lens"): the dark arc of the aircraft's body
-across the top rim of both lenses, one mask per lens. "landing_gear" (criterion "white", scope "clip"): the white
-gear on the downward lens (cam0). It is fixed within a clip but has more than one position: folded along the left
-and right rim in 7 of the 8 clips of 2026-11-10, lowered into the upper left and right of the image in clip 042. So
-it gets one mask per clip and lens, derived from that clip and checked against that clip's own frames. Tracking a
-rigid part frame by frame (Magic Mask, SAM) re-discovers the same pixels thousands of times and drifts onto white
-walls next to it.
+Used for "aircraft_body" (criterion "dark", scope "lens"): the dark arc of the aircraft's body across the top rim of
+both lenses, one mask per lens. The landing gear has more than one position and is handled by
+`cliff_house.gear_mask`, which builds on the helpers here. Scope "clip" (one mask per clip) is kept for comparison
+only: one clip's median does not average the scene out, and it produced wrong masks that passed (2026-11-12).
 
 Derivation (no Resolve, no model):
 1. For each clip, the per-pixel temporal median of `frames_per_clip` evenly spaced frames (at `work_size`). The

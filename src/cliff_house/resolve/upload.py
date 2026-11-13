@@ -1,9 +1,10 @@
-"""Mirror the Resolve and static-mask stages from the local stage root into the project's HF bucket.
+"""Mirror the Resolve, static-mask and gear-mask stages from the local stage root into the project's HF bucket.
 
     pixi run python -m cliff_house.resolve.upload configs/resolve/<project>.toml [--dry-run]
 
-Uploads `stages/resolve/` and `stages/static_mask/` as they are on disk (outputs, frames.parquet, pass.json,
-static_mask.json, bootstrap records, logs, review sheets). Never deletes anything in the bucket, and skips files
+Uploads `stages/resolve/`, `stages/static_mask/` and `stages/gear_mask/` as they are on disk (outputs,
+frames.parquet, pass.json, static_mask.json, templates and positions, bootstrap records, logs, review sheets and
+README.txt status files). Never deletes anything in the bucket, and skips files
 already there with the same size and time. Resolve's render intermediates are left out (the PNGs under
 `resolve/_render/`): nothing reads them and they are reproducible from the fingerprint. The small `click.drx`
 grades beside them are uploaded, because they record what each mask was given.
@@ -19,7 +20,7 @@ from huggingface_hub import sync_bucket
 from ..storage import retry
 from .config import load
 
-STAGES = ("resolve", "static_mask")
+STAGES = ("resolve", "static_mask", "gear_mask")
 EXCLUDE = ["_render/**/*.png"]
 
 

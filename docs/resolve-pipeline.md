@@ -72,10 +72,15 @@ Only the mask classes (§6.1) cross into molab's reconstruction stages:
     `[masks]` table, and the acceptance is per lens (`[acceptance.mask_people.<lens>]`). Clip-041 fingerprints in
     progress: cam0 `a01dd0bf78e8931a`, cam1 `2da3d275e13811f0` (see `stages/masks/README.txt`).
   - **People (cross-check):** `stages/resolve/mask_people/<fp>/<clip>/<lens>/`, same format.
-  - **Rigid aircraft parts:** `stages/static_mask/<fp>/<lens>/mask.png`, one image for every frame of that lens,
-    with `static_mask.json`, for the classes `landing_gear` and `aircraft_body`.
+  - **Landing gear and rim band:** `stages/gear_mask/<fp>/<lens>/<position>.png` (gear in that position plus the
+    rim band) and `positions/<clip>.parquet` (one row per source frame: its position). A frame's rigid mask is the
+    template of its position. cam1 has `rim.png` only.
+  - **Aircraft body:** `stages/static_mask/<fp>/<lens>/mask.png`, one image for every frame of that lens.
+  - Only fingerprints listed as CURRENT in `stages/static_mask/README.txt` and `stages/gear_mask/README.txt` may be
+    used.
   - molab reads only fingerprints whose `acceptance.ok` is true. The final ignore-mask for a frame is the union of
-    the people mask for that frame and the static masks of its lens.
+    the people mask of that frame, the gear template of that frame's position (with the rim band) and the
+    aircraft-body mask of its lens.
 - **Conflict at `stages/masks/` (needs an owner decision).** PR #10 (`feat/masks-sam3`, merged to main) also
   writes under `stages/masks/`, with the **opposite polarity** (0 = ignore, 255 = use). It works on the 1-fps
   selected frames, writes `masks.parquet`, and writes no `pass.json`. The two layouts share a stage name but
@@ -172,28 +177,40 @@ config:
 |---|---|---|---|---|
 | **people** | every person, the operator included | **primary: SAM 3 with the text prompt `person`, run on this Mac** (owner decisions, 2026-11-12: SAM 3 primary; SAM 3 runs locally, not in molab). Secondary: Resolve `mask_people` (Magic Mask, several clicks unioned, below), a cross-check whose union with SAM 3 can only remove more pixels | `[prompts.mask_people]`: per clip/lens, clicks `[source_frame, u, v]` on each garment or body part | mask on every frame where people are expected (`every_frame`), median coverage within `coverage = [min, max]` (clip 041 cam0: 4–15 %, operator ≈ 8 % per SPEC) |
 | **aircraft body** (`static_mask aircraft_body`) | the dark arc of the aircraft's body across the top rim of both lenses, and on cam0 the dark arm arcs above the gear | one static mask per lens, criterion "dark" (V ≤ 80) | `[static_masks.aircraft_body]`: lenses `cam0`, `cam1`; `min_clip_fraction = 0.75` | each part darker than its surroundings in ≥ 6/8 clips (it is lit, and no darker than the scene, in bright outdoor clips) |
-| **landing gear** (`static_mask landing_gear`), **open** | the aircraft's white landing-gear struts and feet, plus other white rigid rim parts (lens-guard edge) | static mask per gear position (planned; see Status below). Tried: per lens (wrong for clip 042) and per clip (unreliable). Current attempt: scope "clip", derived from that clip ([`static_mask.py`](../src/cliff_house/static_mask.py)): the gear is fixed within a clip but has two positions | `[static_masks.landing_gear]`: the lenses that see it (`cam0`) and those that must not (`cam1`); `scope = "clip"`, `rim_band = 0.55` | each part whiter than its surroundings on ≥ 80 % of that clip's sampled frames; empty on the absent lens |
+| **landing gear** (`gear_mask`) | the aircraft's white landing gear and rim struts, plus a rim band (outer 4 % of the image circle's radius) on both lenses | **one rigid template per gear position per lens** (folded, lowered), built from all clips in that position; **the position is chosen per frame** ([`gear_mask.py`](../src/cliff_house/gear_mask.py)) | `[gear_mask]`: lenses with gear (`cam0`), rim-only lenses (`cam1`, by rule), and which clips are in which position (a cross-check, not the decision) | each template is left/right symmetric, balanced, at the rim and ≤ 12 % of the frame (`gear_geometry`); every frame scored; ≥ 80 % of frames confident and ≥ 90 % in the expected position per clip |
 
-**Recommendation for the landing gear: a static mask per clip and lens, not tracking.** The gear does not move
-relative to the lens within a clip. It is **not** one fixed shape per lens, though: in 7 of the 8 clips of
-2026-11-10 it is folded along the left and right rim of cam0, and in clip 042 (outdoor) it is lowered into the
-upper left and right of the image for the whole clip. **Status: open, no gear mask is current.** A per-lens mask pooled over all clips (`379006cbe2bfcc41`,
-`a2c308df0a6904ce`) is good for the 7 folded clips but wrong for clip 042: it masks the empty rim and misses the
-lowered legs. Per-clip masks (scope "clip", 2026-11-12) are worse. One clip's median does not average the scene
-out, so they miss most of the struts and take wall pictures or sky. On clip 041 a painting was masked; on cam1, which
-never sees the gear, the absence check failed on clips 040 and 041. Their acceptance values passed anyway, so
-`stages/static_mask/README.txt` lists which fingerprints may be used: only `aircraft_body`. **Next:** one mask per
-gear *position*, pooled over the clips in that position, with many more frames for a position seen in only one clip
-(042 has 3,371 frames). The checks must include the absence lens and a visual check, because a coverage or contrast
-check alone passed wrong masks twice. Until then SAM 3 and `aircraft_body` are the reconstruction masks and the
-gear is unmasked.
-Measured on clip 041 cam0 (§7), Magic Mask tracking the two feet was
-worse on every count. It recovered a median 13 % of the static mask (IoU 0.13), usually only the feet, never the
-full struts. It varied from frame to frame (0.14–1.5 % coverage) and lost the right foot entirely on some frames. At
-the 95th percentile, 10 % of its mask spilled onto nearby walls and pictures. A static mask needs no Resolve and no
-model and takes a few minutes per clip. Its fingerprint covers the clip's file, the code and the parameters. If
-the gear could move *within* a clip (lowered during a flight), its per-frame check would fail and show it. The
-fix then is to split the clip at the change, not to track. The aircraft's **dark** body arc at the top rim of both lenses is its own class, `aircraft_body`, using the
+**Landing gear: one rigid template per position, chosen per frame (not tracking).** The gear does not move
+relative to the lens while it holds a position, but it has two positions: folded along the left and right rim of
+cam0 (clips 035–041) and lowered into the upper left and right of the image (clip 042), with the rim struts present
+in both. History, kept so nobody reuses a wrong mask:
+- A per-lens mask pooled over all clips (`379006cbe2bfcc41`, `a2c308df0a6904ce`) was right for the folded clips
+  and wrong for 042.
+- Per-clip masks (2026-11-12) were worse: they took a wall painting on 041, one leg on 042, sky on cam1, and still
+  passed their checks.
+- Magic Mask tracking the feet recovered a median 13 % of the gear (IoU 0.13) and leaked onto walls (§7).
+
+What fixed it (`cliff_house.gear_mask`):
+1. **Templates per position**, from 420 frames of the clips in that position. Rigid parts are the pixels that
+   agree with their clip's median in ≥ 38 % of frames (gear 40–52 %, moving scene 22–33 %), are white-ish, and
+   reach the rim. A template that passes the geometry check is completed with its mirror image, which fills the
+   shaded lowered left leg.
+2. **Geometry check that fails the masks that went wrong**: left/right symmetric about the image circle's centre,
+   balanced, at the rim, ≤ 12 % of the frame. The tests load the actual bad masks (painting, one leg, one strut,
+   sky) and require them to fail, and the good folded mask to pass.
+3. **Position per frame**: the lowered legs are what tells the positions apart. Each frame's edge strength along
+   their outline is correlated with the lowered median, which works whatever the lighting. On clip 042 the median
+   is 0.30, and on folded clips it is at most 0.04 on 95 % of frames. Legs visible at ≥ 0.12, absent at ≤ 0.06.
+   Unsure frames take their neighbours' position, and a position held for under 1 s is a blip (the gear takes
+   seconds to move). A real raise or lower mid-clip is still followed.
+4. **Rim band**: the outer 4 % of the image circle's radius is masked on both lenses. The struts hug the very edge,
+   and fisheye edge pixels are poor for SfM.
+
+Result (2026-11-12, all 8 clips): `gear_mask/c506a8ae5ffdd157` (cam0) and `fc17000db00e21c6` (cam1, rim only).
+Every frame of every clip has a position: 035–041 folded and 042 lowered on 100 % of frames, with 95–99 % confident.
+I checked 12 frames of 041, 042 and 038 by eye with every class combined, plus outline close-ups: both lowered legs
+and both folded struts and feet are inside the mask, with margin. Review sheets are in `stages/gear_mask/_proof/` (private bucket).
+
+The aircraft's **dark** body arc at the top rim of both lenses is its own class, `aircraft_body`, using the
 same method with a darkness criterion. It also makes the rim boundary explicit where SAM 3 people masks stop short
 of the operator at the rim; on cam0 it may include the operator's edge where it touches the rim in every clip,
 which is masked as people anyway.
@@ -267,7 +284,8 @@ coarse ceiling map described in §6.2.
 |---|---|---|---|---|---|---|
 | `depth_map` cam0 | `64f681af1176a76e` | **365 / 365**, 3840×3840 16-bit L | ok: every frame non-constant | 160 s | 5.3 GB | 8.3 GB |
 | `magic_mask` cam0 (earlier single-click pass, before the mask classes), click on the jacket (frame 165, u 0.488, v 0.124) | `dd36a6b20c25e55a` | **365 / 365**, 3840×3840 8-bit L | ok: mask on 365/365 frames; coverage 2.0–4.0 % (median 2.8 %) | 338 s (track ≈ 90 s + two renders) | 81 MB | 16 GB |
-| landing gear, static per lens, **superseded** (wrong for clip 042, see §6.1 Status) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
+| **landing gear** (`gear_mask`), per-position templates, position per frame, cam0 / cam1 (rim only) | `c506a8ae5ffdd157` / `fc17000db00e21c6` | every frame of all 8 clips: 035–041 folded, 042 lowered, 100 % as expected | ok: templates symmetric, at the rim, ≤ 12 %; 95–99 % of frames confident | ≈ 15 min for 21,689 frames (CPU) | < 1 MB of masks + positions | none |
+| landing gear, static per lens, **superseded** (wrong for clip 042, see §6.1) cam0 / cam1 | `379006cbe2bfcc41` / `62a3985973ae0d83` | one 3840² mask per lens | ok: cam0 present in 8/8 clips (min contrast 31.6), per-frame 186/192, coverage 4.65 %; cam1 empty as required | ≈ 10 min, both lenses, all 8 clips | < 1 MB | none |
 | landing gear, tracked (`mask_landing_gear_tracked`, 2 clicks on the feet) cam0 | `29f3d7580cc357aa` | **365 / 365** | ok by its own check (mask on every frame), but see the comparison below | 729 s | ≈ 70 MB | 32 GB |
 | people, Resolve cross-check (`mask_people`, 4 clicks: jacket, trousers, boots, head) cam0 | `17ec183c3b0fb611` | **365 / 365** | ok by its band: mask on every frame, median coverage 4.6 % (3.7–6.7 %), inside 4–15 %, but **visibly incomplete** (below) | 1427 s | ≈ 80 MB | 64 GB |
 
@@ -318,8 +336,9 @@ bucket (waits for approval), and any of the §6.3 passes.
 
 1. **Approve the rule and the layout** in §1–2 (analysis layers never enter reconstruction; per-fingerprint paths).
 2. **Mask classes:** decided 2026-11-12: "people" = SAM 3 `person` (primary, **run on this Mac**), with Resolve
-   Magic Mask as a cross-check. Still open: "landing gear" as the static per-lens mask (recommended over tracking per §6.1/§7),
-   and the per-class coverage bands.
+   Magic Mask as a cross-check. Landing gear: per-position rigid templates with the position chosen per frame (done 2026-11-12, §6.1); open: the
+   per-class coverage bands, and confirming the gear positions when new footage arrives (the config's position
+   list is a cross-check, so a clip in a new position fails its acceptance rather than passing silently).
 3. **Clicks for people:** picked by a person per clip/lens, or derived from the local SAM 3 masks. Also decide
    whether multi-click authoring inside one grade is worth building, since today each click costs one track and
    two renders.

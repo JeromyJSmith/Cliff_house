@@ -72,27 +72,16 @@ every_frame = true
 [acceptance.mask_landing_gear_tracked]
 every_frame = true
 
-# Class "landing gear" as a static mask (cliff_house.static_mask): the gear does not move relative to the lens within
-# a clip, so it is derived once per clip and lens instead of tracked frame by frame. It also keeps the other white rigid
-# parts it finds on the rim (the lens-guard edge). Parameters default in the code; override under .params.
-[static_masks.landing_gear]
-lenses = ["cam0"]          # the downward lens sees both struts and feet on its left and right rim
-absent_lenses = ["cam1"]   # the upward lens never sees the gear: the derivation must find nothing there
+# Class "landing gear" (cliff_house.gear_mask): one rigid template per gear position per lens, built from every clip
+# in that position, and a position chosen PER FRAME by which template's distinguishing parts are visible, so a raise or
+# lower in mid-clip is followed. The assignment below is what the 2026-11-10 clips show (checked by eye on the clip
+# medians) and is cross-checked against the per-frame result. cam1 looks up and never sees the gear: it gets no gear
+# mask, by this rule, not by derivation.
+[gear_mask]
+lenses = ["cam0"]
+rim_only_lenses = ["cam1"]   # no gear in view: only the rim band (outer 4 % of the image circle's radius)
 full_size = 3840
-# The gear is fixed within a clip but has two positions: folded along the left/right rim (clips 035–041) and lowered
-# into the upper left/right of the image (clip 042). OPEN: scope "clip" proved unreliable (see
-# stages/static_mask/README.txt and docs/resolve-pipeline.md §6.1); the next version groups clips by gear position.
-params = { scope = "clip", rim_band = 0.55, min_clip_fraction = 0.8 }
-
-# ---------------------------------------------------------------- SAM 3 people masks (cliff_house.people_masks)
-# Prompts are data. `people` are whole people and their parts; `carried` are things the people in this footage carry,
-# kept only where they touch a person. The operator carries a controller in one hand, a chest device, keys and a tag
-# on the belt, and a yellow strap over the shoulder (none of which SAM 3's "person" silhouette reliably includes).
-[masks]
-people = ["person", "hand"]
-carried = ["keys", "controller", "phone", "radio", "tag", "bag", "strap", "handle", "lanyard", "yellow object"]
-# Pictures of people (posters, paintings) are walls, not transients: a "person" mostly inside one of these is dropped.
-depictions = ["artwork", "painting", "picture"]
+positions = { folded = ["035", "036", "037", "038", "039", "040", "041"], lowered = ["042"] }
 
 # Class "aircraft body" as a static per-lens mask: the dark arc of the aircraft's body across the top rim of both
 # lenses (and on cam0 the dark arm arcs above the gear). It makes the rim boundary explicit where SAM 3 people masks
