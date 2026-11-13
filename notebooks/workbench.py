@@ -407,10 +407,12 @@ def _(mo):
     mo.md("""
     ## Stage 3 — masks (SAM 3)
 
-    SAM 3 concept segmentation (Pixeltable `sam3_for_segmentation`) finds every instance of each prompt — by default
-    the operator and passers-by (`person`) — on every frame. The union, grown a few pixels, becomes a training mask
-    (0 = ignore, 255 = use). Keyed by the frames fingerprint, SAM 3 revision and prompts; only clips without masks in
-    the bucket are processed.
+    SAM 3 concept segmentation (Pixeltable `sam3_for_segmentation`, one column per prompt) finds people (`person`,
+    `hand`), what they carry (keys, controller, phone, strap, …) and pictures (artwork, painting, picture) on every
+    frame. `cliff_house.masks.combine` keeps carried items only where they overlap a person, drops "people" inside
+    pictures (posters are walls), fills enclosed holes, grows the region and, on fisheye sources, carries it out to
+    the image circle; the result becomes a training mask (0 = ignore, 255 = use). Keyed by the frames fingerprint,
+    SAM 3 revision, prompts and rules; only clips without masks in the bucket are processed.
     """)
     return
 
@@ -424,7 +426,8 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, 
 
     from cliff_house import masks as masks_stage
 
-    MASK_PARAMS = masks_stage.Params()
+    # This footage's operator carries a yellow strap over the shoulder that no generic prompt finds reliably.
+    MASK_PARAMS = masks_stage.Params(carried=(*masks_stage.Params().carried, "yellow object"))
     _fs = HfFileSystem(token=HF_STORAGE["token"])
     clips = videos.with_columns(mask_fingerprint=pl.col("fingerprint").map_elements(
         lambda fp: masks_stage.fingerprint(fp, MASK_PARAMS), return_dtype=pl.String))
@@ -433,14 +436,14 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, 
     masks_missing = [r for r in clips.iter_rows(named=True)
                      if not _fs.exists(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet")]
 
-    def _segment(clip, clip_frames, frames_dir):
+    def _segment(clip, clip_frames, frames_dir, fisheye):
         work = pxt.create_table(f"{PXT_DIR}/mask_work", {"camera": pxt.String, "frame": pxt.Int,
                                                           "batch": pxt.Int, "image": pxt.Image},
                                  if_exists="replace")
         for i, prompt in enumerate(MASK_PARAMS.prompts):
             work.add_computed_column(**{f"p{i}": _sam3(
                 work.image, text=prompt, model_id=MASK_PARAMS.model_id, revision=MASK_PARAMS.revision,
-                threshold=MASK_PARAMS.threshold, mask_threshold=MASK_PARAMS.mask_threshold)})
+                threshold=MASK_PARAMS.detection_threshold, mask_threshold=MASK_PARAMS.mask_threshold)})
         small_dir = frames_dir / "_seg"
         small_dir.mkdir(exist_ok=True)
         batches = list(_it.batched(clip_frames.iter_rows(named=True), 16))
@@ -461,10 +464,12 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, 
                        work.where(work.batch == b).select(work.camera, work.frame, *cols).collect()}
             for r in rows:
                 res = results[(r["camera"], r["frame"])]
-                instances = [res[f"p{i}"]["masks"] for i in range(len(MASK_PARAMS.prompts))]
                 w, h = r["_full"]
-                yield r["camera"], r["frame"], masks_stage.training_mask(
-                    masks_stage.unwanted(instances, (h, w)), MASK_PARAMS.grow_px)
+                found = masks_stage.by_group({q: res[f"p{i}"] for i, q in enumerate(MASK_PARAMS.prompts)}, (h, w),
+                                             MASK_PARAMS)
+                region, _ = masks_stage.combine(found["people"], found["carried"], found["depictions"], (h, w),
+                                                MASK_PARAMS, fisheye)
+                yield r["camera"], r["frame"], masks_stage.training_mask(region)
 
     for _row in mo.status.progress_bar(masks_missing, title="Masks stage (clips)", show_eta=True):
         _frames_dir = WORK / "frames" / _frames_remote(_row)
@@ -472,7 +477,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, 
         _clip_frames = pl.read_parquet(_frames_dir / "frames.parquet")
         _out = WORK / "masks" / _masks_remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
-        masks_stage.write(_segment(_row["clip"], _clip_frames, _frames_dir), _out)
+        masks_stage.write(_segment(_row["clip"], _clip_frames, _frames_dir, _row["path"].endswith(".insv")), _out)
         retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_masks_remote(_row)}", token=HF_STORAGE["token"])
 
     def _read_masks(r):
