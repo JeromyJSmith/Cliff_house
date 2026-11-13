@@ -25,6 +25,7 @@ dependencies = [
   # Tabular/spatial layer inside the notebook: Polars + polars-st geometry, DuckDB (spatial extension), GeoParquet via Arrow.
   "polars>=1.30",
   "polars-st>=0.11",
+  "plotly>=6.0",
   "duckdb>=1.3",
   "pyarrow>=20",
   "shapely>=2.1",

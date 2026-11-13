@@ -17,6 +17,7 @@
 #     "pycolmap-cuda12==4.2.1; sys_platform == 'linux'",
 #     "pycolmap==4.2.1; sys_platform == 'darwin'",
 #     "pyyaml>=6.0",
+#     "plotly>=6.0",
 # ]
 # ///
 # [LAW:one-source-of-truth] exception: molab installs only from this PEP 723 header, so it repeats a subset of
@@ -303,6 +304,14 @@ def _():
 
 
 @app.cell
+def _():
+    import PIL.Image as Image
+    import plotly.express as px
+    import plotly.graph_objects as go
+    return Image, go, px
+
+
+@app.cell
 def _(mo):
     mo.md("""
     ## Stage 2 — frames
@@ -322,6 +331,7 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
 
     _sys.path.insert(0, str(repo_dir / "src"))
     from cliff_house import frames as frames_stage
+    from cliff_house import views
     from cliff_house.storage import retry
 
     FRAME_PARAMS = frames_stage.Params()
@@ -338,15 +348,20 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     missing = [r for r in videos.iter_rows(named=True)
                if not _fs.exists(f"buckets/{BUCKET}/{_remote(r)}/frames.parquet")]
 
-    for _row in missing:
-        _src_path = _Path(retry(hf_hub_download, HF_REPO, _row["path"], repo_type="dataset",
-                                token=HF_STORAGE["token"], local_dir=WORK / "sources"))
-        _source = frames_stage.probe(_src_path, _row["sha256"], ffprobe=str(native_prefix / "bin" / "ffprobe"))
-        _out = WORK / "frames" / _remote(_row)
-        shutil.rmtree(_out, ignore_errors=True)
-        frames_stage.extract(_source, FRAME_PARAMS, _out, ffmpeg=str(native_prefix / "bin" / "ffmpeg"))
-        retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
-        _src_path.unlink()
+    with mo.status.progress_bar(total=len(missing), title="Frames stage", show_eta=True, show_rate=True) as _bar:
+        for _row in missing:
+            _bar.update(increment=0, subtitle=f"{_row['clip']}: downloading {_row['bytes'] / 1e9:.1f} GB")
+            _src_path = _Path(retry(hf_hub_download, HF_REPO, _row["path"], repo_type="dataset",
+                                    token=HF_STORAGE["token"], local_dir=WORK / "sources"))
+            _source = frames_stage.probe(_src_path, _row["sha256"], ffprobe=str(native_prefix / "bin" / "ffprobe"))
+            _out = WORK / "frames" / _remote(_row)
+            shutil.rmtree(_out, ignore_errors=True)
+            _bar.update(increment=0, subtitle=f"{_row['clip']}: extracting frames")
+            frames_stage.extract(_source, FRAME_PARAMS, _out, ffmpeg=str(native_prefix / "bin" / "ffmpeg"))
+            _bar.update(increment=0, subtitle=f"{_row['clip']}: uploading to the bucket")
+            retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_remote(_row)}", token=HF_STORAGE["token"])
+            _src_path.unlink()
+            _bar.update(subtitle=f"{_row['clip']}: done")
 
     def _read(row):
         with _fs.open(f"buckets/{BUCKET}/{_remote(row)}/frames.parquet", "rb") as f:
@@ -363,7 +378,28 @@ def _(BUCKET, HF_REPO, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, hf_hub_download,
     frames.insert(frame_rows.to_dicts())
     mo.md(f"Frames: **{frame_rows.height:,}** across **{videos.height}** sources "
           f"({len(missing)} processed this session) — `hf://buckets/{BUCKET}/stages/frames/`")
-    return FRAME_PARAMS, frame_rows, frames, frames_stage, retry, videos
+    return FRAME_PARAMS, frame_rows, frames, frames_stage, retry, videos, views
+
+
+@app.cell
+def _(frame_rows, mo, pl, px):
+    _per_clip = (frame_rows.group_by("clip", "camera")
+                 .agg(frames=pl.len(), seconds=(pl.col("t_ms").max() - pl.col("t_ms").min()) / 1000).sort("clip"))
+    mo.vstack([
+        mo.hstack([mo.stat(value=f"{frame_rows.height:,}", label="frames kept"),
+                   mo.stat(value=f"{frame_rows['clip'].n_unique()}", label="clips"),
+                   mo.stat(value=f"{_per_clip['seconds'].sum() / 60:.1f} min", label="footage covered"),
+                   mo.stat(value=f"{frame_rows['sharpness'].median():,.0f}", label="median sharpness")],
+                  widths="equal"),
+        mo.ui.plotly(px.bar(_per_clip, x="frames", y="clip", color="camera", orientation="h", barmode="group",
+                             title="Frames kept per clip and lens", height=120 + 28 * _per_clip["clip"].n_unique())),
+        mo.ui.plotly(px.scatter(frame_rows.sort("clip", "t_ms").with_columns(seconds=pl.col("t_ms") / 1000),
+                                 x="seconds", y="sharpness", color="camera", facet_col="clip", facet_col_wrap=3,
+                                 height=220 * -(-frame_rows["clip"].n_unique() // 3),
+                                 title="Sharpness of each kept frame over the clip (Laplacian variance)")
+                     .update_yaxes(matches=None).for_each_annotation(lambda a: a.update(text=a.text[5:]))),
+    ])
+    return
 
 
 @app.cell
@@ -380,11 +416,10 @@ def _(mo):
 
 
 @app.cell
-def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt, retry, shutil, sync_bucket,
-      videos):
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, PXT_DIR, WORK, frames_stage, mo, pl, pxt, retry, shutil,
+      sync_bucket, videos):
     import itertools as _it
 
-    import PIL.Image as _Image
     from pixeltable.functions.huggingface import sam3_for_segmentation as _sam3
 
     from cliff_house import masks as masks_stage
@@ -398,7 +433,7 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
     masks_missing = [r for r in clips.iter_rows(named=True)
                      if not _fs.exists(f"buckets/{BUCKET}/{_masks_remote(r)}/masks.parquet")]
 
-    def _segment(clip_frames, frames_dir):
+    def _segment(clip, clip_frames, frames_dir):
         work = pxt.create_table(f"{PXT_DIR}/mask_work", {"camera": pxt.String, "frame": pxt.Int,
                                                           "batch": pxt.Int, "image": pxt.Image},
                                  if_exists="replace")
@@ -408,10 +443,13 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
                 threshold=MASK_PARAMS.threshold, mask_threshold=MASK_PARAMS.mask_threshold)})
         small_dir = frames_dir / "_seg"
         small_dir.mkdir(exist_ok=True)
-        for b, batch in enumerate(_it.batched(clip_frames.iter_rows(named=True), 16)):
+        batches = list(_it.batched(clip_frames.iter_rows(named=True), 16))
+        for b, batch in enumerate(mo.status.progress_bar(batches, title=f"SAM 3 · {clip}",
+                                                         subtitle=f"{clip_frames.height:,} frames in batches of 16",
+                                                         show_eta=True, show_rate=True, remove_on_exit=True)):
             rows = []
             for r in batch:
-                img = _Image.open(frames_dir / r["file"])
+                img = Image.open(frames_dir / r["file"])
                 size = masks_stage.segmentation_size(*img.size, MASK_PARAMS)
                 small = small_dir / f"{r['camera']}_{r['frame']:06d}.jpg"
                 img.resize(size).save(small, quality=95)
@@ -428,13 +466,13 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
                 yield r["camera"], r["frame"], masks_stage.training_mask(
                     masks_stage.unwanted(instances, (h, w)), MASK_PARAMS.grow_px)
 
-    for _row in masks_missing:
+    for _row in mo.status.progress_bar(masks_missing, title="Masks stage (clips)", show_eta=True):
         _frames_dir = WORK / "frames" / _frames_remote(_row)
         retry(_fs.get, f"buckets/{BUCKET}/{_frames_remote(_row)}/", str(_frames_dir) + "/", recursive=True)
         _clip_frames = pl.read_parquet(_frames_dir / "frames.parquet")
         _out = WORK / "masks" / _masks_remote(_row)
         shutil.rmtree(_out, ignore_errors=True)
-        masks_stage.write(_segment(_clip_frames, _frames_dir), _out)
+        masks_stage.write(_segment(_row["clip"], _clip_frames, _frames_dir), _out)
         retry(sync_bucket, str(_out), f"hf://buckets/{BUCKET}/{_masks_remote(_row)}", token=HF_STORAGE["token"])
 
     def _read_masks(r):
@@ -451,6 +489,62 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, PXT_DIR, WORK, frames_stage, mo, pl, pxt
     mo.md(f"Masks: **{mask_rows.height:,}** frames, median ignored "
           f"{mask_rows['ignored_fraction'].median():.1%} ({len(masks_missing)} clips processed this session)")
     return MASK_PARAMS, mask_rows, masks, masks_stage
+
+
+@app.cell
+def _(mask_rows, mo, pl, px):
+    _per_clip = mask_rows.group_by("clip").agg(median=pl.col("ignored_fraction").median(),
+                                               worst=pl.col("ignored_fraction").max(),
+                                               with_people=(pl.col("ignored_fraction") > 0).mean()).sort("clip")
+    browse_clip = mo.ui.dropdown(sorted(mask_rows["clip"].unique()), value=sorted(mask_rows["clip"].unique())[0],
+                                 label="Clip")
+    mo.vstack([
+        mo.hstack([mo.stat(value=f"{mask_rows.height:,}", label="frames masked"),
+                   mo.stat(value=f"{(mask_rows['ignored_fraction'] > 0).mean():.0%}", label="frames with a person"),
+                   mo.stat(value=f"{mask_rows['ignored_fraction'].max():.1%}", label="worst frame ignored")],
+                  widths="equal"),
+        mo.ui.plotly(px.line(mask_rows.sort("clip", "camera", "frame"), x="frame", y="ignored_fraction",
+                              color="camera", facet_col="clip", facet_col_wrap=3,
+                              height=220 * -(-mask_rows["clip"].n_unique() // 3),
+                              title="Share of each frame SAM 3 masks out (people), over the clip")
+                     .update_yaxes(tickformat=".0%").for_each_annotation(lambda a: a.update(text=a.text[5:]))),
+        mo.ui.table(_per_clip.with_columns(pl.col("median", "worst", "with_people").round(3)), selection=None,
+                    label="Ignored fraction per clip"),
+        mo.md("### Frame and mask browser — red is what training ignores"),
+        browse_clip,
+    ])
+    return (browse_clip,)
+
+
+@app.cell
+def _(browse_clip, mask_rows, mo, pl):
+    _frames_in_clip = mask_rows.filter(pl.col("clip") == browse_clip.value)["frame"].unique().sort().to_list()
+    browse_frame = mo.ui.slider(steps=_frames_in_clip, label="Frame", full_width=True, show_value=True)
+    browse_frame
+    return (browse_frame,)
+
+
+@app.cell
+def _(BUCKET, HF_STORAGE, HfFileSystem, Image, browse_clip, browse_frame, frame_rows, mask_rows, mo, pl, views):
+    import io as _io
+
+    import numpy as _np
+
+    _fs = HfFileSystem(token=HF_STORAGE["token"])
+    _pick = (mask_rows.filter((pl.col("clip") == browse_clip.value) & (pl.col("frame") == browse_frame.value))
+             .join(frame_rows.select("clip", "camera", "frame", "sharpness", frame_file="file"),
+                   on=["clip", "camera", "frame"]).sort("camera"))
+
+    def _load(path, mode, resample):
+        img = Image.open(_io.BytesIO(_fs.read_bytes(f"buckets/{BUCKET}/{path}"))).convert(mode)
+        return _np.asarray(img.resize((720, 720 * img.height // img.width), resample))
+
+    mo.hstack([mo.vstack([mo.image(views.overlay(_load(r["frame_file"], "RGB", Image.BILINEAR),
+                                                  _load(r["file"], "L", Image.NEAREST))),
+                          mo.md(f"`{r['camera']}` frame {r['frame']} · ignored {r['ignored_fraction']:.1%} · "
+                                f"sharpness {r['sharpness']:,.0f}")])
+               for r in _pick.iter_rows(named=True)], justify="start")
+    return
 
 
 @app.cell
@@ -499,8 +593,11 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket)
 
     for _fp in pose_missing:
         _work = WORK / "poses" / _fp
-        _sets = [_frame_set(r) for r in clips.iter_rows(named=True)]
-        _rec = poses_stage.solve(_sets, _work, POSE_PARAMS)
+        _sets = [_frame_set(r) for r in mo.status.progress_bar(list(clips.iter_rows(named=True)),
+                                                                title="Poses: fetching frames and masks")]
+        with mo.status.spinner(title="COLMAP: features, matching, incremental mapping",
+                               subtitle=f"{sum(len(s.frames) for s in _sets):,} images from {len(_sets)} clips"):
+            _rec = poses_stage.solve(_sets, _work, POSE_PARAMS)
         (_work / "summary.json").write_text(
             _json.dumps(poses_stage.summary(_rec, sum(len(s.frames) for s in _sets)), indent=1))
         retry(sync_bucket, str(_work), f"hf://buckets/{BUCKET}/{_remote}", token=HF_STORAGE["token"],
@@ -510,6 +607,55 @@ def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, clips, mo, pl, retry, sync_bucket)
           f"registered, {pose_summary['points3D']:,} points, {pose_summary['mean_reprojection_error_px']} px; "
           f"rig baselines {pose_summary['rig_baselines_m']} m")
     return POSE_PARAMS, pose_fp, pose_missing, pose_summary, poses_stage
+
+
+@app.cell
+def _(BUCKET, HF_STORAGE, HfFileSystem, WORK, go, mo, pose_fp, pose_summary, retry, views):
+    import pycolmap as _pycolmap
+
+    _sparse = WORK / "poses" / pose_fp / "sparse" / "0"
+    retry(HfFileSystem(token=HF_STORAGE["token"]).get, f"buckets/{BUCKET}/stages/poses/{pose_fp}/sparse/0/",
+          str(_sparse) + "/", recursive=True)
+    _rec = _pycolmap.Reconstruction(_sparse)
+    pose_cameras = views.cameras(_rec)
+    _cloud = views.points(_rec, limit=60_000)
+
+    _fig = go.Figure([go.Scatter3d(x=_cloud["x"], y=_cloud["y"], z=_cloud["z"], mode="markers", name="sparse points",
+                                     marker={"size": 1.5, "color": _cloud["z"], "colorscale": "Viridis",
+                                             "opacity": 0.6})])
+    for (_clip, _camera), _path in pose_cameras.group_by("clip", "camera", maintain_order=True):
+        _fig.add_trace(go.Scatter3d(x=_path["x"], y=_path["y"], z=_path["z"], mode="lines+markers",
+                                     name=f"{_clip} · {_camera}", marker={"size": 2.5}, line={"width": 3},
+                                     text=[f"frame {f}" for f in _path["frame"]]))
+    _fig.update_layout(height=750, title="Camera paths and sparse points (metres, via the factory rig baseline)",
+                       scene={"aspectmode": "data"}, legend={"itemsizing": "constant"})
+    mo.vstack([
+        mo.hstack([mo.stat(value=f"{pose_summary['registered_images']:,} / {pose_summary['total_images']:,}",
+                           label="images registered"),
+                   mo.stat(value=f"{pose_summary['points3D']:,}", label="3D points"),
+                   mo.stat(value=f"{pose_summary['mean_reprojection_error_px']} px", label="reprojection error"),
+                   mo.stat(value=f"{pose_summary['mean_track_length']}", label="mean track length"),
+                   mo.stat(value=", ".join(f"{b * 1000:.1f} mm" for b in pose_summary["rig_baselines_m"]),
+                           label="rig baseline")], widths="equal"),
+        mo.ui.plotly(_fig),
+    ])
+    return (pose_cameras,)
+
+
+@app.cell
+def _(frame_rows, mask_rows, mo, pl, pose_cameras):
+    _status = (frame_rows.group_by("clip").agg(frames=pl.len())
+               .join(mask_rows.group_by("clip").agg(masked=pl.len(),
+                                                    median_ignored=pl.col("ignored_fraction").median().round(3)),
+                     on="clip", how="left")
+               .join(pose_cameras.group_by("clip").agg(registered=pl.len()), on="clip", how="left")
+               .with_columns(registered=pl.col("registered").fill_null(0),
+                             registered_share=(pl.col("registered").fill_null(0) / pl.col("frames")).round(3))
+               .sort("clip"))
+    mo.vstack([mo.md("## Pipeline status per clip"),
+               mo.ui.table(_status, selection=None, page_size=25,
+                           format_mapping={"median_ignored": "{:.1%}".format, "registered_share": "{:.0%}".format})])
+    return
 
 
 @app.cell
