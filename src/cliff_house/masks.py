@@ -14,12 +14,20 @@ What goes into the mask, per frame:
    `carried_max_frac` of the frame. A carried thing hangs on someone; the same prompts elsewhere in the room (a
    speaker reads as an "electronic device") are not people, and a large neighbour (a sofa cushion read as a "bag")
    is not carried.
-3. **holes filled**: background pockets fully enclosed by the mask and smaller than `max_hole_frac` of the frame
+3. **not pictures of people**: a people instance that lies mostly (`depiction_overlap`) inside an instance of the
+   `depictions` prompts (artwork, painting, picture) above `depiction_threshold` and no larger than
+   `depiction_max_frac` of the frame is dropped. SAM 3's "person" also finds people in posters and paintings (clip 041:
+   a face poster, a tattoo poster); those are static walls the reconstruction needs, not transients.
+4. **holes filled**: background pockets fully enclosed by the mask and smaller than `max_hole_frac` of the frame
    (a strap or a chest device the silhouette went around) become mask.
-4. **grown** by `grow_px` (Euclidean), for soft edges and motion blur. Growing only ever removes more pixels from
-   reconstruction.
+5. **grown** by `grow_px` (Euclidean). SAM 3 predicts 288² masks for a 1008² input, so at 3840² its edges are good to
+   about ±13 px, and it cuts shadowed edges (the dark side of a boot) by up to ~40 px; plus soft edges and motion blur.
+6. **out to the rim**: within the fisheye's outer band (radius ≥ `rim_frac` of the half-width), the mask is grown a
+   further `rim_px`. A person at the edge of a fisheye runs into the image circle, where SAM 3 stops short (clip 041:
+   the operator's shoulders and a forearm along the top rim, ~30–70 px).
+Growing only ever removes more pixels from reconstruction.
 
-The prompts are project data: the project TOML's `[masks]` table sets `people` and `carried` (what the people in
+The prompts are project data: the project TOML's `[masks]` table sets `people`, `carried` and `depictions` (what the people in
 that footage carry), overriding the defaults below; they are part of the parameters and so of the fingerprint.
 
 Why per frame and not SAM 3's video tracker: on clip 041 the tracker's mask for the operator lost the hand holding
@@ -29,7 +37,8 @@ across frames are not needed, and the per-frame check "a mask on every cam0 fram
 It runs on this Mac's GPU through PyTorch MPS, in the `sam3` pixi environment. Meta's own `sam3` package requires
 CUDA, so the model runs through the Transformers port (`Sam3Model`, same checkpoint). The vision backbone runs once
 per frame and every prompt reuses its features. Frames are decoded by ffmpeg straight to SAM 3's 1008² input, and
-masks are upsampled from SAM 3's output to the source size. Run it with
+masks are upsampled from SAM 3's output to the source size. The prompts' text embeddings are computed once, and every prompt
+runs in one batched detector pass per frame. Run it with
 `pixi run -e sam3 masks <project.toml> <clip> <lens>`.
 
 Contract (same as the Resolve mask passes, docs/resolve-pipeline.md §2):
@@ -37,7 +46,8 @@ Contract (same as the Resolve mask passes, docs/resolve-pipeline.md §2):
     stages/masks/<fingerprint>/<clip>/<lens>/
         000000.png …   one per SOURCE frame, 0-based; frame i is at t_ms = round(i·1001/30) (29.97 fps);
                        8-bit L, 255 = person, 0 = keep; full source resolution (3840² fisheye, unrectified)
-        frames.parquet frame, t_ms, file, coverage, people, carried, carried_rejected, filled_px
+        frames.parquet frame, t_ms, file, coverage, people, depicted, carried, carried_rejected,
+                       filled_px, rim_px
         pass.json      pass, use = reconstruction, fingerprint, input, params, versions, seconds, acceptance
 
 Fingerprint = SHA-256 of (lens MP4 SHA-256, this module's code, parameters), first 16 hex — computable from the remux
@@ -73,13 +83,19 @@ FPS_NUM, FPS_DEN = 30000, 1001
 class Params:
     people: tuple[str, ...] = ("person", "hand")
     carried: tuple[str, ...] = ("keys", "controller", "phone", "radio", "tag", "bag", "strap", "handle", "lanyard")
+    depictions: tuple[str, ...] = ("artwork", "painting", "picture")
     person_threshold: float = 0.5   # SAM 3's default detection threshold
     carried_threshold: float = 0.4  # lower: carried items are small, and the attach rule guards against false hits
+    depiction_threshold: float = 0.5
+    depiction_max_frac: float = 0.25  # a "picture" covering the whole fisheye is a false detection, not a veto
+    depiction_overlap: float = 0.5    # fraction of a people instance inside a depiction that drops it
     mask_threshold: float = 0.5
     attach_px: int = 48             # a carried instance must come within this distance of the people mask
     carried_max_frac: float = 0.01  # and be no larger than this fraction of the frame
     max_hole_frac: float = 0.01     # enclosed background pockets up to this fraction of the frame are filled
-    grow_px: int = 8
+    grow_px: int = 24
+    rim_frac: float = 0.9           # the outer band starts at this fraction of the half-width from the centre
+    rim_px: int = 96
     model_id: str = "facebook/sam3"
     revision: str = "3c879f39826c281e95690f02c7821c4de09afae7"
     model_size: int = 1008          # SAM 3's input size; frames are decoded straight to it
@@ -133,13 +149,32 @@ def fill_holes(mask: np.ndarray, max_px: int) -> tuple[np.ndarray, int]:
     return mask | filled, int(filled.sum())
 
 
-def combine(people: Sequence[np.ndarray], carried: Sequence[np.ndarray], params: Params) -> tuple[np.ndarray, dict]:
-    """One frame's mask (uint8, 255 = subject) from bool instance masks of the people and carried prompts."""
-    shape = (people[0] if len(people) else carried[0]).shape if (len(people) or len(carried)) else None
-    if shape is None:
+def rim_band(shape: tuple[int, int], frac: float) -> np.ndarray:
+    """Pixels at or beyond `frac` of the half-width from the image centre (the fisheye's outer band)."""
+    h, w = shape
+    y, x = np.ogrid[:h, :w]
+    return np.hypot(x - (w - 1) / 2, y - (h - 1) / 2) >= frac * min(h, w) / 2
+
+
+def combine(people: Sequence[np.ndarray], carried: Sequence[np.ndarray], params: Params,
+            depictions: Sequence[np.ndarray] = ()) -> tuple[np.ndarray, dict]:
+    """One frame's mask (uint8, 255 = subject) from bool instance masks of the people, carried and depiction
+    prompts."""
+    instances = [*people, *carried, *depictions]
+    if not instances:
         raise ValueError("combine needs the frame shape: pass at least one (possibly empty) instance mask")
+    shape = instances[0].shape
+    pictures = np.zeros(shape, bool)
+    for m in depictions:
+        if m.sum() <= params.depiction_max_frac * m.size:
+            pictures |= m
     union = np.zeros(shape, bool)
+    depicted = 0
     for m in people:
+        area = m.sum()
+        if area and (m & pictures).sum() >= params.depiction_overlap * area:
+            depicted += 1
+            continue
         union |= m
     kept = rejected = 0
     if union.any() and len(carried):
@@ -155,8 +190,15 @@ def combine(people: Sequence[np.ndarray], carried: Sequence[np.ndarray], params:
         rejected = sum(1 for m in carried if m.any())
     union, filled = fill_holes(union, int(params.max_hole_frac * union.size))
     union = grow(union, params.grow_px)
-    stats = {"people": sum(1 for m in people if m.any()), "carried": kept, "carried_rejected": rejected,
-             "filled_px": filled}
+    rim = 0
+    if params.rim_px > 0 and union.any():
+        band = rim_band(shape, params.rim_frac)
+        if (union & band).any():
+            extra = grow(union & band, params.rim_px) & band & ~union
+            rim = int(extra.sum())
+            union |= extra
+    stats = {"people": sum(1 for m in people if m.any()) - depicted, "depicted": depicted, "carried": kept,
+             "carried_rejected": rejected, "filled_px": filled, "rim_px": rim}
     return np.where(union, 255, 0).astype(np.uint8), stats
 
 
@@ -241,7 +283,8 @@ def probe_size(path: Path, ffprobe: str = "ffprobe") -> tuple[int, int]:
 # --- model ----------------------------------------------------------------------------------------------------------
 
 class Segmenter:
-    """SAM 3 on one device: the backbone once per frame, then every prompt on the cached features."""
+    """SAM 3 on one device. The prompts' text embeddings are computed once; per frame the vision backbone runs once
+    and every prompt is decoded in one batch on its features."""
 
     def __init__(self, params: Params):
         import torch
@@ -252,29 +295,46 @@ class Segmenter:
         self.model = Sam3Model.from_pretrained(params.model_id, revision=params.revision, dtype=dtype)
         self.model = self.model.to(params.device).eval()
         self.processor = Sam3Processor.from_pretrained(params.model_id, revision=params.revision)
-        prompts = list(params.people) + list(params.carried)
-        self.text = {p: self.processor(text=p, return_tensors="pt").to(params.device) for p in prompts}
+        self.prompts = [*params.people, *params.carried, *params.depictions]
+        tokens = self.processor(text=self.prompts, return_tensors="pt", padding="max_length", max_length=32)
+        tokens = tokens.to(params.device)
+        with torch.inference_mode():
+            self.text_embeds = self.model.get_text_features(input_ids=tokens.input_ids,
+                                                            attention_mask=tokens.attention_mask, return_dict=True)
+        self.text_mask = tokens.attention_mask
 
-    def __call__(self, rgb: np.ndarray, size: tuple[int, int]) -> tuple[list[np.ndarray], list[np.ndarray]]:
-        """(people instance masks, carried instance masks) at `size` (h, w), bool, on the CPU."""
-        torch, p = self.torch, self.params
+    def threshold(self, prompt: str) -> float:
+        p = self.params
+        if prompt in p.people:
+            return p.person_threshold
+        return p.carried_threshold if prompt in p.carried else p.depiction_threshold
+
+    def __call__(self, rgb: np.ndarray, size: tuple[int, int]) -> dict[str, list[np.ndarray]]:
+        """{"people", "carried", "depictions"}: bool instance masks at `size` (h, w), on the CPU."""
+        torch, p, n = self.torch, self.params, len(self.prompts)
         inputs = self.processor(images=rgb, return_tensors="pt").to(p.device)
-        out: dict[str, list[np.ndarray]] = {}
         with torch.inference_mode():
             vision = self.model.get_vision_features(pixel_values=inputs.pixel_values.to(self.model.dtype))
-            for prompt, text in self.text.items():
-                o = self.model(vision_embeds=vision, **text)
-                threshold = p.person_threshold if prompt in p.people else p.carried_threshold
-                r = self.processor.post_process_instance_segmentation(
-                    o, threshold=threshold, mask_threshold=p.mask_threshold, target_sizes=[list(size)])[0]
-                out[prompt] = list(r["masks"].bool().cpu().numpy())
-        return ([m for q in p.people for m in out[q]], [m for q in p.carried for m in out[q]])
+            vision.fpn_hidden_states = tuple(h.expand(n, *h.shape[1:]) for h in vision.fpn_hidden_states)
+            vision.fpn_position_encoding = tuple(h.expand(n, *h.shape[1:]) for h in vision.fpn_position_encoding)
+            out = self.model(vision_embeds=vision, text_embeds=self.text_embeds, attention_mask=self.text_mask)
+            results = self.processor.post_process_instance_segmentation(
+                out, threshold=min(map(self.threshold, self.prompts)), mask_threshold=p.mask_threshold,
+                target_sizes=[list(size)] * n)
+        groups = {"people": p.people, "carried": p.carried, "depictions": p.depictions}
+        found: dict[str, list[np.ndarray]] = {g: [] for g in groups}
+        for prompt, r in zip(self.prompts, results):
+            keep = (r["scores"] >= self.threshold(prompt)).cpu().numpy()
+            masks = r["masks"].bool().cpu().numpy()
+            group = next(g for g, prompts in groups.items() if prompt in prompts)
+            found[group].extend(m for m, k in zip(masks, keep) if k)
+        return found
 
 
 # --- stage ----------------------------------------------------------------------------------------------------------
 
-def _finish(out_dir: Path, frame: int, people, carried, params: Params) -> dict:
-    mask, stats = combine(people, carried, params)
+def _finish(out_dir: Path, frame: int, found: dict, params: Params) -> dict:
+    mask, stats = combine(found["people"], found["carried"], params, found["depictions"])
     name = f"{frame:06d}.png"
     write_png(out_dir / name, mask)
     return {"frame": frame, "t_ms": t_ms(frame), "file": name, "coverage": coverage(mask), **stats}
@@ -310,8 +370,7 @@ def run(lens_mp4: Path, input_sha256: str, n_frames: int, out_root: Path, clip: 
             decoded += 1
             if wanted is not None and frame not in wanted:
                 continue
-            people, carried = seg(rgb, size)
-            pending.append(pool.submit(_finish, out_dir, frame, people, carried, params))
+            pending.append(pool.submit(_finish, out_dir, frame, seg(rgb, size), params))
             if frame % 50 == 0:
                 print(f"{clip}/{lens} frame {frame}/{n_frames} {time.monotonic() - t_loaded:.0f}s", flush=True)
         rows = [f.result() for f in pending]
@@ -319,8 +378,9 @@ def run(lens_mp4: Path, input_sha256: str, n_frames: int, out_root: Path, clip: 
     if decoded != n_frames:
         raise RuntimeError(f"{lens_mp4}: decoded {decoded} frames, the remux manifest counts {n_frames}")
     table = pl.DataFrame(rows, schema={"frame": pl.Int64, "t_ms": pl.Int64, "file": pl.String,
-                                       "coverage": pl.Float64, "people": pl.Int64, "carried": pl.Int64,
-                                       "carried_rejected": pl.Int64, "filled_px": pl.Int64}).sort("frame")
+                                       "coverage": pl.Float64, "people": pl.Int64, "depicted": pl.Int64, "carried": pl.Int64,
+                                       "carried_rejected": pl.Int64, "filled_px": pl.Int64,
+                                       "rim_px": pl.Int64}).sort("frame")
     table.write_parquet(out_dir / "frames.parquet")
     record = {
         "stage": STAGE, "pass": PASS, "use": USE, "fingerprint": fp, "clip": clip, "lens": lens,
@@ -349,7 +409,7 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
 
     config = tomllib.loads(args.config.read_text())
-    prompts = {k: tuple(v) for k, v in config.get(STAGE, {}).items() if k in ("people", "carried")}
+    prompts = {k: tuple(v) for k, v in config.get(STAGE, {}).items() if k in ("people", "carried", "depictions")}
     params = Params(**prompts)
     stages = Path(config["stages"]["local_root"])
     remux_manifest = Path(config["stages"]["remux_manifest"])

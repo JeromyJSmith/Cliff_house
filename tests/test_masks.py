@@ -52,18 +52,18 @@ def _person_with_items(shape=(100, 100)):
 
 def test_combine_keeps_carried_items_only_when_attached():
     person, keys, speaker = _person_with_items()
-    p = Params(attach_px=4, grow_px=0, max_hole_frac=0.01)
+    p = Params(attach_px=4, grow_px=0, rim_px=0, max_hole_frac=0.01)
     mask, stats = combine([person], [keys, speaker], p)
     assert mask.dtype == np.uint8 and set(np.unique(mask)) == {0, 255}
     assert (mask[keys] == 255).all() and (mask[speaker] == 0).all()
-    assert stats == {"people": 1, "carried": 1, "carried_rejected": 1, "filled_px": 0}
+    assert stats == {"people": 1, "depicted": 0, "carried": 1, "carried_rejected": 1, "filled_px": 0, "rim_px": 0}
 
 
 def test_combine_rejects_a_large_neighbour_as_carried():
     person, _, _ = _person_with_items()
     cushion = np.zeros_like(person)
     cushion[10:60, 60:95] = True       # a sofa cushion against the operator, read as a "bag"
-    mask, stats = combine([person], [cushion], Params(attach_px=4, grow_px=0, carried_max_frac=0.05))
+    mask, stats = combine([person], [cushion], Params(attach_px=4, grow_px=0, rim_px=0, carried_max_frac=0.05))
     assert (mask[cushion] == 0).all() and stats["carried_rejected"] == 1
 
 
@@ -73,11 +73,52 @@ def test_combine_without_people_keeps_no_carried_items():
     assert (mask == 0).all() and stats["carried_rejected"] == 2
 
 
+def test_combine_drops_people_in_pictures_but_keeps_people_in_front_of_them():
+    operator = np.zeros((100, 100), bool)
+    operator[0:50, 40:60] = True
+    poster = np.zeros((100, 100), bool)
+    poster[60:95, 60:95] = True        # a framed poster on the wall
+    poster_face = np.zeros((100, 100), bool)
+    poster_face[65:85, 70:90] = True   # the face SAM 3 calls a "person"
+    p = Params(grow_px=0, rim_px=0, depiction_max_frac=0.5)
+    mask, stats = combine([operator, poster_face], [], p, depictions=[poster])
+    assert (mask[operator] == 255).all() and (mask[poster_face] == 0).all()
+    assert stats["people"] == 1 and stats["depicted"] == 1
+    # the operator walks in front of the painting: SAM 3's painting instance excludes them, so they stay
+    painting_behind = np.zeros((100, 100), bool)
+    painting_behind[0:60, 20:80] = True
+    painting_behind &= ~operator
+    mask, stats = combine([operator], [], p, depictions=[painting_behind])
+    assert (mask[operator] == 255).all() and stats["depicted"] == 0
+
+
+def test_a_picture_covering_the_frame_is_not_a_veto():
+    operator = np.zeros((100, 100), bool)
+    operator[0:50, 40:60] = True
+    whole = np.ones((100, 100), bool)  # "photo" at 0.44 over the entire fisheye
+    mask, stats = combine([operator], [], Params(grow_px=0, rim_px=0), depictions=[whole])
+    assert (mask[operator] == 255).all() and stats["depicted"] == 0
+
+
+def test_a_person_touching_the_rim_is_masked_out_to_the_image_circle():
+    # 200² frame, rim band from 0.9 of the half-width (r >= 90); the operator enters the band but stops 6 px short of
+    # the image edge at the top
+    person = np.zeros((200, 200), bool)
+    person[6:80, 80:120] = True
+    mask, stats = combine([person], [], Params(grow_px=0, rim_frac=0.9, rim_px=12))
+    assert (mask[0:6, 95:105] == 255).all()        # the gap up to the rim is closed
+    assert mask[100, 100] == 0 and mask[85, 100] == 0  # nothing grows inward, below the band
+    assert stats["rim_px"] > 0
+    inner = np.zeros((200, 200), bool)
+    inner[80:120, 80:120] = True                    # a person in the middle: no rim growth
+    assert combine([inner], [], Params(grow_px=0, rim_px=12))[1]["rim_px"] == 0
+
+
 def test_combine_fills_holes_then_grows():
     person = np.zeros((100, 100), bool)
     person[10:60, 30:70] = True
     person[20:30, 45:50] = False       # chest device the silhouette went around
-    mask, stats = combine([person], [], Params(grow_px=3, max_hole_frac=0.01))
+    mask, stats = combine([person], [], Params(grow_px=3, rim_px=0, max_hole_frac=0.01))
     assert (mask[20:30, 45:50] == 255).all() and stats["filled_px"] == 50
     assert mask[10, 27] == 255 and mask[10, 26] == 0
 
