@@ -1,11 +1,11 @@
-// Cliff House Lodge (115 Stone Street, Morrison CO): the east front as a Sunlit Elevation (v3).
+// Cliff House Lodge (115 Stone Street, Morrison CO): the north front as a Sunlit Elevation (v3; faces about 64 deg, NE, on the county map; owner calls it the north side).
 // Engine: Sunlit Elevation from Flat to 3D (Samnang Aing, MIT). Model: this file + kit.js.
 //
 // GEOMETRY SOURCE (v3): the property Gaussian splat itself, full-property-original.sog, rendered orthographically by
 // the reality viewer (apps/reality-viewer/scripts/render_ortho_lodge.ts). Views and their exact pixel mappings:
 //   /Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/splat-views/
 //     lodge-east-facade.png  (60 px/m, image x = along the front, image y = height)  <- every dimension below
-//     lodge-plan-top.png     (50 px/m)  hip roof, ridge parallel to the east front, block 18.6 x 10.2 m
+//     lodge-plan-top.png     (50 px/m)  hip roof, ridge parallel to the north front, block 18.6 x 10.2 m
 //     overview-top-80m.png   (20 px/m)  where the lodge frame was traced
 // Splat scale is not independently verified; the front reads 18.6 m against the 18.87 m county footprint edge
 // (-1.5 %), and the same splat gives Stone Street 9.9 x 6.3 m as its interior scan does. Read every figure +/-2 %,
@@ -20,16 +20,16 @@ const S = createStage({ hatch: 0.11, hatchPhone: 0.12, drawSpan: [0, 9], wipe: [
 const { add, box, mat, lines, root } = S;
 const K = kit(S);
 
-const RENDER = [0x8e5446, 0x8a5143, 0x925847];   // smooth terracotta render on the north part (owner photo 2026-11-20; splat)
+const RENDER = [0x8e5446, 0x8a5143, 0x925847];   // smooth terracotta render on the west part (owner photo 2026-11-20; splat)
 const ROCK = [0xb4836c, 0xa67460, 0xbe9078, 0x9c6a57, 0xc6a084];  // rusticated sandstone, pink-tan (owner photo)   // red rusticated, with a few buff blocks
 const WHITE = 0xece4d2, MINT = 0x5f7a66, SLATE = 0x7b7d80, CREST = 0x9a99a3, ROOF = 0x5a4a3e;
 
-// all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its south end, y = (790 - py) / 60 m
+// all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its east end (file name says "east" = the render frame +u axis, not the compass), y = (790 - py) / 60 m
 const L = 18.6, XA = 11.0, DEPTH = 10.2;          // whole front, start of the ashlar section, block depth (plan)
 const EAVE_R = 6.1, CORN_A = 6.5, STR = 3.1, RIDGE = 8.8, PED_APEX = 7.5;
 const block = new THREE.Group(); root.add(block);
 
-/* ---------- south part: three bays of rusticated red sandstone ---------- */
+/* ---------- east part (left): three bays of rusticated red sandstone ---------- */
 const rOpen = [
   [2.65, 0.5, 3.45, 2.5], [5.7, 0.5, 6.5, 2.5], [8.75, 0.0, 9.6, 2.5],          // window, window, glazed door
   [2.65, 3.75, 3.45, 5.75], [5.7, 3.75, 6.5, 5.75], [8.75, 3.75, 9.6, 5.75],
@@ -46,7 +46,7 @@ add(box(8.95, 1.3, -0.24, 9.4, 2.3, -0.22), mat('glass'), 0.4, { parent: block, 
 for (let i = 0, y = 0; y < EAVE_R - 0.2; i++, y += 0.5) add(box(-0.02, y + 0.01, -0.5, i % 2 ? 0.5 : 0.9, y + 0.49, 0.03), mat('stone', { color: 0xc9a77e }), 0.4, { parent: block });
 K.slab(block, -0.15, EAVE_R - 0.1, -0.5, XA, EAVE_R + 0.12, 0.18, 'wood', 0xe8e4da, 1.0);   // eave fascia
 
-/* ---------- north part: three bays of smooth ashlar with white trim and the central pediment ---------- */
+/* ---------- west part (right, toward the mountain): three bays of smooth ashlar with white trim and the central pediment ---------- */
 const aOpen = [
   [11.83, 0.0, 12.75, 2.45],                                                      // entrance (transom above)
   [14.08, 0.5, 15.08, 2.5], [16.28, 0.5, 17.28, 2.5],
@@ -93,7 +93,7 @@ K.hipX(block, 0, L, -DEPTH, -0.2, EAVE_R + 0.1, RIDGE, DEPTH / 2 - 0.2, L - DEPT
 [[1.75, 8.6], [10.0, 9.0]].forEach(([x, top]) => K.slab(block, x - 0.05, RIDGE - 0.3, -DEPTH / 2 - 0.05, x + 0.05, top, -DEPTH / 2 + 0.05, 'steel', 0x5a5a5a, 0.4)); // vent pipes
 add(box(0, 0, -DEPTH, L, EAVE_R, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: block });
 
-/* ---------- north: the low dark annex behind the board fence; south: a low shed and fence ---------- */
+/* ---------- west: the low dark annex behind the board fence; east: a low shed and fence ---------- */
 const north = new THREE.Group(); north.position.set(0, 0, -1.2); root.add(north);
 K.slab(north, L, 0, -7, L + 6.5, 2.5, 0, 'plaster', 0x5f4e55, 1.0);
 K.hip(north, L, L + 6.5, 2.5, 0.8, -7, 0, { color: ROOF, over: 0.35 });
@@ -103,8 +103,8 @@ K.slats(root, -6.5, -0.4, 0, 1.6, 0.4, { color: 0x7d4a35, spacing: 0.15, w: 0.14
 /* ---------- site ---------- */
 S.street(-30, 45);
 S.tree(L + 1.2, 2.2, 3.0, 1.3);      // the juniper by the entrance (t124)
-S.tree(L + 8.5, -9, 11, 2.8);        // pine to the north
-S.tree(-7.5, -3, 10, 3.2);           // bare cottonwoods to the south
+S.tree(L + 8.5, -9, 11, 2.8);        // pine to the west
+S.tree(-7.5, -3, 10, 3.2);           // bare cottonwoods to the east
 {
   const R = mulberry(115), hills = [];
   for (let i = 0; i < 70; i++) {

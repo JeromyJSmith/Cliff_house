@@ -2,7 +2,7 @@
 
 Live: https://jeromyjsmith.github.io/Cliff_house/sunlit-elevation/ · Stone Street Cottage: `../stone-street/`
 
-The lodge's east front (115 Stone Street, Morrison CO) drawn in ink with 45° hatching. The hatching is the real
+The lodge's north front (115 Stone Street, Morrison CO) drawn in ink with 45° hatching. The hatching is the real
 shadow map, and a sweep turns the drawing into the stone and trim seen in the splat and the photos. Engine (`engine/`,
 unchanged): [Flat to 3D · Sunlit Elevation](https://github.com/Sam1983Aing/flat-to-3d) by Samnang Aing, MIT
 (`LICENSE-flat-to-3d`). Model: `page.js` + `kit.js`.
@@ -13,8 +13,8 @@ unchanged): [Flat to 3D · Sunlit Elevation](https://github.com/Sam1983Aing/flat
 > is unknown and which matches a SuperSplat-edited step-28000 export. Under the owner's standing rule (never use the
 > hand-edited twin or SuperSplat edits as truth), these numbers are not a truth source. The 18.6 m width agrees with
 > the county footprint edge to ±2 %, but nothing checks the heights (eave 6.1, cornice 6.5, string course 3.1,
-> pediment 5.0 m / apex 7.5, ridge 8.8). The east-front layout stands as a hypothesis. Its evidence is the
-> owner's east-front photo (2026-11-20), which shows the same three rusticated plus three rendered bays, pediment
+> pediment 5.0 m / apex 7.5, ridge 8.8). The north-front layout stands as a hypothesis. Its evidence is the
+> owner's north-front photos (2026-11-20), which shows the same three rusticated plus three rendered bays, pediment
 > and hip roof. Everything is to be re-measured from the georeferenced drone-030 splat and checked with
 > render_compare against the 030 cameras.
 
@@ -27,7 +27,7 @@ mappings: `/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sun
 | View | Use |
 |---|---|
 | `overview-top-80m.png` (20 px/m, viewer x/z) | locating the stone block; frame origin and axes traced from its roof corners (`spec-lodge.json`) |
-| `lodge-plan-top.png` (50 px/m) | one hip roof over an 18.6 × 10.2 m block, ridge parallel to the east front; patio umbrella on the east side |
+| `lodge-plan-top.png` (50 px/m) | one hip roof over an 18.6 × 10.2 m block, ridge parallel to the north front; patio umbrella in front of it |
 | `lodge-east-facade.png` (60 px/m, foreground beyond 0.6 m removed) | **every front dimension** (below) |
 | `lodge-front-facade.png`, `lodge-front-elevation.png` | the south-east end: two storeys of rusticated red stone, one window per floor and a door. This is NOT the pediment front, which v1–v2.2 wrongly placed there |
 
@@ -66,3 +66,17 @@ sunroom monitor (not on this elevation), and the cream "LODGING" north end.
 | 1873 | George P. Morrison's residence of local sandstone; east wing 1889 | Morrison Historic District NRHP nomination (NPS, PDF p. 8) and https://morrisonhistory.org/places/cliff-house/, as summarised in `docs/reconnaissance-20261111/BRIEF.md` (main branch) |
 | 1934–1944 (adjusted 1980) | assessor improvement records, "2 Story" | `/Volumes/MARPA/_New_APP/data/projects/cliff-house/00_records/county-2026-11-12/county_parcel/inventoryImprovement.json`, `PARCEL_FINDINGS.md` |
 | 1864 | construction-date statement in a county archive catalog | `/Volumes/MARPA/_New_APP/data/projects/cliff-house/00_records/municipal-2026-11-12/NEW_FINDINGS.md` |
+
+## Orientation (owner, 2026-11-20; checked against the county map)
+
+The pediment front is the **north** side. East is its rusticated left end, west is the mountain side (the smooth
+right-hand part, the annex and the board fence), and south is the back. On the georeferenced site-v2 footprint
+(2024 county aerial, EPSG:32613) this wall's outward normal points at about 64° (NE), which reads as "north" on site.
+The splat render files keep their render-frame names (`lodge-east-facade.png` = the view along the frame's +u axis),
+which are not compass directions. Earlier text here called it the east front; that was wrong.
+
+## ODM-only check of the north front (2026-11-20)
+
+This failed the visual check; see `measure/ODM-NORTH-FRONT-FAILED.md` in the project folder. The only consistent
+figure is the top of the roof cluster (p95–p99 8.7–9.0 m), which agrees with the splat ridge of 8.8 m. The v3.1
+values stay on the page, labelled provisional, until the 030 splat lands.
