@@ -79,3 +79,32 @@ The splat render files are named by compass side (`lodge-north-front-*`, `lodge-
 This failed the visual check; see `measure/ODM-NORTH-FRONT-FAILED.md` in the project folder. The only consistent
 figure is the top of the roof cluster (p95–p99 8.7–9.0 m), which agrees with the splat ridge of 8.8 m. The v3.1
 values stay on the page, labelled provisional, until the 030 splat lands.
+
+## v4 heights: flight-033 dense point cloud (2026-11-20). These are the page's working values
+
+Source: `/Volumes/DoubleAught/Cliff House/VID_20261109_174521_033_dataset/dense/roma.ply` (31,833,004 points),
+photo-derived from the flight-033 Spirula solve (`sparse/0`, 3,308 frames, GPS-scaled metric ENU, σ 0.21 %; see
+`gauge.txt`). It is not a splat and has no SuperSplat edit. The source of the published splat was traced by sha256 to
+this flight's step-28000 checkpoint (nixos-msi-51). Scripts and outputs are in
+`/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/measure/` (`roma_*`).
+
+Method, with no footprints and no splat:
+1. Top-down height map of the cloud (`roma_lodge_top.png`).
+2. The stone block's roof outline as a minimum-area rectangle of the high cells. The north-front edge faces 61°;
+   see `roma_north_front_top.png`, where the green line sits on the block's NE roof edge.
+3. A cross-section along the front (`roma_north_front_section.png`) and the upper-envelope profile
+   (`roma_north_front_profile.output.txt`).
+4. The wall faces are where mid-height (2–4 m) points are densest: t = −1.0 m (north wall) and −10.25 m (back
+   wall), so the walls are 9.25 m apart.
+5. Grade = the median of 46,930 ground points 0.3–2 m in front of the north wall.
+
+| Quantity | v4 (dense cloud) | n, IQR | v3.1 (splat), superseded |
+|---|---|---|---|
+| Eave, stone (east) part (roof surface at the wall face) | **6.60 m** | 15,730, 0.23 | 6.1 |
+| Cornice, render (west) part | **6.83 m** (page 6.8) | 7,263, 0.62 | 6.5 |
+| Hip ridge (roof surface, mid-block median) | **8.35 m** (profile peak p50 8.93 above the p5 ground, 8.35 above grade) | ≈13,000 per 0.25 m band | 8.8 |
+| Depth between wall faces | 9.25 m | | 10.2 (roof incl. eaves) |
+| String course, pediment rise | not resolvable in the cloud; estimates kept (3.1 m; apex 1.0 m above the cornice) | | |
+
+Accuracy: about ±0.15 m (GPS scale σ 0.2 % plus the band IQRs). The front length is not re-measured here; the
+fitted roof edge runs 20.1 m including the eaves, against 18.6 m in the splat render.
