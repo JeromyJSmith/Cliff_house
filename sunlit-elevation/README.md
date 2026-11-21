@@ -26,12 +26,12 @@ mappings: `/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sun
 
 | View | Use |
 |---|---|
-| `overview-top-80m.png` (20 px/m, viewer x/z) | locating the stone block; frame origin and axes traced from its roof corners (`spec-lodge.json`) |
+| `overview-top-80m.png` (20 px/m, viewer x/z) | locating the stone block; frame origin and axes traced from its roof corners (`spec-lodge-plan-and-east-end.json`) |
 | `lodge-plan-top.png` (50 px/m) | one hip roof over an 18.6 × 10.2 m block, ridge parallel to the north front; patio umbrella in front of it |
-| `lodge-east-facade.png` (60 px/m, foreground beyond 0.6 m removed) | **every front dimension** (below) |
-| `lodge-front-facade.png`, `lodge-front-elevation.png` | the south-east end: two storeys of rusticated red stone, one window per floor and a door. This is NOT the pediment front, which v1–v2.2 wrongly placed there |
+| `lodge-north-front-facade.png` (60 px/m, foreground beyond 0.6 m removed) | **every front dimension** (below) |
+| `lodge-east-end-facade.png`, `lodge-east-end-elevation.png` | the east end: two storeys of rusticated red stone, one window per floor and a door. This is NOT the pediment front, which v1–v2.2 wrongly placed there |
 
-| Quantity | Value (from `lodge-east-facade.png`) |
+| Quantity | Value (from `lodge-north-front-facade.png`) |
 |---|---|
 | Front length | 18.6 m: rusticated red sandstone 0–11.0 m, smooth ashlar 11.0–18.6 m |
 | Rusticated eave / ashlar cornice top | 6.1 m / 6.5 m above grade at the wall |
@@ -53,7 +53,7 @@ sunroom monitor (not on this elevation), and the cream "LODGING" north end.
 
 ## Withdrawn
 
-- v1 (history only) and v2–v2.2 (the south-east end modelled as the pediment front, sized from site-v2 footprint
+- v1 (history only) and v2–v2.2 (the east end modelled as the pediment front, sized from site-v2 footprint
   edges 6/8 and the ODM 030 point cloud). The footprint does not fit the drone roof (owner, 2026-11-20).
 - `evidence/ortho-lodge-front.png` and `evidence/ortho-stone-street.png`: the site-v2 footprint drawn on the warped
   2.5D ODM orthophoto without registration. Kept as evidence, not used. See `evidence/REJECTED.md`.
@@ -72,8 +72,7 @@ sunroom monitor (not on this elevation), and the cream "LODGING" north end.
 The pediment front is the **north** side. East is its rusticated left end, west is the mountain side (the smooth
 right-hand part, the annex and the board fence), and south is the back. On the georeferenced site-v2 footprint
 (2024 county aerial, EPSG:32613) this wall's outward normal points at about 64° (NE), which reads as "north" on site.
-The splat render files keep their render-frame names (`lodge-east-facade.png` = the view along the frame's +u axis),
-which are not compass directions. Earlier text here called it the east front; that was wrong.
+The splat render files are named by compass side (`lodge-north-front-*`, `lodge-east-end-*`).
 
 ## ODM-only check of the north front (2026-11-20)
 

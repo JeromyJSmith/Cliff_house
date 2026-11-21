@@ -4,7 +4,7 @@
 // GEOMETRY SOURCE (v3): the property Gaussian splat itself, full-property-original.sog, rendered orthographically by
 // the reality viewer (apps/reality-viewer/scripts/render_ortho_lodge.ts). Views and their exact pixel mappings:
 //   /Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/splat-views/
-//     lodge-east-facade.png  (60 px/m, image x = along the front, image y = height)  <- every dimension below
+//     lodge-north-front-facade.png  (60 px/m, image x = along the front, image y = height)  <- every dimension below
 //     lodge-plan-top.png     (50 px/m)  hip roof, ridge parallel to the north front, block 18.6 x 10.2 m
 //     overview-top-80m.png   (20 px/m)  where the lodge frame was traced
 // Splat scale is not independently verified; the front reads 18.6 m against the 18.87 m county footprint edge
@@ -12,7 +12,7 @@
 // plus about +/-0.1 m for picking edges in the render.
 // APPEARANCE: IMG_0949 t118-t128 (building-names-evidence/cmp_0949_E.jpg), drone 030 nadir frames, the owner's
 // viewer screenshots of the same splat (2026-11-20 19:49-19:50).
-// v1-v2.2 modelled the wrong face (the south-east end) from a footprint edge; superseded.
+// v1-v2.2 modelled the wrong face (the east end) from a footprint edge; superseded.
 import { createStage, run, THREE, span, ease, smooth, lerp, CONVENTION, mulberry, mergeGeometries } from './engine/elevation.js';
 import { kit } from './kit.js';
 
@@ -24,7 +24,7 @@ const RENDER = [0x8e5446, 0x8a5143, 0x925847];   // smooth terracotta render on 
 const ROCK = [0xb4836c, 0xa67460, 0xbe9078, 0x9c6a57, 0xc6a084];  // rusticated sandstone, pink-tan (owner photo)   // red rusticated, with a few buff blocks
 const WHITE = 0xece4d2, MINT = 0x5f7a66, SLATE = 0x7b7d80, CREST = 0x9a99a3, ROOF = 0x5a4a3e;
 
-// all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its east end (file name says "east" = the render frame +u axis, not the compass), y = (790 - py) / 60 m
+// all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its east end, y = (790 - py) / 60 m
 const L = 18.6, XA = 11.0, DEPTH = 10.2;          // whole front, start of the ashlar section, block depth (plan)
 const EAVE_R = 6.1, CORN_A = 6.5, STR = 3.1, RIDGE = 8.8, PED_APEX = 7.5;
 const block = new THREE.Group(); root.add(block);
