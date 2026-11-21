@@ -20,9 +20,9 @@ const S = createStage({ hatch: 0.11, hatchPhone: 0.12, drawSpan: [0, 9], wipe: [
 const { add, box, mat, lines, root } = S;
 const K = kit(S);
 
-const ASHLAR = [0xc9907a, 0xc28a74, 0xcf9a82, 0xbf8670, 0xd3a588];
-const ROCK = [0xa65a43, 0x9a5240, 0xb06248, 0x8f4b3a, 0xb7865f];   // red rusticated, with a few buff blocks
-const WHITE = 0xf1ede4, MINT = 0x8fb3a0, LILAC = 0xa995c4, ROOF = 0x4a3c36;
+const RENDER = [0x8e5446, 0x8a5143, 0x925847];   // smooth terracotta render on the north part (owner photo 2026-11-20; splat)
+const ROCK = [0xb4836c, 0xa67460, 0xbe9078, 0x9c6a57, 0xc6a084];  // rusticated sandstone, pink-tan (owner photo)   // red rusticated, with a few buff blocks
+const WHITE = 0xece4d2, MINT = 0x5f7a66, SLATE = 0x7b7d80, CREST = 0x9a99a3, ROOF = 0x5a4a3e;
 
 // all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its south end, y = (790 - py) / 60 m
 const L = 18.6, XA = 11.0, DEPTH = 10.2;          // whole front, start of the ashlar section, block depth (plan)
@@ -52,12 +52,12 @@ const aOpen = [
   [14.08, 0.5, 15.08, 2.5], [16.28, 0.5, 17.28, 2.5],
   [11.83, 3.75, 12.83, 5.83], [14.08, 3.75, 15.08, 5.83], [16.28, 3.75, 17.28, 5.83],
 ];
-K.wall(block, XA, L, 0, CORN_A - 0.3, aOpen, { tints: ASHLAR, course: 0.48, block: 1.05, seed: 1873 });
+K.wall(block, XA, L, 0, CORN_A - 0.3, aOpen, { tints: RENDER, kind: 'plaster', course: 3.2, block: 30, seed: 1873 });
 aOpen.slice(1).forEach((o) => K.sash(block, ...o, { frame: MINT }));
 [[XA - 0.05, XA + 0.28], [L - 0.3, L + 0.05]].forEach(([a, b]) => K.slab(block, a, 0, -0.5, b, CORN_A - 0.3, 0.07, 'stone', WHITE, 1.0)); // pilasters
 K.slab(block, XA, STR, -0.5, L, STR + 0.18, 0.08, 'stone', WHITE, 1.0);                        // string course
-K.slab(block, XA - 0.1, CORN_A - 0.3, -0.5, L + 0.15, CORN_A, 0.25, 'wood', MINT, 1.1);          // cornice
-{ const br = []; for (let x = XA + 0.2; x < L - 0.1; x += 0.6) br.push(box(x, CORN_A - 0.5, 0.15, x + 0.12, CORN_A - 0.3, 0.25)); add(mergeGeometries(br), mat('wood', { color: MINT }), 0.4, { parent: block }); }
+K.slab(block, XA - 0.1, CORN_A - 0.3, -0.5, L + 0.15, CORN_A, 0.25, 'wood', SLATE, 1.1);          // cornice (grey, owner photo)
+{ const br = []; for (let x = XA + 0.2; x < L - 0.1; x += 0.6) br.push(box(x, CORN_A - 0.5, 0.15, x + 0.12, CORN_A - 0.3, 0.25)); add(mergeGeometries(br), mat('wood', { color: SLATE }), 0.4, { parent: block }); }
 aOpen.forEach(([x0, y0, x1, y1], i) => {
   const t = 0.13, z = 0.05, sm = mat('stone', { color: WHITE });
   add(box(x0 - t, y0 - (i ? 0.12 : 0), -0.05, x0, y1, z), sm, 0.6, { parent: block });
@@ -65,7 +65,7 @@ aOpen.forEach(([x0, y0, x1, y1], i) => {
   add(box(x0 - t - 0.09, y1, -0.05, x1 + t + 0.09, y1 + 0.22, z + 0.02), sm, 0.7, { parent: block });
   if (i) add(box(x0 - 0.06, y0 - 0.12, -0.05, x1 + 0.06, y0, z + 0.04), sm, 0.6, { parent: block });
   const cx = (x0 + x1) / 2, sh = new THREE.Shape([[cx - 0.15, y1 + 0.22], [cx + 0.15, y1 + 0.22], [cx + 0.11, y1 + 0.46], [cx - 0.11, y1 + 0.46]].map((p) => new THREE.Vector2(...p)));
-  add(new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false }).translate(0, 0, z - 0.02), mat('plaster', { color: LILAC }), 0.6, { parent: block });
+  add(new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false }).translate(0, 0, z - 0.02), mat('stone', { color: CREST }), 0.6, { parent: block });
 });
 const pz = -0.25;
 const doorPivot = new THREE.Group(); doorPivot.position.set(aOpen[0][0] + 0.05, 0, pz); block.add(doorPivot);
@@ -80,11 +80,11 @@ K.slab(block, 13.0, 1.05, 0, 13.75, 1.7, 0.05, 'steel', 0x3a3326, 0.7);         
     const s = new THREE.Shape([[P0 + inset, PB], [P1 - inset, PB], [(P0 + P1) / 2, PB + PR * (1 - 2 * inset / (P1 - P0))]].map((p) => new THREE.Vector2(...p)));
     add(new THREE.ExtrudeGeometry(s, { depth: z1 - z0, bevelEnabled: false }).translate(0, 0, z0), mat(kind, { color }), lw, { parent: block });
   };
-  tri(-0.2, 0.1, 0.3, MINT, 'wood', 1.0);
-  tri(0.05, 0.14, 0.32, WHITE, 'stone', 0.6);
-  tri(0.3, 0.1, 0.34, LILAC, 'plaster', 0.8);
+  tri(-0.2, 0.1, 0.3, SLATE, 'wood', 1.0);
+  tri(0.05, 0.14, 0.32, 0x8c8d90, 'wood', 0.6);
+  tri(0.3, 0.1, 0.34, 0x8a8794, 'plaster', 0.8);   // grey tympanum (owner photo; IMG_0949 reads lilac in its light)
   const dn = []; for (let x = P0 + 0.45; x < P1 - 0.45; x += 0.22) dn.push(box(x, PB + 0.02, 0.31, x + 0.1, PB + 0.13, 0.36));
-  add(mergeGeometries(dn), mat('wood', { color: 0x6c5a86 }), 0.3, { parent: block });
+  add(mergeGeometries(dn), mat('wood', { color: 0x6f6d78 }), 0.3, { parent: block });
 }
 
 /* ---------- one hip roof over the whole block, ridge parallel to the front (lodge-plan-top.png) ---------- */
@@ -162,8 +162,17 @@ run(S, {
     { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; One front, two stones</span><p>18.6 metres under one hip roof: three bays of rusticated red sandstone, then three of smooth ashlar framed in white.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; The stone</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. The ink turns into the sandstone, white trim and mint sashes of the splat and the photos.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon, Morrison</span><p>The sun drops toward the plains, and the shadows slide across the coursing.</p>' },
-    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a lilac tympanum with dentils, framed in white and mint.</p><div class="row"><div><span>Source</span>Property splat</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.5 m</div></div>' },
+    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a grey tympanum with a carved scroll, under a grey cornice.</p><div class="row"><div><span>Source</span>Property splat</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.5 m</div></div>' },
     { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; c. 1873</span><p>Morrison&rsquo;s house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Local sandstone, tall 2-over-2 <em>sashes.</em></p><div class="row"><div><span>Front</span>18.6 m</div><div><span>Ridge</span>8.8 m</div><div><span>Built</span>c. 1873 (conflicts)</div></div>' },
     { from: 440, to: 540, html: '<span class="n">06 &nbsp;·&nbsp; Cliff House Lodge</span><p>The entrance with its historic-site plaque, at 115 Stone Street. Across the yard is the <em>Stone Street Cottage.</em></p><a class="pill solid" href="../stone-street/">Stone Street Cottage</a>' },
   ],
 });
+// arched head over the entrance (owner photo): white semicircular surround and a dark fanlight
+{
+  const [x0, , x1, y1] = aOpen[0], cx = (x0 + x1) / 2, r = (x1 - x0) / 2;
+  const outer = new THREE.Shape(); outer.absarc(cx, y1, r + 0.16, 0, Math.PI, false); outer.lineTo(cx + r + 0.16, y1);
+  const hole = new THREE.Path(); hole.absarc(cx, y1, r, 0, Math.PI, false); hole.lineTo(cx + r, y1); outer.holes.push(hole);
+  add(new THREE.ExtrudeGeometry(outer, { depth: 0.1, bevelEnabled: false, curveSegments: 24 }).translate(0, 0, -0.04), mat('stone', { color: WHITE }), 0.6, { parent: block });
+  const fan = new THREE.Shape(); fan.absarc(cx, y1, r, 0, Math.PI, false); fan.lineTo(cx + r, y1);
+  add(new THREE.ShapeGeometry(fan, 24).translate(0, 0, 0.03), mat('steel', { color: 0x2e2a26 }), 0.4, { parent: block, cast: false });
+}

@@ -25,6 +25,6 @@ Source package: `/Volumes/MARPA/_New_APP/data/projects/stone-street/handoff-mode
 | Floor above sidewalk | 1.0 m (was 1.2 m) | 4.55 − 3.53 | ±0.5 m |
 | Deck depth | 2.0 m | P1, P5 | ±15 %, estimated |
 | North porch length | 3.9 m | site-plan footprint 14.44 m − 9.9 m, P5 | ±0.5 m |
-| East windows | 2, ≈1.1 × 1.2 m | P1 (partly hidden by the pergola) | LOW |
+| East openings | dining window 0.93–1.73 m (sill 0.75, head 1.85); glazed deck door 2.63–3.43 m (head 2.05); living window 4.13–5.03 m (sill 0.70, head 1.95); none in the front room. x is measured north from the south end | interior scan 041 (1.0230 m per unit): handoff 3d-rooms/rooms/{dining,living,front-room}/23-wall-east-near.png | ±0.1 m |
 
 M1 method and files: see ../sunlit-elevation/README.md, section M1.
