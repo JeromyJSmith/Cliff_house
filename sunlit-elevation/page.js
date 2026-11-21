@@ -24,7 +24,7 @@ const RENDER = [0x8e5446, 0x8a5143, 0x925847];   // smooth terracotta render on 
 const ROCK = [0xb4836c, 0xa67460, 0xbe9078, 0x9c6a57, 0xc6a084];  // rusticated sandstone, pink-tan (owner photo)   // red rusticated, with a few buff blocks
 const WHITE = 0xece4d2, MINT = 0x5f7a66, SLATE = 0x7b7d80, CREST = 0x9a99a3, ROOF = 0x5a4a3e;
 
-// all from lodge-east-facade.png: x = (px - 335) / 60 m along the front from its east end, y = (790 - py) / 60 m
+// all from lodge-north-front-facade.png: x = (px - 335) / 60 m along the front from its east end, y = (790 - py) / 60 m
 const L = 18.6, XA = 11.0, DEPTH = 10.2;          // whole front, start of the ashlar section, block depth (plan)
 const EAVE_R = 6.1, CORN_A = 6.5, STR = 3.1, RIDGE = 8.8, PED_APEX = 7.5;
 const block = new THREE.Group(); root.add(block);
