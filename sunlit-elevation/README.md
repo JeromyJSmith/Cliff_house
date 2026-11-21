@@ -56,3 +56,25 @@ Note the NRHP text says three storeys; the photographed front shows two.
 heavily interpolated, so it under-reads wall tops; the point-cloud numbers are the ones used. Heights are relative
 to the ground next to each wall, because the drone's GPS altitude datum differs from the 1 m DEM's.
 The 030 Gaussian splat (in progress, nixos-msi-51) should replace these.
+
+### M1 check: horizontal registration and vertical scale (2026-11-20, after review)
+
+**Registration.** `register.py` fits the GPS-only cloud to the site-v2 footprints of buildings 1, 4, 9 and 10. It
+compares a height map (0.2 m cells, roof = more than 2.2 m above local ground) with the footprint polygons,
+grid-searching ±3 m in steps of 0.25 then 0.1 m, and ±3° in steps of 0.5 then 0.25°. Best fit:
+**dx 0.00 m, dy −0.25 m, rotation 1.5°**. IoU goes from 0.328 to 0.333, so the optimum is flat and the rotation
+is weakly determined. Re-measured with that transform (`pc_edges_reg.py`, outputs `*.unshifted.output.txt` and
+`*.registered.output.txt`):
+
+| Quantity | Unshifted | Registered | Change |
+|---|---|---|---|
+| Lodge edge 8 wall band p95 | 7.11 m | 7.02 m | −0.09 m |
+| Lodge edge 6 wall band p95 | 5.92 m | 5.22 m | edge 8 still clearly the 2-storey front |
+| Cottage edge 2 (street) wall band p95 | 4.61 m | 4.58 m | −0.03 m |
+
+Both changes are under 0.3 m, so the edge-8 call and the heights stand. The figures on the pages are unchanged.
+
+**Vertical scale.** On the cottage's west side (edge 0, the passage, whose grade is at about the cottage floor),
+the parapet reads **3.41 m** unshifted and **3.19 m** registered, and the roof interior p95 reads 3.70 / 3.69 m.
+The interior scan gives 3.53 m. That agrees within about ±0.3 m. Edge 0 includes the north porch and trees
+(its max is 16.8 m), which adds noise.
