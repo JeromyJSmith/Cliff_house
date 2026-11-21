@@ -16,7 +16,7 @@ v1 (schematic, from the written history only) is replaced. v2 is modelled from t
 | F1 | IMG_0949 t118–t128 s, `/Volumes/MARPA/_New_APP/data/projects/cliff-house/03_bim/site-model/building-names-evidence/cmp_0949_E.jpg` | the gable front: 3 bays × 2 storeys; 2-over-2 sashes, mint frames; white eared surrounds with lilac crest panels; white string course and corner pilasters; pediment with white/mint/lilac trim and a vent; entrance with transom and historic-site plaque in the left bay; rock-faced red wing to the left; low dark shingled wing and redwood board fence to the right |
 | F2 | drone 030 nadir frames 06045, 06182, 06286, 06615, 06729, `/Volumes/MARPA/_New_APP/data/projects/cliff-house/02_reality_capture/drone-2026-11-09/nadir/frames_2400_100fov/` | stone colour (salmon ashlar with buff blocks, buff quoins), white stone lintels, mint sashes, brown shingle roof, red brick parapet, glazed timber roof monitor (sunroom, not on this elevation) |
 | F3 | `/Users/jero/Documents/cliffhouse2.mp4` (27 s dusk aerial orbit, smeared like a splat render) | massing, brick chimneys, low roofs of the side wings |
-| F4 | `cliff-house-site-v2.site-plan.json`, building 5, edge 6 | gable width 9.30 m ±0.3 (SAM 3 trace of the 2024 aerial, EPSG:32613) |
+| F4 | `cliff-house-site-v2.site-plan.json`, building 5, edge 8 (v2.1; edge 6 in v2) | front width 10.11 m ±0.3 (SAM 3 trace of the 2024 aerial, EPSG:32613) |
 
 ## Numbers and confidence
 

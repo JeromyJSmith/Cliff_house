@@ -12,7 +12,7 @@
 //      -> salmon/buff mottled ashlar, buff quoins, white flat stone lintels, mint sashes, brown shingle
 //         roof, red brick parapet, glazed timber roof monitor (the sunroom; not on this elevation).
 //  F3  /Users/jero/Documents/cliffhouse2.mp4 (dusk aerial orbit) -> massing, brick chimneys, low roofs.
-//  F4  footprint: cliff-house-site-v2.site-plan.json building 5, edge 6 = 9.30 m (SAM 3 trace of the
+//  F4  footprint: cliff-house-site-v2.site-plan.json building 5, edge 8 = 10.11 m (edge 6 = 9.30 m in v2) (SAM 3 trace of the
 //      2024 county aerial, EPSG:32613). Used as the gable width. +/-0.3 m, and the assignment of this
 //      edge to the photographed gable is MEDIUM confidence (orientation from F1 shadows + F3).
 //  HEIGHTS: not measured in 3D yet. Eave 7.2 m and the opening sizes are read off F1 t124 as
