@@ -135,3 +135,10 @@ Automatic attempts that failed the visual check (kept in `measure/`): v4 (`roma_
 a ±0.3 m wall band: 6.39 / 7.14); v5 (`…v5_elevation.png`, bottom-up density break: 5.2 / 7.2, on the window heads
 and the pediment apex); v6 (`…v6_elevation.png`, top-down: 6.6 / 7.2, above the edge because roof and pediment
 points fall inside the slab). The earlier v4 working values (eave 6.60 / 6.83, ridge 8.35) are superseded.
+
+## Changelog
+
+- v5 (live, 2026-11-20): north-front levels hand-read from the flight-033 dense cloud. The pediment apex was
+  re-read as 7.40 m at the top of the dense peak band (y ≈ 116 px; the first read, 7.15, was 0.25 m low).
+- **The v2.1 wall top (7.1 m) is superseded.** That band included roof points; the measured wall top is 5.90 m
+  (render) and 5.95 m (stone). The building did not "shrink" 1.2 m. The earlier number measured part of the roof.
