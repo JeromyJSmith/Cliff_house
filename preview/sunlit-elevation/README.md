@@ -127,7 +127,7 @@ with the line drawn across the full width.
 | Render cornice | 5.90 | hand-read |
 | Stone wall/roof break | 5.95 | hand-read |
 | Stone eave fascia top | 6.25 | hand-read |
-| Pediment apex | 7.15 | hand-read |
+| Pediment apex | 7.40 | hand-read at the top of the dense peak band (first read 7.15 was 0.25 m low, reviewer nixos-msi-51) |
 | Hip ridge | 8.73 | p95 of a 0.5 m strip on the ridge axis (n 21,971), drawn in `roma_north_front_v3_section.png` |
 | String course | 3.1 (estimate) | not resolved in the cloud |
 

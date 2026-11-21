@@ -27,7 +27,7 @@ const WHITE = 0xece4d2, MINT = 0x5f7a66, SLATE = 0x7b7d80, CREST = 0x9a99a3, ROO
 
 // all from lodge-north-front-facade.png: x = (px - 335) / 60 m along the front from its east end, y = (790 - py) / 60 m
 const L = 18.6, XA = 11.0, DEPTH = 10.2;          // whole front, start of the ashlar section, block depth (plan)
-const EAVE_R = 6.6, CORN_A = 6.8, STR = 3.1, RIDGE = 8.35, PED_APEX = 7.8; // eave, cornice, ridge: flight-033 dense cloud (roma.ply, GPS-metric); string course + pediment rise: splat proportions
+const EAVE_R = 5.95, CORN_A = 5.9, STR = 3.1, RIDGE = 8.73, PED_APEX = 7.4; // hand-read from the roma.ply front elevation (measure/roma_north_front_handread.png, +-0.1 m); ridge = strip p95; string course: estimate
 const block = new THREE.Group(); root.add(block);
 
 /* ---------- east part (left): three bays of rusticated red sandstone ---------- */
@@ -45,7 +45,7 @@ add(box(8.8, 0.0, -0.3, 9.55, 2.45, -0.24), mat('wood', { color: 0x6e7f6a }), 0.
 add(box(8.95, 1.3, -0.24, 9.4, 2.3, -0.22), mat('glass'), 0.4, { parent: block, cast: false });
 // buff corner blocks at the south corner (owner screenshots)
 for (let i = 0, y = 0; y < EAVE_R - 0.2; i++, y += 0.5) add(box(-0.02, y + 0.01, -0.5, i % 2 ? 0.5 : 0.9, y + 0.49, 0.03), mat('stone', { color: 0xc9a77e }), 0.4, { parent: block });
-K.slab(block, -0.15, EAVE_R - 0.1, -0.5, XA, EAVE_R + 0.12, 0.18, 'wood', 0xe8e4da, 1.0);   // eave fascia
+K.slab(block, -0.15, EAVE_R - 0.05, -0.5, XA, 6.25, 0.18, 'wood', 0xe8e4da, 1.0);   // eave fascia, top 6.25 (hand-read)
 
 /* ---------- west part (right, toward the mountain): three bays of smooth ashlar with white trim and the central pediment ---------- */
 const aOpen = [
@@ -121,7 +121,7 @@ S.figure(13.5, 1.6, 1, true);
 S.aimSun(9, 4, 30);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course (est.)'], [EAVE_R, '+6.60', 'Eave, stone part (prov.)'], [CORN_A, '+6.80', 'Eave, render part (prov.)'], [PED_APEX, '+7.80', 'Pediment apex (est.)'], [RIDGE, '+8.35', 'Hip ridge (prov.)']]
+[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course (est.)'], [EAVE_R, '+5.95', 'Stone wall top (measured)'], [6.25, '+6.25', 'Stone eave fascia (measured)'], [CORN_A, '+5.90', 'Render cornice (measured)'], [PED_APEX, '+7.40', 'Pediment apex (measured)'], [RIDGE, '+8.73', 'Hip ridge (measured)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;
@@ -163,8 +163,8 @@ run(S, {
     { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; One front, two stones</span><p>18.6 metres under one hip roof: three bays of rusticated red sandstone, then three of smooth ashlar framed in white.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; The stone</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. The ink turns into the sandstone, white trim and mint sashes of the splat and the photos.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon, Morrison</span><p>The sun drops toward the plains, and the shadows slide across the coursing.</p>' },
-    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a grey tympanum with a carved scroll, under a grey cornice.</p><div class="row"><div><span>Source</span>Drone 033 dense cloud</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.8 m (est.)</div></div>' },
-    { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; c. 1873</span><p>Morrison&rsquo;s house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Local sandstone, tall 2-over-2 <em>sashes.</em></p><div class="row"><div><span>Front</span>18.6 m</div><div><span>Ridge</span>8.35 m</div><div><span>Built</span>c. 1873 (conflicts)</div></div>' },
+    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a grey tympanum with a carved scroll, under a grey cornice.</p><div class="row"><div><span>Source</span>Drone 033 dense cloud</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.4 m</div></div>' },
+    { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; c. 1873</span><p>Morrison&rsquo;s house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Local sandstone, tall 2-over-2 <em>sashes.</em></p><div class="row"><div><span>Front</span>18.6 m</div><div><span>Ridge</span>8.73 m</div><div><span>Built</span>c. 1873 (conflicts)</div></div>' },
     { from: 440, to: 540, html: '<span class="n">06 &nbsp;·&nbsp; Cliff House Lodge</span><p>The entrance with its historic-site plaque, at 115 Stone Street. Across the yard is the <em>Stone Street Cottage.</em></p><a class="pill solid" href="../stone-street/">Stone Street Cottage</a>' },
   ],
 });

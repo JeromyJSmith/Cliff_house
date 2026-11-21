@@ -113,3 +113,25 @@ fitted roof edge runs 20.1 m including the eaves, against 18.6 m in the splat re
 
 The south side has a wooden deck. A great room is joined to the original house, and a cottage stands west of the
 house. These belong on the south and west elevations; the north-front page does not show them yet.
+
+## v5 north-front levels: hand-read from the dense-cloud elevation (preview, under review)
+
+Image: `/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/measure/roma_north_front_handread.png`.
+It is a front elevation of `roma.ply` (flight 033, GPS-metric) at 45 px/m, showing points within −0.4..+1.2 m of
+the wall faces, which are at t −0.975 (stone) and −0.725 (render). Each line is hand-read off this image to ±0.1 m,
+with the line drawn across the full width.
+
+| Level | Height above grade | Source |
+|---|---|---|
+| Grade | 0.00 | median of 46,930 ground points 0.3–2.0 m in front of the wall face |
+| Render cornice | 5.90 | hand-read |
+| Stone wall/roof break | 5.95 | hand-read |
+| Stone eave fascia top | 6.25 | hand-read |
+| Pediment apex | 7.40 | hand-read at the top of the dense peak band (first read 7.15 was 0.25 m low, reviewer nixos-msi-51) |
+| Hip ridge | 8.73 | p95 of a 0.5 m strip on the ridge axis (n 21,971), drawn in `roma_north_front_v3_section.png` |
+| String course | 3.1 (estimate) | not resolved in the cloud |
+
+Automatic attempts that failed the visual check (kept in `measure/`): v4 (`roma_north_front_v4_section.png`, p95 of
+a ±0.3 m wall band: 6.39 / 7.14); v5 (`…v5_elevation.png`, bottom-up density break: 5.2 / 7.2, on the window heads
+and the pediment apex); v6 (`…v6_elevation.png`, top-down: 6.6 / 7.2, above the edge because roof and pediment
+points fall inside the slab). The earlier v4 working values (eave 6.60 / 6.83, ridge 8.35) are superseded.
