@@ -121,7 +121,7 @@ S.figure(13.5, 1.6, 1, true);
 S.aimSun(9, 4, 30);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course (est.)'], [EAVE_R, '+6.60', 'Eave, stone part (measured)'], [CORN_A, '+6.80', 'Cornice, render part (measured)'], [PED_APEX, '+7.80', 'Pediment apex (est.)'], [RIDGE, '+8.35', 'Hip ridge (measured)']]
+[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course (est.)'], [EAVE_R, '+6.60', 'Eave, stone part (prov.)'], [CORN_A, '+6.80', 'Eave, render part (prov.)'], [PED_APEX, '+7.80', 'Pediment apex (est.)'], [RIDGE, '+8.35', 'Hip ridge (prov.)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;

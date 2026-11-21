@@ -108,3 +108,8 @@ Method, with no footprints and no splat:
 
 Accuracy: about ±0.15 m (GPS scale σ 0.2 % plus the band IQRs). The front length is not re-measured here; the
 fitted roof edge runs 20.1 m including the eaves, against 18.6 m in the splat render.
+
+## Owner layout notes (2026-11-20), not yet modelled
+
+The south side has a wooden deck. A great room is joined to the original house, and a cottage stands west of the
+house. These belong on the south and west elevations; the north-front page does not show them yet.
