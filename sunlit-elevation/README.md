@@ -7,7 +7,17 @@ shadow map, and a sweep turns the drawing into the stone and trim seen in the sp
 unchanged): [Flat to 3D · Sunlit Elevation](https://github.com/Sam1983Aing/flat-to-3d) by Samnang Aing, MIT
 (`LICENSE-flat-to-3d`). Model: `page.js` + `kit.js`.
 
-## v3: geometry from the property splat
+## v3: geometry from the property splat (PROVISIONAL)
+
+> **PROVISIONAL (2026-11-20).** The v3 front dimensions come from full-property-original.sog, whose training solve
+> is unknown and which matches a SuperSplat-edited step-28000 export. Under the owner's standing rule (never use the
+> hand-edited twin or SuperSplat edits as truth), these numbers are not a truth source. The 18.6 m width agrees with
+> the county footprint edge to ±2 %, but nothing checks the heights (eave 6.1, cornice 6.5, string course 3.1,
+> pediment 5.0 m / apex 7.5, ridge 8.8). The east-front layout stands as a hypothesis. Its evidence is the
+> owner's east-front photo (2026-11-20), which shows the same three rusticated plus three rendered bays, pediment
+> and hip roof. Everything is to be re-measured from the georeferenced drone-030 splat and checked with
+> render_compare against the 030 cameras.
+
 
 Source: `/Volumes/MARPA/_New_APP/data/projects/cliff-house/02_reality_capture_splats/full-property-original.sog`,
 rendered orthographically by the reality viewer with a lodge-aligned frame

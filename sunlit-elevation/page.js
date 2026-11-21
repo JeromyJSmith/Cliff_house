@@ -120,7 +120,7 @@ S.figure(13.5, 1.6, 1, true);
 S.aimSun(9, 4, 30);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course'], [EAVE_R, '+6.10', 'Eave, rusticated part'], [CORN_A, '+6.50', 'Cornice, ashlar part'], [PED_APEX, '+7.50', 'Pediment apex'], [RIDGE, '+8.80', 'Hip ridge']]
+[[0, '±0.00', 'Grade at the wall'], [STR, '+3.10', 'String course (prov.)'], [EAVE_R, '+6.10', 'Eave, rusticated (prov.)'], [CORN_A, '+6.50', 'Cornice (prov.)'], [PED_APEX, '+7.50', 'Pediment apex (prov.)'], [RIDGE, '+8.80', 'Hip ridge (prov.)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;
@@ -162,7 +162,7 @@ run(S, {
     { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; One front, two stones</span><p>18.6 metres under one hip roof: three bays of rusticated red sandstone, then three of smooth ashlar framed in white.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; The stone</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. The ink turns into the sandstone, white trim and mint sashes of the splat and the photos.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon, Morrison</span><p>The sun drops toward the plains, and the shadows slide across the coursing.</p>' },
-    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a grey tympanum with a carved scroll, under a grey cornice.</p><div class="row"><div><span>Source</span>Property splat</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.5 m</div></div>' },
+    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the ashlar bays: a grey tympanum with a carved scroll, under a grey cornice.</p><div class="row"><div><span>Source</span>Splat (provisional)</div><div><span>Span</span>5.0 m</div><div><span>Apex</span>7.5 m</div></div>' },
     { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; c. 1873</span><p>Morrison&rsquo;s house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Local sandstone, tall 2-over-2 <em>sashes.</em></p><div class="row"><div><span>Front</span>18.6 m</div><div><span>Ridge</span>8.8 m</div><div><span>Built</span>c. 1873 (conflicts)</div></div>' },
     { from: 440, to: 540, html: '<span class="n">06 &nbsp;·&nbsp; Cliff House Lodge</span><p>The entrance with its historic-site plaque, at 115 Stone Street. Across the yard is the <em>Stone Street Cottage.</em></p><a class="pill solid" href="../stone-street/">Stone Street Cottage</a>' },
   ],
