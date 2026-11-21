@@ -34,9 +34,14 @@ const L = 9.9, STEP = 6.6, P_LO = 3.38, P_HI = 3.53; // P5, handoff
 const g = new THREE.Group(); g.position.set(0, F, 0); root.add(g);
 
 /* ---------- the teal east wall, flat roof with its step (P3, P5, P6) ---------- */
-const win = [[2.3, 0.9, 3.5, 2.1], [4.6, 0.9, 5.6, 2.1]]; // LOW confidence (behind the pergola)
+// east-wall openings from the interior scan (041 splat, 1.0230 m/unit): 3d-rooms dining + living 23-wall-east-near.png; x = 6.43 - v
+const win = [[0.93, 0.75, 1.73, 1.85], [4.13, 0.7, 5.03, 1.95]];
+const deckDoor = [2.63, 0.0, 3.43, 2.05]; // glazed, curtained door from the living room onto the deck
 K.slab(g, 0, -F, -6.3, L, 3.0, -0.2, 'plaster', TEAL, 1.3);
 win.forEach((w) => { K.slab(g, w[0] - 0.1, w[1] - 0.1, -0.2, w[2] + 0.1, w[3] + 0.1, 0.02, 'plaster', 0xeeeae2, 0.7); K.sash(g, ...w, { frame: 0xf2eee6, recess: -0.1, T: 0.1 }); });
+K.slab(g, deckDoor[0] - 0.1, 0, -0.2, deckDoor[2] + 0.1, deckDoor[3] + 0.1, 0.02, 'plaster', 0xeeeae2, 0.7);
+K.slab(g, deckDoor[0], 0, 0.02, deckDoor[2], deckDoor[3], 0.06, 'wood', 0x7a5b3e, 0.7);
+K.slab(g, deckDoor[0] + 0.12, 0.9, 0.06, deckDoor[2] - 0.12, deckDoor[3] - 0.12, 0.07, 'glass', null, 0.4);
 K.slab(g, 0, 3.0, -6.3, STEP, P_LO, 0.0, 'plaster', TEAL, 1.1);
 K.slab(g, STEP, 3.0, -6.3, L, P_HI, 0.0, 'plaster', TEAL, 1.1);
 K.slab(g, -0.05, 2.92, 0.0, STEP, 3.02, 0.06, 'steel', FASCIA, 0.8);
@@ -49,7 +54,7 @@ K.slab(g, 0.8, P_LO + 0.06, -0.1, 0.9, P_LO + 0.9, 0.0, 'steel', 0x8a8a8a, 0.5);
 { const s = []; for (let x = STEP; x < L + 3.8; x += 0.4) s.push(x, 2.75 - 0.08 * Math.sin((x - STEP) * 7.8), 0.4, x + 0.4, 2.75 - 0.08 * Math.sin((x + 0.4 - STEP) * 7.8), 0.4); lines(s, 0.5, { drawOnly: false }); }
 
 /* ---------- the raised deck, dry-stone wall, railings and the green pergola (P1, P3) ---------- */
-const D0 = 0.2, D1 = STEP, DZ = 2.0;
+const D0 = 0.2, D1 = STEP, DZ = 2.0; // deck depth: ESTIMATED from P1/P5 (+/-15 %); the orthophoto is NOT used (2.5D, warped)
 K.slab(g, D0, -0.12, 0, D1, 0.0, DZ, 'wood', 0x7d6a55, 0.8);                       // deck boards
 { const gw = new THREE.Group(); gw.position.z = DZ + 0.12; root.add(gw); K.wall(gw, D0 - 0.2, D1 + 0.1, 0, F - 0.12, [], { tints: STONE, course: 0.22, block: 0.5, rough: 0.07, seed: 121, T: 0.4, outline: true }); }
 K.slats(g, D0 + 1.95, D1, 0, 1.0, DZ, { color: GREEN, spacing: 0.16, w: 0.09 });
@@ -142,7 +147,7 @@ run(S, {
     S.hemi.intensity = lerp(0.52, 0.46, m);
   },
   beats: [
-    { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; Relief</span><p>The deck stands two metres out from the wall on a dry-stone retaining wall. The fence runs along the sidewalk below it.</p>' },
+    { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; Relief</span><p>The deck stands about two metres out from the wall on a dry-stone retaining wall. The fence runs along the sidewalk below it.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; Teal and green</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. Teal stucco, a dark metal fascia, green railings and pergola, as photographed.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon</span><p>The sun drops and the pergola rafters stripe the deck.</p>' },
     { from: 300, to: 366, html: '<span class="n">04 &nbsp;·&nbsp; The north porch</span><p>The brown shingle roof belongs to the cottage. It covers the entry porch and the <em>hot tub.</em></p><div class="row"><div><span>Source</span>Clip 035 f10, owner</div><div><span>Roof</span>Shingle</div><div><span>Porch</span>≈3.9 m (est.)</div></div>' },
