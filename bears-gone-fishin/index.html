@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brett's Gone Fishing — storyboard</title>
+  <style>
+    :root {
+      --ink: #1a120e;
+      --paper: #f3ead7;
+      --paper-2: #e7d8bc;
+      --gulf: #1c6e78;
+      --gulf-deep: #0e3d44;
+      --rock: #c24b2a;
+      --rock-deep: #6e2618;
+      --foam: #f7f1e4;
+      --muted: #6d5b4a;
+      --line: rgba(26, 18, 14, 0.16);
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--ink);
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100%;
+    }
+
+    button, a { font: inherit; }
+
+    .top {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.65rem 1rem;
+      background: #120d0b;
+      color: var(--foam);
+      border-bottom: 1px solid rgba(243, 234, 215, 0.12);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      min-width: 12rem;
+      line-height: 1;
+    }
+
+    .brand strong {
+      font-family: Palatino, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      font-weight: 600;
+      font-size: 1.15rem;
+      letter-spacing: 0.01em;
+    }
+
+    .brand span {
+      margin-top: 0.2rem;
+      color: #c8b49a;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .dots {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      flex: 1;
+    }
+
+    .dots button {
+      min-width: 2rem;
+      height: 2rem;
+      padding: 0 0.45rem;
+      border-radius: 999px;
+      border: 1px solid rgba(243, 234, 215, 0.28);
+      background: transparent;
+      color: var(--foam);
+      cursor: pointer;
+    }
+
+    .dots button[aria-current="true"] {
+      background: var(--rock);
+      border-color: var(--rock);
+      color: white;
+    }
+
+    .nav {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .nav button, .mode {
+      border: 1px solid rgba(243, 234, 215, 0.28);
+      background: transparent;
+      color: var(--foam);
+      border-radius: 999px;
+      padding: 0.45rem 0.8rem;
+      cursor: pointer;
+    }
+
+    .nav button:hover, .mode:hover, .dots button:hover {
+      border-color: var(--foam);
+    }
+
+    .reel {
+      position: relative;
+      height: calc(100vh - 58px);
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+    }
+
+    .frame {
+      flex: 0 0 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+      scroll-snap-align: start;
+      display: grid;
+      grid-template-columns: minmax(0, 2.35fr) minmax(260px, 0.7fr);
+      gap: 1.25rem;
+      padding: 1.25rem 1.25rem 2.5rem;
+      background:
+        radial-gradient(circle at 18px 22px, #120d0b 6px, transparent 7px) left top / 100% 36px repeat-y,
+        linear-gradient(#241812, #241812);
+    }
+
+    .picture {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      background: #0c0908;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .picture img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      object-position: center center;
+    }
+
+    .picture.strip {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      overflow-y: auto;
+      gap: 0;
+      scroll-snap-type: y mandatory;
+      background: #0c0908;
+      box-shadow: var(--shadow);
+    }
+
+    .picture.strip .slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: start;
+    }
+
+    .picture.strip .slide img {
+      flex: 0 1 auto;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .slug {
+      margin: 0;
+      min-height: 0;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 1.3rem 1.35rem 2rem;
+      overflow: auto;
+      overscroll-behavior: contain;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .kicker {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      color: var(--rock-deep);
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .slug h2 {
+      margin: 0;
+      font-family: Palatino, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      font-size: clamp(2rem, 3vw, 3.1rem);
+      font-weight: 600;
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+    }
+
+    .action {
+      margin: 0;
+      font-size: 1.12rem;
+      line-height: 1.4;
+    }
+
+    .script {
+      margin: 0;
+      padding: 0.75rem 0.85rem;
+      background: rgba(194, 75, 42, 0.08);
+      border-left: 3px solid var(--rock);
+      font-size: 0.98rem;
+      line-height: 1.45;
+    }
+
+    .script b {
+      display: block;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--rock-deep);
+      margin-bottom: 0.28rem;
+    }
+
+    .meta {
+      margin-top: auto;
+      display: grid;
+      gap: 0.55rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .meta p {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.35;
+    }
+
+    .meta b {
+      display: block;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 0.12rem;
+    }
+
+    .prompts details {
+      border-top: 1px solid var(--line);
+      padding-top: 0.45rem;
+    }
+
+    .prompts summary {
+      cursor: pointer;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--rock-deep);
+    }
+
+    .prompts pre {
+      white-space: pre-wrap;
+      font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.4;
+      margin: 0.45rem 0 0.7rem;
+    }
+
+    .title-frame {
+      grid-template-columns: 1fr;
+      align-content: start;
+      align-items: start;
+      background: #1a120e;
+      padding: 2rem 4vw 42vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scroll-padding-top: 1.5rem;
+      scroll-padding-bottom: 3rem;
+    }
+
+    .title-board {
+      max-width: 1180px;
+      margin: 0 auto;
+      color: var(--foam);
+      padding-bottom: 2rem;
+    }
+
+    .title-board .prompts { margin: 1rem 0 0.2rem; }
+    .title-board .prompts summary { color: #e0b089; }
+    .title-board .prompts pre { color: #f3e6d4; }
+    .title-board .prompts details { border-top-color: rgba(243, 234, 215, 0.22); }
+
+    .title-board p.eyebrow {
+      margin: 0 0 0.4rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: #e0b089;
+    }
+
+    .title-board h1 {
+      margin: 0;
+      font-family: Palatino, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      font-size: clamp(3.2rem, 8vw, 7.2rem);
+      font-weight: 600;
+      line-height: 0.86;
+      letter-spacing: -0.03em;
+    }
+
+    .lede {
+      max-width: 42rem;
+      font-size: 1.2rem;
+      line-height: 1.45;
+      color: #f0e2cc;
+    }
+
+    .cast {
+      margin-top: 1.4rem;
+      display: grid;
+      grid-template-columns: 0.7fr 0.7fr 1.15fr 1.25fr 0.7fr;
+      gap: 0.7rem;
+    }
+
+    .cast figure {
+      margin: 0;
+      background: #2a1d16;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .cast img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      object-position: center center;
+      display: block;
+      background: #f3ead7;
+    }
+
+    .cast figcaption,
+    .refs figcaption {
+      padding: 0.45rem 0.6rem 0.55rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #e7d3b8;
+    }
+
+    .refs {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.85rem;
+    }
+
+    .refs figure {
+      margin: 0;
+      background: #2a1d16;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .refs img {
+      width: 100%;
+      height: auto;
+      max-height: 72vh;
+      object-fit: contain;
+      object-position: center center;
+      display: block;
+      background: #efe4d0;
+    }
+
+    .refs figcaption { text-transform: none; letter-spacing: 0; line-height: 1.35; }
+
+    .atlas {
+      margin-top: 1.2rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .atlas article {
+      background: #2a1d16;
+      border-radius: 8px;
+      padding: 0.75rem 1rem 0.9rem;
+    }
+
+    .atlas h2 {
+      margin: 0;
+      font-family: Palatino, Georgia, serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #f3ead7;
+    }
+
+    .atlas p {
+      margin: 0.3rem 0 0;
+      color: #eadcc8;
+      line-height: 1.4;
+    }
+
+    .atlas a { color: #f0c39a; }
+
+    .atlas .links { margin-top: 0.4rem; }
+
+    .atlas .links a { margin-right: 0.85rem; }
+
+    .atlas.sheet {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+
+    .outline {
+      margin-top: 1.8rem;
+      max-width: 46rem;
+      color: #eadcc8;
+      line-height: 1.45;
+    }
+
+    .outline h2 {
+      margin: 1.4rem 0 0.4rem;
+      font-family: Palatino, Georgia, serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #f3ead7;
+    }
+
+    .outline p { margin: 0.45rem 0 0; }
+
+    .outline ol { margin: 0.4rem 0 0; padding-left: 1.3rem; }
+
+    .outline li { margin: 0.55rem 0; }
+
+    .players {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+
+    .players iframe,
+    .players audio {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: #000;
+    }
+
+    .players iframe { aspect-ratio: 16 / 9; }
+
+    .players audio { height: 3.2rem; background: #2a1d16; }
+
+    .players p {
+      margin: 0.35rem 0 0;
+      color: #e7d3b8;
+      font-size: 0.85rem;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 2rem;
+      margin-top: 1.5rem;
+      color: #eadcc8;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .notes h2 {
+      grid-column: 1 / -1;
+      margin: 0.4rem 0 0;
+      font-family: Palatino, Georgia, serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    .notes a { color: #f0c39a; }
+
+    .whistle {
+      margin-top: 1.3rem;
+      display: grid;
+      gap: 0.55rem;
+      max-width: 46rem;
+    }
+
+    .whistle h2 {
+      margin: 0.4rem 0 0;
+      font-family: Palatino, Georgia, serif;
+      font-size: 1.7rem;
+      font-weight: 600;
+    }
+
+    .whistle p { margin: 0; color: #f0e2cc; line-height: 1.45; }
+
+    .whistle pre {
+      margin: 0;
+      padding: 0.7rem 0.85rem;
+      background: #2a1d16;
+      border-radius: 8px;
+      color: #f3e6d4;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    body.wall .reel {
+      display: block;
+      height: auto;
+      overflow: visible;
+      scroll-snap-type: none;
+    }
+
+    body.wall .frame {
+      height: auto;
+      min-height: 100vh;
+      scroll-snap-align: none;
+      display: block;
+    }
+
+    body.wall .picture {
+      height: auto;
+      overflow: visible;
+    }
+
+    body.wall .picture img,
+    body.wall .picture.strip .slide img {
+      width: 100%;
+      height: auto;
+      max-width: none;
+      max-height: none;
+    }
+
+    body.wall .picture.strip,
+    body.wall .picture.strip .slide {
+      height: auto;
+      overflow: visible;
+      flex: none;
+    }
+
+    body.wall .slug {
+      margin-top: 0.8rem;
+    }
+
+    body.wall .title-frame .cast img { height: auto; }
+
+    @media (max-width: 860px) {
+      .top { position: static; flex-wrap: wrap; }
+      .reel {
+        display: block;
+        height: auto;
+        overflow: visible;
+        scroll-snap-type: y mandatory;
+      }
+      .frame, .title-frame {
+        display: block;
+        height: auto;
+        min-height: 0;
+        scroll-snap-align: start;
+        overflow: visible;
+        padding-bottom: 3rem;
+      }
+      .picture { height: auto; margin-bottom: 0.8rem; overflow: visible; }
+      .picture img, .picture.strip .slide img { width: 100%; height: auto; max-width: none; max-height: none; }
+      .picture.strip { overflow: visible; height: auto; }
+      .picture.strip .slide { height: auto; flex: none; }
+      .cast, .notes, .refs, .players, .atlas.sheet { grid-template-columns: 1fr; }
+      .refs img, .cast img { height: auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reel { scroll-behavior: auto; }
+    }
+
+    @media print {
+      .top { display: none; }
+      .reel { display: block; height: auto; overflow: visible; }
+      .frame, .title-frame {
+        break-after: page;
+        height: auto;
+        display: block;
+        background: white;
+      }
+      .picture { height: auto; box-shadow: none; overflow: visible; }
+      .picture img { width: 100%; height: auto; max-width: none; max-height: none; }
+      .slug, .title-board { box-shadow: none; color: black; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <strong>Brett's Gone Fishing</strong>
+      <span>Storyboard</span>
+    </div>
+    <nav class="dots" aria-label="Boards"></nav>
+    <div class="nav">
+      <button type="button" id="prev" aria-label="Previous board">Prev</button>
+      <button type="button" id="next" aria-label="Next board">Next</button>
+      <button type="button" class="mode" id="mode">Whole board</button>
+    </div>
+  </header>
+
+  <main class="reel" id="reel">
+    <section class="frame title-frame" id="board-00" data-label="Title">
+      <div class="title-board">
+        <p class="eyebrow">Sarasota Bay to Stone Street</p>
+        <h1>Brett's Gone Fishing</h1>
+        <p class="lede">
+          Brett is alone on the skiff, whistling Fishin' Blues.
+          The hold fills up. A small octopus is on his cap, one arm
+          stuck to his cheek. He is the other brain. Brett keeps drifting.
+          A mermaid princess is in the daydream, and somebody has to wake
+          him. One wave lifts the boat, carries it across the
+          country, and splashes it into the seats at Red Rocks. He meets a bear.
+          The crabs follow like ducklings, and one fish flops along on the rock.
+          They lose it, throw full bottles, and hug it out. On the walk down,
+          little bursts of water pop out of the ground behind them. They do not
+          look. He runs the last of the way. Fraser and Rizz are at the door.
+          Rizz is the painter. Two residents are already in the house.
+          They work different shifts. They clock in because the job is to
+          scare people, and they hate it. They are the ones who are scared.
+          A boss is somewhere. They almost never see him. They are nice, and
+          they are smart, they know the physics, and a blank book tells
+          them what to fix. The pages look blank because the writing is
+          the glow, and a sober eye cannot read it. The ghosts stir a
+          pinch of that glow into the drinks so the yard can hear the bear
+          and see the plans. The octopus is usually on Brett's head for
+          that part. The hot
+          tub is perfect until the crabs get stuck,
+          and then the water starts everywhere. It is the old well, lonely
+          and stagnant, trying to come out of the ground. A turkey lives on the property. He gobbles instead of a rooster, in the morning, at supper, and whenever the next thing has no way in. A city inspector
+          comes once, strict past reason, clipboard blank, and he will not
+          follow his own protocol. The bear puts on a sheet. It is a bad
+          costume. The inspector runs and does not come back. Brett
+          understands the first wave was already his. He says he can't leave
+          them with it. They fix the house. Rizz paints
+          the trim and fusses with the curtains. He cooks. They say goodbye to
+          the stone crab and they eat, because the crabs and the fish were not
+          well this far from the Gulf. The blue crab stays. He is the
+          accountant. At the seats, Brett is about to call the water. The
+          octopus squeezes once. He says he almost forgot. The blue crab
+          brings the checkbook. He writes a huge check, the paper blank on
+          purpose, and hands it to Fraser. Then he raises that well into
+          another wave, and the skiff cruises home on it. On the bay the
+          daydream is real. He has a tail, a crooked little crown on the
+          cap, and she is in the boat.
+        </p>
+        <div class="prompts">
+          <details open>
+            <summary>Character prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Big comic proportions and a huge expression, but the sunlight, the wet hair, the worn cloth, and the scuffed gear feel real. He has volume, like a cartoon that could stand in the room. Not a photograph and not stop-motion.
+
+The same man every time: a stocky, sun-flushed Florida fisherman in his late forties. A broad smile that squeezes his eyes shut, laugh lines, broad cheeks. Shoulder-length wavy sun-bleached dirty-blond hair. A full thick beard and mustache a shade darker than the hair. On the water: a backward blue ball cap, dark sunglasses, a dark long-sleeve shirt, gray chest waders, red work gloves. At the restaurant the same face wears a striped trucker cap, a black t-shirt, and sunglasses hung on the collar.
+
+Full-body character sheet on a warm cream background. Three views of him in one picture: front, caught mid-laugh; three-quarter, one hand on his hip in the fishing clothes; and the restaurant version beside them. Off to the side, his boat with nobody aboard: a white Carolina skiff, black bottom, wire crab traps, bright green buoys. One look across the whole sheet. No lettering.</pre>
+          </details>
+          <details>
+            <summary>How to run the boards</summary>
+            <pre>Make the character sheet first. Use that picture as the reference for every board image, and paste the style line at the top of each image prompt. When a board image looks right, use it as frame one of its video prompt. One motion per video. He stays in the same clothes. The deck stays his.</pre>
+          </details>
+        </div>
+        <div class="cast">
+          <figure>
+            <img src="panels/cast-face.jpg" alt="Cartoon bust of Brett: squinting laugh, wavy sun-bleached hair, full beard, striped cap, sunglasses on a black shirt.">
+            <figcaption>The face</figcaption>
+          </figure>
+          <figure>
+            <img src="panels/cast-body.jpg" alt="Full-body cartoon of Brett in a backward blue cap, sunglasses, gray bibs, and red gloves.">
+            <figcaption>On the water</figcaption>
+          </figure>
+          <figure>
+            <img src="panels/cast-boat.jpg" alt="Cartoon white skiff with a black bottom, wire crab traps, and green buoys on a calm bay.">
+            <figcaption>The skiff</figcaption>
+          </figure>
+          <figure>
+            <img src="panels/cast-lineup.jpg" alt="Cartoon lineup of Brett, a brown bear, a stone crab, a blue crab, and a silver fish.">
+            <figcaption>The parade</figcaption>
+          </figure>
+          <figure>
+            <img src="panels/cast-rizz.jpg" alt="Rizz in an intact blue work jacket and trousers covered in paint, holding a brush and a cream curtain.">
+            <figcaption>Rizz. Paint on intact clothes. The older story frames still wear the ragged version.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-brett" data-label="Brett">
+      <div class="title-board">
+        <p class="eyebrow">The man · published pictures</p>
+        <h1>Brett</h1>
+        <p class="lede">Brett Wallin, Walt's Fish Market, Sarasota. These are the pictures the cartoon is drawn from. The deck shots are opening day of stone crab season, October 15, 2020. He is the man at the helm in the dark shirt and backward cap. The man standing in the blue shirt is his partner that morning.</p>
+        <div class="refs">
+          <figure>
+            <img src="reference/brett-portrait.jpg" alt="Brett Wallin smiling under the Walt's sign, striped cap, sunglasses hanging on a black shirt.">
+            <figcaption>May 23, 2022. Spencer Fordin, Your Observer.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-skiff.jpg" alt="White Carolina skiff on Sarasota Bay, traps and green buoys on the bow. Brett at the helm, another man standing in the bow.">
+            <figcaption>Oct 15, 2020. Herald-Tribune. Brett is at the helm.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-trap.jpg" alt="Brett in a backward blue cap, sunglasses, gray bibs, and red gloves, hauling a wire crab trap.">
+            <figcaption>Same morning. Backward cap, gray bibs, red gloves.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-crab.jpg" alt="Hands in gray bibs holding a stone crab with one large claw, over the gunwale of a white boat.">
+            <figcaption>The crusher claw. Same gallery.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-eta.jpg" alt="Close selfie of Brett on gray water in a dark cap and a black rain jacket with a bright zipper.">
+            <figcaption>Nov 11, 2020. Rebecca Fernandez, ABC7. Checking traps in the weather.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-house" data-label="House">
+      <div class="title-board">
+        <p class="eyebrow">Stone Street · the real front</p>
+        <h1>The house</h1>
+        <p class="lede">The door in the story is this building. Two stories of reddish sandstone from the street, white stone trim, a pediment, tall windows, an arched door, a cottonwood, and a gravel yard. The side wall is painted and says Lodging. There is no front porch. Morrison History prints 115 Stone Street. The lodge site prints 121.</p>
+        <div class="refs">
+          <figure>
+            <img src="reference/house-2025.jpg" alt="The Cliff House in 2025: reddish sandstone, white trim, pediment, green window frames, arched door, cottonwood, wooden fence.">
+            <figcaption>2025, Randy Look. The front the cartoon now follows. Morrison History.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/house-plaque.jpg" alt="Bronze plaque reading Cliff House Lodge Historical Site, mounted on the sandstone wall.">
+            <figcaption>The plaque by the door. It names Odell Frasier Bullington, who bought the lodge in 2006.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/house-2000.jpg" alt="Color photo from 2000 of the pink sandstone front with white trim and Lodging painted on the side wall.">
+            <figcaption>2000, Sally White. Same pediment, Lodging on the side.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/house-1976-front.jpg" alt="Black and white 1976 photo of the Cliff House front in snow, with a sign on the roof.">
+            <figcaption>1976 front. Pat Porter, Jefferson County survey, via Morrison History.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/house-1976-rear.jpg" alt="Black and white rear view of the stone Cliff House with a glassed porch and a station wagon.">
+            <figcaption>1976 rear. The stone pattern and the pediment.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/house-1889.jpg" alt="Historic photograph of the stone Cliff House hotel against a bare hillside, with a roof sign.">
+            <figcaption>The old hotel, published by Morrison History. Rough stone, hillside behind it.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-places" data-label="Places">
+      <div class="title-board">
+        <p class="eyebrow">For the locations · real photographs</p>
+        <h1>The places</h1>
+        <p class="lede">Cliff House, the seats at Red Rocks, the Gulf, Walt's, and the water he fishes. He works Sarasota Bay from the skiff. The dock he fished as a child was the family dock on Big Pass. This page has no picture of that dock, and it does not use a public pier in its place. The links open the real map, a satellite view of the block, and Google Earth so the ground around each place is visible.</p>
+        <div class="atlas">
+          <article>
+            <h2>Cliff House</h2>
+            <p>121 Stone Street, Morrison, Colorado 80465. Morrison History prints 115 Stone Street for this same house. The pin is the lodge.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=Cliff+House+Lodge,+121+Stone+Street,+Morrison,+CO+80465">Map</a>
+              <a href="https://www.google.com/maps/@39.6546343,-105.1908778,18z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/search/Cliff+House+Lodge,+121+Stone+Street,+Morrison,+Colorado">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>The walk</h2>
+            <p>Stone Street to the amphitheatre is about a mile. This view is the ground between the lodge and the seats.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/@39.660013,-105.198297,15z">Map</a>
+              <a href="https://www.google.com/maps/@39.660013,-105.198297,15z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/@39.660013,-105.198297,2200a,2500d,35y,20h,50t,0r">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>Red Rocks</h2>
+            <p>Red Rocks Amphitheatre, 18300 West Alameda Parkway, Morrison, Colorado 80465. The wide photograph below is the park around the seats, not the stage.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=Red+Rocks+Amphitheatre,+18300+West+Alameda+Parkway,+Morrison,+CO">Map</a>
+              <a href="https://www.google.com/maps/@39.6653917,-105.2057171,17z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/search/Red+Rocks+Amphitheatre,+Morrison,+Colorado">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>Walt's</h2>
+            <p>Walt's Fish Market, Restaurant and Tiki Bar, 4144 South Tamiami Trail, Sarasota, Florida 34231.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=Walt's+Fish+Market,+4144+South+Tamiami+Trail,+Sarasota,+FL+34231">Map</a>
+              <a href="https://www.google.com/maps/@27.2938110,-82.5306658,18z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/search/4144+South+Tamiami+Trail,+Sarasota,+Florida">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>The Gulf</h2>
+            <p>South Lido County Park, the beach in the Gulf photograph. The aerial takes in the sand, the water, and the start of the pass.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=South+Lido+County+Park,+Sarasota,+Florida">Map</a>
+              <a href="https://www.google.com/maps/@27.3036144,-82.5660421,16z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/search/South+Lido+County+Park,+Sarasota,+Florida">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>Big Pass</h2>
+            <p>Big Sarasota Pass, the inlet between Lido Key and Siesta Key. He fished the family dock on this pass as a child. The pin is the pass. It is not that dock, and it is not a public pier.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=Big+Sarasota+Pass,+Florida">Map</a>
+              <a href="https://www.google.com/maps/@27.2941781,-82.5660784,15z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/@27.2941781,-82.5660784,0a,2200d,35y,10h,55t,0r">Earth</a>
+            </p>
+          </article>
+          <article>
+            <h2>Sarasota Bay</h2>
+            <p>The bay he works from the skiff. This view is the water, wide enough to show the shore.</p>
+            <p class="links">
+              <a href="https://www.google.com/maps/search/?api=1&amp;query=Sarasota+Bay,+Florida">Map</a>
+              <a href="https://www.google.com/maps/@27.3506005,-82.5720423,13z/data=!3m1!1e3">Satellite</a>
+              <a href="https://earth.google.com/web/search/Sarasota+Bay,+Florida">Earth</a>
+            </p>
+          </article>
+        </div>
+        <div class="refs">
+          <figure>
+            <img src="reference/house-2025.jpg" alt="The Cliff House in 2025, reddish sandstone front, white trim, cottonwood, and gravel yard.">
+            <figcaption>Cliff House, Stone Street, Morrison. 2025, Randy Look. Morrison History.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/red-rocks.jpg" alt="Red Rocks Amphitheatre from the top of the seats, looking down at the stage and the red rocks.">
+            <figcaption>Red Rocks Amphitheatre, Morrison. Dough4872, own work, <a href="https://commons.wikimedia.org/wiki/File:Red_Rocks_Amphitheatre_from_top_of_amphitheatre.jpeg">Wikimedia Commons</a>. <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>. Resized for this page.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/red-rocks-park.jpg" alt="The red sandstone of Red Rocks Park under a clear sky, with dry grass and a little snow in the foreground.">
+            <figcaption>The park around the amphitheatre. Lovemedead, own work, <a href="https://commons.wikimedia.org/wiki/File:Wide_view_of_Red_Rocks_Park,_Morrison,_Colorado.jpg">Wikimedia Commons</a>. <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>. Resized for this page.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/gulf-sarasota.jpg" alt="The Gulf of Mexico at Lido Key, Sarasota, with a low sun on the water and sand in the foreground.">
+            <figcaption>The Gulf at Lido Key, Sarasota. Ryan Hodnett, own work, <a href="https://commons.wikimedia.org/wiki/File:Gulf_of_Mexico_-_Sarasota,_Florida_2023-01-22_(01).jpg">Wikimedia Commons</a>. <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>. Resized for this page.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-portrait.jpg" alt="Brett Wallin under the Walt's sign at the restaurant on Tamiami Trail.">
+            <figcaption>Walt's Fish Market, Restaurant and Tiki Bar, 4144 S. Tamiami Trail, Sarasota. May 23, 2022. Spencer Fordin, Your Observer.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/brett-skiff.jpg" alt="White Carolina skiff with traps and green buoys on Sarasota Bay. Brett at the helm.">
+            <figcaption>The skiff on Sarasota Bay, opening day, Oct 15, 2020. Herald-Tribune. This is the boat he fishes from. The childhood dock on Big Pass is not in this picture.</figcaption>
+          </figure>
+          <figure>
+            <img src="reference/sarasota-bay.jpg" alt="Sarasota Bay, shallow clear water in the foreground and the far shore across the bay.">
+            <figcaption>Sarasota Bay. Ryan Hodnett, own work, <a href="https://commons.wikimedia.org/wiki/File:Sarasota_Bay_-_Sarasota,_Florida_2023-01-23_(01).jpg">Wikimedia Commons</a>. <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>. Resized for this page. The bay, not a pier.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-songs" data-label="Songs">
+      <div class="title-board">
+        <p class="eyebrow">Widespread Panic · the band's own uploads</p>
+        <h1>The songs</h1>
+        <p class="lede">The boat opens on Fishin' Blues. Taj Mahal, 1969. He whistles that one while the traps come up. Bear's Gone Fishin' is the tune once the skiff is in the seats. Those two play from the files here. The other players are the YouTube uploads. The page prints none of the lyric.</p>
+        <div class="players local-audio">
+          <div>
+            <audio controls preload="none" src="audio/fishin-blues.mp3"></audio>
+            <p>Fishin' Blues. Taj Mahal, 1969. The opening song, and the whistle on the water.</p>
+          </div>
+          <div>
+            <audio controls preload="none" src="audio/bears-gone-fishin.mp3"></audio>
+            <p>Bear's Gone Fishin'. The tune in the seats. On this board he sings it as Brett's Gone Fishing.</p>
+          </div>
+        </div>
+        <div class="whistle">
+          <h2>Whistle it while he fishes</h2>
+          <p>Key of D major. No capo. A fan chart and a key reading of the 1969 studio master agree on D. Tunebat reads that master near a walking 77. The bounce is the quicker notes inside the walk. This is a pocket so the fishing boards can be whistled. The player is the pitch. It is not a published score.</p>
+          <pre>D    xx0232
+A    x02220
+E7   020100
+D7   xx0212
+G    320003
+
+Verse     D . . . | D . . . | A . . . | D . . .
+          D . . . | E7  . . | A . . . | A . . .
+
+Refrain   D . . . | D7  . . | G . . . | D . . .
+          D . . . | A . . . | D . . . | D . . .</pre>
+          <p>The tag to whistle when the trap clears the gunwale. Scale degrees of D. 1 is D, 3 is F-sharp, 5 is A. Short bounce, then sit on D: 5 3 1, then 3 5 3 1. Out loud, that is A, F-sharp, D, F-sharp, A, F-sharp, D. Match it to the refrain in the player, then keep that loop under the haul.</p>
+        </div>
+        <div class="players">
+          <div>
+            <iframe src="https://www.youtube-nocookie.com/embed/2WK3c7HtXK4" title="Fishin' Blues by Taj Mahal" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <p>Fishin' Blues. Taj Mahal, 1969. The opening song, and the whistle on the water.</p>
+          </div>
+          <div>
+            <iframe src="https://www.youtube-nocookie.com/embed/Rza5eWjYAPs" title="Bear's Gone Fishin' by Widespread Panic" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <p>Bear's Gone Fishin'. 'Til the Medicine Takes, 1999. The tune once they are in the seats. On this board he sings that one as Brett's Gone Fishing.</p>
+          </div>
+          <div>
+            <iframe src="https://www.youtube-nocookie.com/embed/hjA1gvYSd2Q" title="Bear's Gone Fishin' live at Red Rocks" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <p>Bear's Gone Fishin', live at Red Rocks, June 24, 2023.</p>
+          </div>
+          <div>
+            <iframe src="https://www.youtube-nocookie.com/embed/0BQl2HhnguY" title="Chilly Water by Widespread Panic" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <p>Chilly Water. Space Wrangler. The morning, before the wave.</p>
+          </div>
+          <div>
+            <iframe src="https://www.youtube-nocookie.com/embed/srRTKrZzmys" title="Fishing by Widespread Panic" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <p>Fishing. Ball, 2003. The walk off the rocks.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-01" data-label="01">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/01a-the-line.jpg" alt="Brett alone on the white skiff, lips pursed whistling, both red gloves on the ropes of stacked wire traps with green buoys. The whole boat is in frame on Sarasota Bay."></div>
+        <div class="slide"><img src="panels/01b-the-trap.jpg" alt="Brett at the helm lifts a wire trap. Crabs and fish spill toward a deck already full of catch. The whole skiff is in frame."></div>
+        <div class="slide"><img src="panels/01-silly-voice.jpg" alt="Brett alone at the helm of the white skiff, mouth wide open singing, traps and green buoys piled on the bow, bay houses and palms behind him."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 01</span><span>Three frames · Sarasota Bay</span></div>
+        <h2>Fishin' Blues</h2>
+        <p class="action">Nobody else is on the boat. He hauls a wire trap and whistles Fishin' Blues at the bay, loose and too happy. The impression is terrible. The morning is perfect.</p>
+        <p class="script"><b>Script</b>He leans over the gunwale and takes the line. The trap breaks the surface. He whistles the refrain tag, A, F-sharp, D, F-sharp, A, F-sharp, D, and grins at a stone crab like it asked for the song. One red glove stays on the wheel. He does not look for an audience.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Big comic proportions, real sunlight, wet hair, worn cloth. Not a photograph and not stop-motion.
+
+The same fisherman sits alone at the helm of a white Carolina skiff with a black bottom, on calm sunny Sarasota Bay, palms and waterfront houses behind him. Wire crab traps and bright green buoys are piled on the bow. Backward blue cap, sunglasses, gray chest waders, red gloves, shoulder-length wavy sun-bleached hair, full beard. His mouth is wide open in a ridiculous singing howl, one red glove on the wheel. Morning light. He is the only person. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. He belts one long silly note: his mouth opens wider, his shoulders rock, and the skiff drifts from the left third of the frame toward the right third. The traps stay lashed. The bay stays calm. The camera holds. No other people. End with the boat farther right than it started, the howl still on his face.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Fishin' Blues, Taj Mahal, in D. He whistles the refrain tag while the trap comes up. The chord pocket is on the Songs board.</p>
+          <p><b>Picture</b>Backward blue cap, sunglasses, gray bibs, red gloves. White skiff, black bottom, wire traps, green buoys.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-02" data-label="02">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/02a-the-claw.jpg" alt="Brett kneels in the full skiff, whistling at a stone crab held up in one red glove. Traps and green buoys sit on the bow. The whole boat is in frame."></div>
+        <div class="slide"><img src="panels/02-the-hold.jpg" alt="Brett grinning with both arms out over a skiff packed with stone crabs, blue crabs, and fish. Traps and green buoys are still on the bow."></div>
+        <div class="slide"><img src="panels/02b-the-rock.jpg" alt="Brett braces with both arms out as the full skiff tips and throws spray. Crabs and fish cover the deck. The whole boat stays in frame."></div>
+        <div class="slide"><img src="panels/02c-the-head.jpg" alt="Brett grins with both arms out in the full skiff. A small red octopus sits on his cap with one arm on his cheek."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 02</span><span>Four frames · the hold</span></div>
+        <h2>About to cook</h2>
+        <p class="action">Stone crabs, softshells, blue crabs, the whole works. He is about to turn for the restaurant and start cooking. The skiff gives its first hard rock. The octopus is already on the cap.</p>
+        <p class="script"><b>Script</b>He pats the pile and tells it, quietly, that this is dinner. The whistle keeps going. A trap shifts. The hull tips. He gets a knee on the gunwale and stays with the song. A small red octopus is on the cap. One arm is stuck to his cheek. He came up with the catch. He is the smartest thing in the boat, and he does not mention it.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Same fisherman, same white skiff with the black bottom, same sunny Sarasota Bay. The deck behind him is heaped with stone crabs, softshell crabs, bright blue crabs, and silver fish. He throws both red-gloved arms wide and grins like the day is won. The hull tips, waterline higher on one side, the first rock. Traps and green buoys still on the bow. He is the only person. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The skiff rocks hard. The bow rises toward the top of the frame, then drops, and the pile of crabs and fish shifts toward him. His arms stay out. He keeps grinning. The camera holds. End with the hull lower in the frame than it started and spray on the gunwale.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Same song. The note starts to shake with the boat.</p>
+          <p><b>Picture</b>The grin over a full deck. He still thinks this is a good day.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-drift" data-label="Drift">
+      <figure class="picture">
+        <img src="panels/02d-the-drift.jpg" alt="On the skiff, Brett smiles at nothing while a see-through mermaid with a shell crown sits on the front trap. A red octopus watches from his blue cap. The hold is full of wire traps and green buoys.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Drift</span><span>The first one</span></div>
+        <h2>He goes somewhere</h2>
+        <p class="action">The hold is full and he leaves anyway. A princess only he can see sits on the trap. The octopus watches from the cap. Nobody has woken him yet.</p>
+        <p class="script"><b>Script</b>Same skiff. Same traps. Same green buoys. His eyes go soft and the smile goes somewhere else. She is on the front trap, a little see-through: long dark wet hair, a small crown of shell and copper, copper scales, a deep-teal tail. She already knows him. He does not know her yet. She is his future wife, in the cartoon, and the daydream is the first leak of it. The octopus stays on the cap and lets this one go. The wave is still coming.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The white skiff on Sarasota Bay, wire traps, green buoys, hold full. Brett in the backward blue cap, sunglasses, gray bibs, and red gloves smiles a dopey faraway smile. A see-through mermaid sits on the front trap: long dark wet hair, gold-green eyes, shell-and-copper crown, copper scale bodice, deep-teal tail. The small red octopus is on the cap. One grown Brett. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Brett's smile stays soft. The mermaid's hand rests on his cheek and does not become solid. The octopus on the cap leans down and does not poke yet. The camera holds. End before he blinks.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The bay, and him not whistling.</p>
+          <p><b>Hold</b>Only he can see her. The octopus can. The crabs cannot.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-03" data-label="03">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/03-the-wave.jpg" alt="A huge green wave lifting the white skiff over Sarasota Bay. Brett hangs onto the console, traps and green buoys on the face of the wave."></div>
+        <div class="slide"><img src="panels/03b-across-america.jpg" alt="The same wave carries the whole white skiff high over the middle of the United States, plains and a river below, mountains ahead."></div>
+        <div class="slide"><img src="panels/03c-the-splash.jpg" alt="The wave crashes into the red sandstone seats at Red Rocks and sets the whole skiff down in the benches."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 03</span><span>Three frames · across the country</span></div>
+        <h2>The wave</h2>
+        <p class="action">One wave stands up under the skiff, carries the boat clear across the United States, and splashes it into the seats at Red Rocks. He is still whistling when his feet leave the deck. He does not name the wave.</p>
+        <p class="script"><b>Script</b>He looks up. Both gloves hit the console. The bay drops away. Plains, a river, and little towns pass under the hull. The mountains come up ahead. Then the wave breaks on red sandstone and the skiff lands in the benches. Scroll the picture: the lift, the crossing, the splash.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. One enormous green wave lifts the little white skiff high over Sarasota Bay. The same fisherman clings to the console, mouth still open mid-song, backward blue cap and red gloves. Traps and bright green buoys ride the face of the wave, spray everywhere. Sunny day gone wild. Palms still on the shore below. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The wave carries the skiff from the lower left up to the top center of the frame. A trap tumbles loose and falls behind the hull. He hangs on with both gloves. The howl stays on his face. The camera tilts up with the boat. End with the skiff small against the sky and the shore far below.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The howl, then nothing but water.</p>
+          <p><b>Picture</b>The little white hull on the face of it. Gulf light. Palms still on the shore he is leaving.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-04" data-label="04">
+      <figure class="picture">
+        <img src="panels/04-the-seats.jpg" alt="The white skiff sitting in the red sandstone seats of an amphitheatre. Fish, crabs, and green buoys are scattered on the benches. Brett looks woozy at the helm.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 04</span><span>Red Rocks</span></div>
+        <h2>The seats</h2>
+        <p class="action">The wave sets them down in the benches. Fish on the stone. Crabs in the aisles. Green buoys where a crowd should be. He is woozy, and the cap is still on backward.</p>
+        <p class="script"><b>Script</b>Thump. Stone under the hull. He sits up in a bench like he bought the ticket. A fish flops on the step. He tries one thin whistle, now Bear's Gone Fishin', to see if the world answers. The cap is still backward.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The same white skiff has been set down in the sloping red sandstone benches of a huge amphitheatre, red rock walls and a clear Colorado sky. Silver fish flop on the seats, stone crabs and a blue crab run the aisles, green buoys scattered where a crowd should be. The fisherman sits woozy at the helm, backward cap still on, the grin gone flat. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Water drains off the hull and down the stone steps toward the bottom of the frame. One fish flops. One crab scuttles two seats to the right. He blinks, still woozy, and does not stand. The camera pushes in slowly. End with him smaller inside the big bowl.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Dripping. A whistle finds its way out of him.</p>
+          <p><b>Picture</b>The skiff in the bowl. Red sandstone, blue sky, the catch making a break for it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-05" data-label="05">
+      <figure class="picture">
+        <img src="panels/05-best-friend.jpg" alt="Brett and a big brown bear on red rock, both grinning and reaching toward each other. A stone crab and a blue crab stand between them.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 05</span><span>On the rock</span></div>
+        <h2>Best friend</h2>
+        <p class="action">He meets a bear. They get the same look at the same time. That is his best friend now. The crabs have already picked a side.</p>
+        <p class="script"><b>Script</b>A bear is in the next seat. They look. Brett nods, the way you nod at a neighbor. The bear nods back. Nobody speaks. A crab picks the bear. That settles it.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. On a flat shelf of red sandstone, the same fisherman and a big friendly shaggy brown bear meet. Both look startled and then break into the same huge grin, reaching toward each other. A stone crab and a blue crab watch from the rock between their feet. Bright Colorado light, red rock walls behind. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. His red glove and the bear's paw travel toward each other and meet in the middle of the frame in an awkward handshake. Both grins get bigger. The crabs stay put. The camera holds. End on the clasped glove and paw.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Whistling. The bear does not know the song and likes it anyway.</p>
+          <p><b>Picture</b>Two grins, four hands, red rock behind them.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-06" data-label="06">
+      <figure class="picture">
+        <img src="panels/06-ducklings.jpg" alt="Brett walking and whistling across red rock, a brown bear beside him, a stone crab, a blue crab, and a silver fish following in a line.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 06</span><span>The parade</span></div>
+        <h2>Ducklings</h2>
+        <p class="action">The crabs fall in behind him like baby ducks. The fish flops along on the land and keeps up. The bear walks at his shoulder. He whistles the whole way.</p>
+        <p class="script"><b>Script</b>He stands. Two crabs line up behind the boots. The fish flops into the line and refuses to be last. He purses his lips and whistles. They follow him up the aisle like he meant to lead a parade.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Wide shot on red sandstone. The same fisherman walks along whistling, lips pursed, both red gloves swinging, backward blue cap, gray bibs. The big brown bear walks at his shoulder. Behind them a stone crab and a blue crab follow in a line like ducklings, and one silver fish flops along the rock at their heels. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The whole parade walks from the left side of the frame toward the right. His cheeks puff once as he whistles. The fish flops forward twice and keeps up. The bear stays at his shoulder. The camera tracks alongside so they stay full length. End with the line nearer the right edge than it started.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Whistling, and more than one song. The titles can change. The whistling does not stop.</p>
+          <p><b>Picture</b>One line. Man, bear, crabs, fish. Nobody in charge except the whistle.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-07" data-label="07">
+      <figure class="picture">
+        <img src="panels/07-sea-in-the-mountains.jpg" alt="Brett and a wide-eyed bear yelling in red amphitheatre seats packed with colorful sea creatures. A small boat full of crabs and a fish sits in the upper rows.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 07</span><span>The bowl</span></div>
+        <h2>Sea in the mountains</h2>
+        <p class="action">The bear gets it a second late. So does the fish. The Gulf is sitting in a mountain bowl, and the skiff is a little ark in the seats. Everybody freaks out at once.</p>
+        <p class="script"><b>Script</b>He turns around. The water he left is in the bowl. The skiff sits in the seats like a little ark. He and the bear make the same face. The fish flops. The whistle stops for one breath, then comes back thinner.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. A comedy freak-out inside the red rock amphitheatre. The brown bear's eyes are huge, the same fisherman is yelling, and the white skiff sits in the stone seats piled like a tiny ark with crabs and the flopping silver fish. Sea creatures fill the benches against the red walls. Everyone losing it at the same time. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The bear's paws fly up to his cheeks. The fisherman leans back, mouth wider. Crabs in the skiff wave their claws. Nobody leaves the seats. The camera holds with a small shake, like the bowl flinched. End on the same wide yell, the eyes bigger than they started.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The song comes apart. Too many voices, none of them in the same key.</p>
+          <p><b>Picture</b>Wide eyes. A hold that has become a crowd. Red rock all the way around.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-08" data-label="08">
+      <figure class="picture">
+        <img src="panels/08-caps-still-on.jpg" alt="Brett and a brown bear throwing full plastic water bottles at each other. A stone crab, a blue crab, and a silver fish are in the mess. The bottles still have caps.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 08</span><span>The idiot moment</span></div>
+        <h2>Caps still on</h2>
+        <p class="action">Then they act like idiots. Full water bottles, caps still on, thrown at each other. Nobody opens one. The bear loses a hat that was never his. This is the Widespread Panic moment.</p>
+        <p class="script"><b>Script</b>There is a case of water. They throw the bottles with the caps still on. Plastic bonks off stone, fur, and a red glove. Nobody drinks. The bear throws one straight up and watches it the whole way down. They are delighted.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Exactly one of the fisherman, the brown bear, a stone crab, a blue crab, and one silver fish hurl full clear water bottles at each other. Every bottle still has its cap on. The fisherman appears once, backward blue cap and red gloves, laughing. The bear throws one bottle. A crab flings one with a claw. Bottles hang in the air against a red sandstone wall. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The bottles travel across the frame and bounce off chest, fur, and shell. The caps stay on. Nobody drinks. They laugh harder and cock an arm for another throw. The camera holds. End with each bottle on the opposite side of the frame from where its throw started.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Plastic on rock. Laughing. Somebody still whistling between throws.</p>
+          <p><b>Picture</b>One Brett. One bear. The crabs and the fish in the crossfire, having the time of their lives.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-09" data-label="09">
+      <figure class="picture">
+        <img src="panels/09-bear-hug.jpg" alt="A brown bear hugging Brett. A silver fish and two crabs are squeezed between them. Everyone's face is wrinkled from the smell.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 09</span><span>Make up</span></div>
+        <h2>Bear hug</h2>
+        <p class="action">They get over it. Bear hug. The crabs get in the hug. The fish gets in the hug. Everybody smells like fish, and everybody knows it, and nobody lets go.</p>
+        <p class="script"><b>Script</b>They stop. Brett opens his arms. The bear steps in. A crab climbs a bib strap. The fish gets squeezed and flops once in protest. Noses wrinkle. Nobody lets go.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. They have made up. The big brown bear wraps the one fisherman in a huge bear hug. A stone crab and a blue crab cling to the gray bibs. The silver fish is pressed in the middle of the hug. Everyone's eyes are shut and their noses are wrinkled because the whole pile smells like fish. Warm late light, red sandstone behind them. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The hug tightens. The bear's arms pull the fisherman an inch closer, the fish squishes, and every nose wrinkles harder. Eyes stay shut. The camera pushes in slowly. End tighter on the faces in the pile.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The whistle, smaller. Noses working harder than ears.</p>
+          <p><b>Picture</b>Eyes shut. The whole parade in one pile.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-10" data-label="10">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/10-the-walk.jpg" alt="Brett, a bear, two crabs, and a fish walking downhill beside a creek under a swirling sky, toward a small town."></div>
+        <div class="slide"><img src="panels/10b-behind.jpg" alt="The same parade walks on. Small bursts of water pop out of the empty dirt behind them. Nobody looks back."></div>
+        <div class="slide"><img src="panels/10c-the-run.jpg" alt="Brett runs toward the town with the bear, the crabs, and the fish. The water bursts stay behind them on the path."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 10</span><span>Three frames · downhill</span></div>
+        <h2>The walk</h2>
+        <p class="action">Psychedelic, and quiet about it. The water is already misbehaving. Little bursts pop out of the dirt behind them. They do not turn around. When the town is close, he runs. The bursts stay behind.</p>
+        <p class="script"><b>Script</b>They leave the seats. The color goes soft. He whistles under his breath. The creek shows up. Behind them the ground starts spitting little explosions of water, the way a pot spits before it boils. Nobody looks. They are going downhill. When the houses show, the walk breaks into a run. The water follows, still behind. Still nobody looks.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The same parade walks, then runs, downhill on a dirt path through pines toward a small mountain town. The sky swirls. Small green-blue water explosions pop on the empty dirt behind them, never under their boots. Their faces stay toward the town. The bear, the brown crab, the blue crab, and the flopping fish stay with him. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. They move toward the town and get smaller. Behind them, on the empty path, another small water burst pops and falls. Nobody turns a head. The camera stays behind them at a walking pace. End with one more burst in the dirt they have left.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Whistling. A soft pop, back there, like a pot.</p>
+          <p><b>Picture</b>Scroll it. The quiet walk, the pops behind them, the run.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-puddle" data-label="Again">
+      <figure class="picture">
+        <img src="panels/10d-the-puddle.jpg" alt="On the dirt path, Brett looks down into a puddle where a crowned mermaid's face is waiting. The bear holds his arm to wake him. Crabs and a silver fish follow. Water bursts pop behind them.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Again</span><span>The walk</span></div>
+        <h2>The puddle</h2>
+        <p class="action">He stops on the path. Her face is in a puddle. The bear has him by the arm and is shaking him back into the walk. The crabs and the fish wait. The bursts stay behind them.</p>
+        <p class="script"><b>Script</b>Same road, same paper sky, same parade. He was running. Now he is not. The puddle has her in it, crown and all, and he is smiling at the ground like the ground is a person. The bear does not see her. The bear sees Brett gone, and the paw on the arm is the wake-up. He comes back embarrassed and does not explain. They keep walking. She stays in the puddle.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon in the paper-cut walk. Brett has stopped on the dirt path, face down, dopey smile, backward blue cap, gray bibs, red gloves. A puddle holds the mermaid's face: long dark wet hair, small shell crown. The brown bear holds his arm and shakes him. A stone crab, a blue crab, and a silver fish stay on the path. Water bursts stay on the empty path behind them. The town stays ahead. One grown Brett. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The bear's paw shakes Brett's arm once. Brett blinks and looks up from the puddle. The face in the water stays. The camera holds. End before anyone speaks.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>A paw on a sleeve. Then his feet again.</p>
+          <p><b>Hold</b>The bear wakes him. The bear does not see her.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-11" data-label="11">
+      <figure class="picture">
+        <img src="panels/11-the-door.jpg" alt="Brett, a bear, crabs, and a fish in the gravel yard of the Cliff House. Fraser in a yellow shirt stands in the door. Rizz, in a beanie with a paintbrush, waves from the yard.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 11</span><span>Morrison</span></div>
+        <h2>The door</h2>
+        <p class="action">The real front. Reddish sandstone, white trim, the pediment, the arched door, gravel under their feet. Fraser is the man in yellow. Rizz is the one with the beanie, the paint on his shirt, and a brush already in his hand. First hello. The pops are still back on the road.</p>
+        <p class="script"><b>Script</b>Gravel under the boots. The sandstone front is the one from the photograph. Fraser is in the door. Rizz is in the yard, because a brush was already in his hand and that is what his hand does. Brett's whistle closes into the grin. He lifts a red glove. They lift a hand. Hello. Stop. Nobody has looked back up the road.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Use the 2025 front of the Cliff House: two stories of reddish sandstone, white trim, a pediment, tall pale-green windows, an arched doorway, a cottonwood, a gravel yard, a wooden fence. No front porch. The same fisherman, the brown bear, two crabs, and the fish. Fraser is a grown man in a yellow shirt. Rizz is the painter: gray beanie, long wavy hair, goatee, paint-freckled shirt, a brush in his hand, delighted. Warm daylight. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The fisherman and the bear take one step closer across the gravel. Rizz lifts the hand with the brush. Fraser lifts a hand from the doorway. The fisherman's mouth closes from a whistle into the grin. The fish flops once. The camera holds. End on the hello.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Quiet. Shoes, claws, and one last flop on the walk.</p>
+          <p><b>Hold</b>Hello, and then he stays. Fraser is still a stand-in, the man in yellow. Rizz follows the photo: the painter. The pops have not reached the yard yet. The residents are about to change shifts at the door.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-ghosts" data-label="Ghosts">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/11d-the-clock.jpg" alt="Two frightened ghosts at a blank wooden clock by the Cliff House door. A shadow falls on the wall with nobody standing in it. Brett, the bear, Fraser, and Rizz watch kindly."></div>
+        <div class="slide"><img src="panels/11e-the-job.jpg" alt="The two ghosts cover their faces, scared of the job. An empty chair sits in a cold draft. Brett, the bear, Fraser, and Rizz smile."></div>
+        <div class="slide"><img src="panels/11g-the-brains.jpg" alt="The two ghosts sit over a blank glowing book. A small red octopus sits on Brett's cap and studies the same glow. Fraser and Rizz watch."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>The residents</span><span>Three frames</span></div>
+        <h2>The residents</h2>
+        <p class="action">They work different shifts. They clock in because the job is to scare people, and they hate it. They are the ones who are scared. The boss is a shadow and an empty chair. They know the physics. The blank book tells them the rest. The octopus is the other brain, and he is on the cap.</p>
+        <p class="script"><b>Script</b>The tall one is the night shift. Walking the house is the job, and it is also how the footsteps get made. The big one is the other shift. The bang is his. We catch them at the handoff, which is why both of them are at the door. The clock by the step has no numbers. They punch it because they are supposed to. They hate it. The boss is not in the yard. He is a shadow on the wall with nobody standing in it, and an empty chair in a cold draft. They do not like him. They almost never see him. They look at the empty place anyway. Brett is fine. The bear is fine. Fraser and Rizz are fine. The ghosts are the frightened ones. The tall one covers his mouth. The big one hides in the curtain he was supposed to rattle. Then they sit down and open a book. The pages look blank, and they glow. The writing is the glow itself, a language only the ghosts can read, and later a human who has gone soft in the state. Inside it are the schematic designs for the whole place. The ghosts know the physics. The glow tells them the rest. The octopus is on the cap for this part. He is the other brain. He was in the water the whole time, and he looks at the glow like he already did the math. The bear has been talking this whole time. Sober ears hear a bear. The little splash in the gravel starts to settle.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The 2025 Cliff House front. Two original ghosts, and they are the frightened ones. The tall one is gaunt, hollow-eyed, gray-green, in a long dark coat, barefoot: the night shift, exhausted. The huge pale one is arriving for the other shift, just as scared. A blank round wooden disk on a post is their clock, with no marks. A shadow on the wall belongs to nobody, and an empty chair sits in a cold draft. Later they sit over a thick book whose pages are blank and glowing, and they look kind and smart. The fisherman, the bear, the painter in the beanie, and Fraser, a grown bearded man in a yellow shirt, stay calm. No child. No lettering. Do not draw a face for the boss. Do not draw them as George Morrison.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The tall ghost's hand leaves his mouth and touches the blank clock. The huge ghost flinches at the empty shadow on the wall. The people in the yard stay kind. The camera holds.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>A punch on wood. A draft. Then the book, quiet.</p>
+          <p><b>Hold</b>No names. The town story does not give them any. The job, the boss, and the book are the cartoon. See Notes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-12" data-label="12">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/12a-the-tub.jpg" alt="Brett steps into a steaming outdoor hot tub on a fenced patio. The sandstone Cliff House is behind him. A bear, two crabs, and a fish wait at the rim."></div>
+        <div class="slide"><img src="panels/12b-everybody-in.jpg" alt="Brett, a brown bear, crabs, and a silver fish share the hot tubs. The fish is swimming. The Cliff House stands behind the fence."></div>
+        <div class="slide"><img src="panels/12d-the-face.jpg" alt="A small red octopus sits on Brett's head in the hot tub, arms suctioned to his cheeks and sunglasses. The bear, crabs, and a fish share the water."></div>
+        <div class="slide"><img src="panels/12c-stuck.jpg" alt="Stone crabs are jammed in the hot tub jet and skimmer. Brett leans in to free them. The bear looks over his shoulder. The fish is still in the water."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 12</span><span>Four frames · the tubs</span></div>
+        <h2>He stays</h2>
+        <p class="action">He stays. The hot tub is on a fenced patio beside the house. The fish swim. The crabs get in. The bear gets in. The octopus stays on his head. Then the crabs get stuck. They think the tub is the whole problem. It is not.</p>
+        <p class="script"><b>Script</b>Steam. He climbs in and the cap comes off. The octopus does not. The suckers stay on his cheek and his sunglasses, and he looks pleased with the physics of a hot tub. The fish slides in and swims a circle. The crabs follow like they followed him off the rocks. The bear takes the other end of the tub. For a minute it is perfect. Then a claw catches in the jet, and another crab is in the skimmer, and the water climbs the rim. He looks at the mess he brought. He does not leave. Back on the road, the little pops are still coming.</p>
+        <div class="meta">
+          <p><b>Sound</b>Water, and the whistle gone quiet.</p>
+          <p><b>Picture</b>Scroll it. The step in, everybody in the tub, the octopus on his face, the stuck crabs.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-steam" data-label="Steam">
+      <figure class="picture">
+        <img src="panels/12e-the-steam.jpg" alt="In the patio hot tub, Brett smiles with his eyes gone soft. A mermaid with a shell crown stands in the steam behind him. The bear pokes his shoulder. A stone crab, a blue crab, and a silver fish share the tub.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Steam</span><span>The tub</span></div>
+        <h2>Not the steam</h2>
+        <p class="action">He does it in the tub. She is standing in the steam behind him. The bear pokes his shoulder. The crabs and the fish are in the water and they are not the thing he is looking at.</p>
+        <p class="script"><b>Script</b>Same tub. Same house. Same bear. His smile goes somewhere private. She rises in the steam, crown and copper and the teal tail, and she is only his. The bear does not look at her. The bear looks at Brett and puts a paw on his shoulder, because this is the third time and the bear has learned the face. Brett startles, laughs it off, and does not say wife, or king, or any of it. The crabs stay in the tub. The real problem is still the well.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The patio hot tub beside the sandstone Cliff House. Shirtless Brett, sunglasses, beard, soft faraway smile. In the steam behind him, a see-through mermaid: long dark wet hair, shell-and-copper crown, copper scales, deep-teal tail. The brown bear pokes his shoulder. A stone crab, a blue crab, and a silver fish stay in the tub. One grown Brett. The bear stays a bear. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The bear's paw taps Brett's shoulder. Brett blinks. The mermaid in the steam thins and does not leave all the way. The camera holds. End on his embarrassed smile.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Water, then a wet paw.</p>
+          <p><b>Hold</b>Third time. He still will not explain it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-gobble" data-label="Gobble">
+      <figure class="picture">
+        <img src="panels/12f-the-gobble.jpg" alt="A bronze turkey gobbles in the Cliff House gravel. Brett, the bear, grown Fraser in yellow, and Rizz still face one another. A small splash has started behind them.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Gobble</span><span>The yard</span></div>
+        <h2>He is the door</h2>
+        <p class="action">A turkey lives on the property. He is the rooster. When the next thing has no way in, he gobbles, and then it is happening. The water has just started behind them. They are still looking at him.</p>
+        <p class="script"><b>Script</b>There is no rooster. There is this bird. Bronze feathers, a pale blue head, a red wattle, beak open. He gave himself the job. Morning, supper, and any beat that arrives with no door. This one is the water. A small splash pops in the gravel behind the painter. Brett's mouth is open because of the bird. He does not have the sentence yet. Fraser is the grown man in the yellow shirt, and he has not turned around. Rizz still has the brush and the cream cloth. The crabs and the fish stay on the gravel. The turkey is not supper, and he does not see the princess. The next board is the turn.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. A bronze turkey with a pale blue head and a red wattle gobbles in the foreground, beak wide, one foot lifted, drawn with the same weight as the bear. Brett, the bear, grown bearded Fraser in a yellow shirt, and Rizz in the beanie with a brush and a cream cloth are still facing one another. One small splash is just starting in the gravel behind them. One of each. The man in yellow is a grown adult. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The turkey's beak opens wider and his chest swells. One foot sets down. The small splash behind the painter lifts and falls. Nobody has turned to it yet. The camera holds. End on the open beak.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>A gobble. Then the yard.</p>
+          <p><b>Hold</b>He is the door. Cartoon. He is not a fact about the lodge, and he is not supper.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-13" data-label="13">
+      <figure class="picture">
+        <img src="panels/14-it-starts.jpg" alt="In the Cliff House yard, Brett, the bear, Fraser, and Rizz turn around. Bursts of water pop out of the gravel behind them. Rizz still has the brush and the curtain.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 13</span><span>The yard</span></div>
+        <h2>It starts</h2>
+        <p class="action">The water that was popping behind them on the walk arrives in the yard. Out of the gravel. Out of the shade. They finally turn around. He is the thing that is out of place, and the water came with him, and it is on their house now.</p>
+        <p class="script"><b>Script</b>The turkey already gobbled. That was the door. A pop in the gravel. Another one under the cottonwood. Rizz still has the brush. Fraser still has the yellow shirt. The bear's mouth stays shut until it doesn't. They look back. The little explosions are not on the road anymore. They are here. The tub was the hint. This is the thing.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. The fisherman, the one bear, Rizz in the gray beanie with a brush and a cream curtain, and Fraser, a grown man in a yellow shirt, have all turned to look back. Small green-blue water explosions pop from the gravel behind them. The reddish sandstone house stays. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. One more water burst pops from the gravel behind the group and falls. Their heads finish the turn. Rizz's curtain stirs. The camera holds. End on their faces, just as they understand.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The pops, closer. Then nobody whistling.</p>
+          <p><b>Picture</b>They look back. The water is in the yard. What it is comes next.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-arrive" data-label="Arrive">
+      <figure class="picture">
+        <img src="panels/13g-the-arrival.jpg" alt="The turkey gobbles in the Cliff House yard. A strict inspector with a blank clipboard is already pointing at a face in the well water. The ghosts stay frightened in the door.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Arrive</span><span>The yard</span></div>
+        <h2>Already here</h2>
+        <p class="action">Nobody walked him in. The turkey gobbles, and the inspector is already in the yard, clipboard blank, pointing at the water.</p>
+        <p class="script"><b>Script</b>The next thing had no door, so the turkey made one. Beak open. Chest out. The inspector is already pointing. There was no walk up the path and no knock. The clipboard has nothing on it. The two residents stay in the doorway, frightened, because this scare is not theirs. Fraser is seated, grown, beard, yellow shirt. Rizz is in the beanie. The little face in the splash looks as surprised as everybody else. The turkey is not the violation. He lives here.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. The same bronze turkey, pale blue head, red wattle, beak wide in a gobble, stands on the gravel. A stern inspector in a light blue shirt is already there with a blank clipboard, pointing at a little face in the well water. Brett, the bear, grown bearded Fraser in yellow, and Rizz in the beanie have just been jolted by the sound. The two real ghosts stay frightened in the door. One of each person. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The turkey gobbles and his neck stretches. The inspector does not look at him. He keeps pointing at the splash. The ghosts flinch in the doorway. The camera holds. End before anyone answers.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The gobble. He was already pointing.</p>
+          <p><b>Hold</b>No walk-up. The clipboard stays blank. The turkey stays.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-inspector" data-label="Inspector">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/13d-the-inspector.jpg" alt="A strict city inspector with a blank clipboard points at lonely faces in the well water popping from the Cliff House gravel. Brett, the bear, Fraser, and Rizz watch. The two ghosts hide in the door."></div>
+        <div class="slide"><img src="panels/13e-the-sheet.jpg" alt="The bear wears a lumpy white sheet with his ears, paws, and feet showing. The inspector runs away with his clipboard. Everyone else is unimpressed."></div>
+        <div class="slide"><img src="panels/13f-the-well.jpg" alt="Brett raises both red gloves and a column of well water rises from the gravel to meet him. The bear, Fraser, Rizz, and the two ghosts stare."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>The inspector</span><span>Three frames · once</span></div>
+        <h2>The inspector</h2>
+        <p class="action">He comes once. He is strict past reason, and he is not following protocol. The bear puts on a sheet. The inspector runs. Then the well stands up, and Brett understands the first wave was his.</p>
+        <p class="script"><b>Script</b>The turkey gobbled on the board before this one, and the inspector was already pointing. There was no walk up the path. The pops are the old well. Nobody has drawn from it in so long that the water is lonely, and stagnant, and trying to get out of the ground. The inspector arrives with a clipboard that has nothing written on it. He will not look at Fraser. He will not look at the house. He points at the water and invents the violation as he goes. The residents stay in the doorway, frightened, because scaring people is the job they hate and they are not doing it. The bear takes a sheet. The ears poke up. The eye holes are wrong. The paws and the feet stick out. It is a terrible costume. It works. The inspector runs, and he does not come back. The yard is quiet for a second. Brett puts both gloves up. The well rises to meet him. That is the same thing that lifted the skiff, back on the Gulf, before he had a name for it. His people moved water. He can too. He just found it.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. A stern middle-aged city inspector in a pale blue short-sleeve shirt and khaki pants holds a blank clipboard and points at the gravel, unreasonable and off protocol. Dull well water pops up with lonely tired faces. Then the brown bear wears a terrible ghost costume, a lumpy white sheet with his ears, crooked eye holes, paws, and feet showing, and the inspector runs. Then the inspector is gone and the fisherman raises both red gloves as the well water stands up to meet him. Fraser is a grown bearded man in a yellow shirt. Rizz is the painter in the beanie. The two real ghosts stay frightened in the door. No lettering. No sail.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The inspector jabs the blank clipboard toward the gravel. One lonely splash flinches. The bear does not move yet. The camera holds.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>A pen that never writes. Feet. Then water, standing up.</p>
+          <p><b>Hold</b>He comes once. He does not come back. The well and the gift are the cartoon. See Notes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-14" data-label="14">
+      <figure class="picture">
+        <img src="panels/14-the-line.jpg" alt="Brett speaks to Fraser and Rizz in the Cliff House yard, one hand on the bear. Water still pops from the gravel. Rizz holds a brush and a curtain.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 14</span><span>The yard</span></div>
+        <h2>The line</h2>
+        <p class="action">They know he has to go home. The water came with him. He will not leave them standing in it.</p>
+        <p class="script"><b>Script</b>He looks at the house, then at them. Brett says, "I can't leave you here with this. We have to fix it." He knows now that the first wave was his, and that the pops are the well. The sentence stays the same. Rizz has the brush and the curtain, so he is already halfway to yes. Fraser listens. The bear stays. A few pops keep going in the gravel, rude, while the decision gets made.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Same Cliff House yard. The fisherman is speaking, mouth open, a red glove lifted, the bear beside him with paws down. Rizz, gray beanie and paint-freckled shirt, holds a brush and a cream curtain and listens. Fraser is a grown man in a yellow shirt and he listens. A few green-blue water bursts pop in the gravel. No speech balloon and no lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The fisherman's mouth moves through one sentence and his red glove settles. Rizz nods once, the curtain in his hand. Fraser's face goes from worry to work. One water burst behind them falls and does not get replaced. The camera holds.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>His voice, then the yard.</p>
+          <p><b>Line</b>I can't leave you here with this. We have to fix it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-dose" data-label="Dose">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/14b-the-pitcher.jpg" alt="In the Cliff House yard, the huge pale ghost draws a spark of the book's glow down into a glass pitcher. The book glows and shows no words. Brett, the bear, Fraser, and Rizz watch. The octopus is on the cap."></div>
+        <div class="slide"><img src="panels/14c-the-state.jpg" alt="The same yard after the dose. Brett, Fraser, and Rizz stare with soft eyes. The bear's mouth is open. The glowing book shows faint plan-lines and no words. A pitcher sits beside it."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Dose</span><span>Two frames · the yard</span></div>
+        <h2>A pinch of the glow</h2>
+        <p class="action">The book is the plans for the whole place. It looks blank because the writing is the glow, and a sober human cannot read it. The ghosts stir a pinch of that glow into the pitcher, and into the food. Then the yard can hear the bear, and the lines of the house come up.</p>
+        <p class="script"><b>Script</b>The line has been said. They have to fix it, and the plans are already in the book. The ghosts can read them. Nobody else can, yet. The big one draws a spark of the glow down into the pitcher. He smiles, because that is the face he has, and he hates the errand anyway. The tall one wants to be anywhere else. A pinch goes into the drinks. A pinch goes into the pot. There is no name for it and no measure. It is the glow, and it is not a recipe. The state comes on soft, the same faraway the walk already knew, only this time the ghosts turned it on for the whole yard. The bear has been talking since the seats. Now the words arrive. The first opinion is about Fraser's scrubbing, and Fraser's face goes tight. The octopus can say the math out loud. Down in the gravel the well's faces can speak. The book still has no alphabet on it. Faint lines of the house show, geometry only, the schematics. A sober eye, and this page is one, still sees a glow and a plan with no words. The water gift, the check, the hug, and the sheet do not need the state. Hearing each other does.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. First the huge pale ghost draws a spark of warm glow from a blank open book down into a plain glass pitcher. Brett, the bear, grown bearded Fraser in yellow, and Rizz in the beanie watch, sober. Then the same three humans have soft faraway eyes. The bear's mouth is open. Fraser looks hit by a sentence. The book shows faint glowing lines like a house plan, geometry only, no letters and no numbers. The red octopus stays on the blue cap. One grown Brett. No child.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. A thin spark leaves the glowing page and lands in the pitcher. The big ghost flinches at what he just did. Brett's eyes go soft. The camera holds. End before anyone answers the bear.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>A pinch. Then the bear, in words, for the first time.</p>
+          <p><b>Hold</b>Cartoon. The book is not a lodge relic. The glow is not a recipe.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-15" data-label="15">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/13a-the-plans.jpg" alt="Brett, the bear, Fraser in yellow, and Rizz in his beanie lean over blank paper in the Cliff House yard."></div>
+        <div class="slide"><img src="panels/13b-the-work.jpg" alt="Rizz stands on a ladder painting the window and hanging a long cream curtain. Fraser scrubs the door. Brett and the bear watch from the yard."></div>
+        <div class="slide"><img src="panels/13c-the-house.jpg" alt="The house is cleaned. Rizz sets a cream curtain in the green window. Brett, the bear, and Fraser stand in the yard. The tub is clear."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 15</span><span>Three frames · the work</span></div>
+        <h2>The work</h2>
+        <p class="action">They fix it from the plans in the book. These older frames still show blank paper, because they were drawn sober. Rizz paints the trim and plays with the curtain, because the curtain is the important part, which to him it is. Fraser scrubs, and now he can hear the bear's notes. Brett and the bear haul. The house gets cared for. It is not the end.</p>
+        <p class="script"><b>Script</b>The dose is the board before this one. Buckets. A ladder. The sandstone. A green window. The lines they are following are the schematics, and on these pictures the paper still looks blank. Rizz is up in the paint with a curtain over his arm, arranging it like a person, then arranging it again. Fraser takes the door. The bear has notes. The tub gets put right and the crabs come free. They stand in the yard, tired, and the house is itself, only looked after. Nobody makes a speech. There is still supper, and then the road home.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The Cliff House yard. The fisherman, the bear, and Fraser, a grown man in a yellow shirt, do the wet work. Rizz, gray beanie, long hair, paint-freckled shirt, is on a ladder painting the trim, a long cream curtain spilling over his arm. Later he stands at the green window setting that curtain, pleased. Blank paper on the planning table. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Rizz dips the brush and lays one stroke on the trim, then flicks the curtain so it hangs straighter. Fraser's sponge moves once on the stone. The camera pushes in a little and holds on the curtain. End before anyone speaks.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>Work. A brush. Cloth.</p>
+          <p><b>Picture</b>Scroll it. The plan, Rizz on the ladder, the curtain in the window.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-bell" data-label="Bell">
+      <figure class="picture">
+        <img src="panels/15d-the-bell.jpg" alt="The turkey gobbles in front of the supper table. Brett keeps cooking. The bear and Rizz look up. Grown Fraser stands in the yellow shirt. The crabs and the fish stay on the gravel.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Bell</span><span>The yard</span></div>
+        <h2>Dinner bell</h2>
+        <p class="action">Supper has no other door. He gobbles. Brett keeps the spoon in the pan. The turkey stays off the table, and he stays off the plate.</p>
+        <p class="script"><b>Script</b>The work is done. The next thing is food, and food had no way in, so he does the job. Bronze, blue head, red wattle, beak open in the gravel in front of the table. The bear hears it. Rizz hears it. Fraser, grown, beard, yellow polo, is already smiling, because the yard is his and the bird is not news. Brett does not stop stirring. Lemon on the table. The stone crab, the blue crab, and the silver fish stay on the gravel. The turkey is not the meal. The stone crab is, on the next board. Nobody puts a hand on the bird.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Late sun in the Cliff House gravel yard. The same bronze turkey gobbles in the foreground, pale blue head, red wattle, beak wide, one foot lifted, off the table. Brett in the blue cap and gray bibs keeps cooking at the pan. The bear and Rizz in the beanie look up. Grown bearded Fraser in a yellow polo stands beside the bear. A stone crab, a blue crab, and a silver fish stay on the gravel. One of each. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The turkey's beak opens and shuts once. Steam keeps rising off the pan. Brett stirs. The bear's ears come up. The turkey stays on the gravel. The camera holds. End before anyone sits.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The gobble. Then the pan.</p>
+          <p><b>Hold</b>He is the bell. He is not supper.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-16" data-label="16">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/15a-the-cook.jpg" alt="Brett cooks at a table in the Cliff House yard. Rizz sits in his beanie. Fraser and the bear watch. A stone crab, a blue crab, and a fish rest on the gravel."></div>
+        <div class="slide"><img src="panels/15b-the-goodbye.jpg" alt="Brett, the bear, Rizz, and Fraser look down at one stone crab on a white plate, fond and a little solemn."></div>
+        <div class="slide"><img src="panels/15c-the-meal.jpg" alt="They eat at the table in front of the Cliff House. The stone crab is the center of the supper."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 16</span><span>Three frames · supper</span></div>
+        <h2>Supper</h2>
+        <p class="action">He cooks. It is good. They say goodbye to the stone crab, and then they eat, because the crabs and the fish were not well this far from the Gulf. That is the reason. It is a little stupid and it is fine.</p>
+        <p class="script"><b>Script</b>The turkey was the bell, on the board before this one. He stays off the plate. Lemon. A pan. Steam. He is himself again the minute there is something to cook. The stone crab goes on a white plate and they stand around it like it is a send-off, which it is. Fond. Solemn. Slightly ridiculous. The blue crab and the fish look peaky and far from home. Then everybody sits down and eats the stone crab. The bear included. The blue crab does not go on the plate. He is the accountant, and he is coming to the seats. Nobody apologizes. The house smells like supper.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Late sun in the Cliff House gravel yard. The fisherman cooks at a wooden table, then they stand over one brown stone crab on a white plate with fond solemn faces, then they sit and eat. Rizz wears the gray beanie and has paint on his cuff. Fraser is a grown man in a yellow shirt. One bear. The blue crab and the fish look droopy before the meal. The sandstone house stays. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Steam lifts off the pan. The fisherman gives the food one stir and looks up, pleased. Rizz leans in. The stone crab stays on the plate. The camera eases closer. End on the steam and their faces, before anyone takes a bite.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The pan. Then quiet chewing. Somebody laughs once.</p>
+          <p><b>Picture</b>Scroll it. He cooks, they say goodbye to the crab, they eat.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-check" data-label="Check">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/16d-the-checkbook.jpg" alt="At Red Rocks, Brett stands in the skiff with his mouth open and one red glove raised, just remembering. A bright blue crab on the traps holds up a blank checkbook. A small red octopus sits on the blue cap. Fraser, the bear, and Rizz stand on the aisle."></div>
+        <div class="slide"><img src="panels/16e-the-check.jpg" alt="Brett leans from the skiff and hands Fraser a huge blank check. The blue crab smiles on the traps. The octopus stays on the cap. The bear and Rizz stand on the aisle."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>The check</span><span>Two frames · the seats</span></div>
+        <h2>Oh yeah</h2>
+        <p class="action">He is about to call the water. The octopus squeezes once. He almost forgot. The blue crab, who has been his accountant the whole time, brings the checkbook. He writes a huge check and hands it to Fraser. Then he can go.</p>
+        <p class="script"><b>Script</b>Gloves are about to go up. The well is waiting. The octopus, still on the cap, squeezes once. That is the reminder. Brett stops. Oh yeah. I almost forgot. The blue crab comes over the traps with the checkbook. The pages are blank. Brett writes the huge check and leans out of the skiff and puts it in Fraser's hands. Fraser takes it. Rizz and the bear stay on the aisle. The crab looks pleased, the way an accountant looks when the paper has changed hands. Nobody names a number. The paper stays blank on purpose. The amount, the payee line, and what the morning after buys are still open. The stone crab is already supper and does not come back. Then Brett calls the water.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. Late sun. The white skiff sits in the red sandstone seats at Red Rocks. Brett, backward blue cap, gray bibs, red gloves, is in the boat. A small red octopus sits on the cap. A bright blue crab on the wire traps holds a blank checkbook, then Brett hands one grown bearded man in a yellow polo an oversized blank cream check. On the aisle: that one man, one brown bear, and Rizz in the ragged painter clothes. Green buoys. No second yellow shirt. No dog. No sail. No lettering and no numbers on the paper.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. The blue crab lifts the blank checkbook. Brett's mouth opens like he just remembered. One red glove stays up. The octopus on the cap tightens once. The camera holds. End before the paper changes hands.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Line</b>Oh yeah. I almost forgot.</p>
+          <p><b>Picture</b>Scroll it. The checkbook, then the handoff. The wave is the next board.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-17" data-label="17">
+      <figure class="picture strip">
+        <div class="slide"><img src="panels/16-the-sendoff.jpg" alt="At Red Rocks, Brett stands in the white skiff and waves. Fraser, the bear, and Rizz stand on the sandstone seats seeing him off."></div>
+        <div class="slide"><img src="panels/16b-the-well-wave.jpg" alt="Brett stands in the skiff with both red gloves raised, guiding a wave of well water that lifts the hull off the Red Rocks seats. Fraser, the bear, and Rizz stay on the aisle."></div>
+        <div class="slide"><img src="panels/16c-the-rider.jpg" alt="The same wave lifts the skiff. A small red octopus is suctioned to Brett's cheek. Fraser, the bear, and Rizz stay on the aisle."></div>
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>Board 17</span><span>Three frames · the seats</span></div>
+        <h2>Home</h2>
+        <p class="action">The check is already in Fraser's hands. He does not wait for a wind. He raises the well with both hands, and that wave takes the hull home. The octopus rides on his cheek.</p>
+        <p class="script"><b>Script</b>The check is done, on the board before this one. These pictures are the leaving, and the older frames do not show the paper. He is in the boat. Traps. Green buoys. The same clothes. Fraser, Rizz, and the bear stay on the aisle. There is no sail. Both red gloves come up. The well, which has been trying to get out of the ground all day, rises under the hull because he asks it to. The octopus is on his cheek for the ride. He goes back to the Gulf with the boat. One clean lift, back across the country, back onto Sarasota Bay. He is whistling before the shore comes up. The shore is the next board.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The white skiff, black bottom, wire traps, and green buoys sits in the red sandstone seats at Red Rocks. The fisherman stands in the boat, backward blue cap, gray bibs, red gloves. First he waves. Then both gloves rise and a wave of dull well water lifts the hull off the seat, because he asks it to. On the aisle, and not in the boat: one bear, Rizz in the gray beanie, and Fraser, a grown bearded man in a yellow shirt. No sail. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Both of the fisherman's red gloves rise. The well water swells under the hull and the skiff lifts off the seat. Rizz, Fraser, and the bear stay on the aisle. The camera holds. End with the boat higher than it started.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The wave he meant. Then the whistle, small, going away.</p>
+          <p><b>Hold</b>No sail. Fraser, Rizz, and the bear stay on the aisle. The inspector is already gone.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame" id="board-king" data-label="King">
+      <figure class="picture">
+        <img src="panels/17-the-king.jpg" alt="On Sarasota Bay at evening, Brett sits in the skiff with a teal mermaid tail in the water and a small shell crown on his blue cap. The princess sits beside him, solid, with the same crown and tail. A red octopus rests on the cap. Wire traps and green buoys fill the boat.">
+      </figure>
+      <div class="slug">
+        <div class="kicker"><span>King</span><span>The bay</span></div>
+        <h2>Nobody wakes him</h2>
+        <p class="action">The skiff is home. The tail is his. The little crown sits crooked on the cap. She is in the boat, and she is solid. The octopus stays. Nobody is there to shake him out of it, because it is not a daydream anymore.</p>
+        <p class="script"><b>Script</b>Sarasota Bay. Evening. The check is already in Fraser's hands, back in the seats, and Fraser, Rizz, and the bear are still on that aisle. Here it is only the boat. He looks down. The bibs have become a tail, deep teal, hanging in the water he came from. A shell crown has landed on the backward cap, a little crooked, and the octopus sits on it like he expected the promotion. She is beside him in the hull. Same hair. Same crown. Same tail. Not see-through. She was the future wife the whole time, and the puddle and the steam and the trap were the leaks. He is the mermaid king, in the cartoon, which is what the first wave was practicing. He laughs. He was going to whistle. He can whistle as a king. Stop.</p>
+        <div class="prompts">
+          <details>
+            <summary>Image prompt</summary>
+            <pre>Dimensional comedy cartoon with real weight. The white skiff floats on calm Sarasota Bay at evening, wire traps and green buoys aboard. Brett, beard, backward blue cap, gray bibs above a deep-teal mermaid tail that hangs in the water. A small crooked shell crown sits on the cap. He looks surprised and glad. The mermaid princess sits in the boat beside him, solid: long dark wet hair, gold-green eyes, shell-and-copper crown, copper scales, matching teal tail. The small red octopus sits on his crown. One grown Brett. No sail. No lettering.</pre>
+          </details>
+          <details>
+            <summary>Video prompt</summary>
+            <pre>This picture is frame one. Brett looks down at his own tail, then back at her. The tail fin moves once in the water. The octopus stays on the crown. The camera holds. End on the two of them in the boat.</pre>
+          </details>
+        </div>
+        <div class="meta">
+          <p><b>Sound</b>The bay. Then the whistle, small, and he is home.</p>
+          <p><b>Hold</b>Cartoon. She has no name. This is not a fact about the man or the family.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-script" data-label="Script">
+      <div class="title-board">
+        <p class="eyebrow">Same page · room to add</p>
+        <h1>The script</h1>
+        <p class="lede">Characters on top. The outline under them, filled with the beats already on the reel, then the gaps. A new person is a new card, a new line in the outline, and a new board with its own id. The boards already numbered stay numbered. The story is the proposal. The yes is the check at the seats. The last picture is the bay, where the daydream is real and he is the king. There is no separate memo, and there is no number on the paper.</p>
+        <div class="atlas sheet">
+          <article>
+            <h2>Brett Wallin</h2>
+            <p><b>Look.</b> Cartoon of the real man. On the water: backward blue cap, sunglasses, gray bibs, red gloves. At the restaurant: striped trucker, black Walt's tee, sunglasses on the collar, shoulder-length wavy sun-bleached dirty-blond hair, full beard a shade darker. In the tub frame the shirt is off.</p>
+            <p><b>Quirk.</b> He whistles. He throws full bottles with the caps still on. He almost forgets the check until the octopus squeezes. He drifts into a daydream and has to be shaken out of it.</p>
+            <p><b>Want.</b> Dinner, at the open. By the line, he wants the house put right. At the seats he wants to leave the money and go home. Under all of that, he is on his way to her, and he does not know it yet.</p>
+            <p><b>On the page.</b> The water gift is cartoon. "His people moved water" is the story, and it is not a Wallin family fact. The mermaid king ending is the same cartoon. No invented eye color, height, weight, tattoos, or a named boat. A beach swimming suit with an original round-eared mouse was asked for and is not drawn. Fishing clothes stay the default until the bay, where the tail replaces the legs.</p>
+          </article>
+          <article>
+            <h2>The bear</h2>
+            <p><b>Look.</b> One brown bear. Best friend. Smells like fish after the hug.</p>
+            <p><b>Quirk.</b> The hug. Later, a terrible Halloween sheet: ears out, paws and feet showing, crooked eye holes. That costume scares the inspector. The real ghosts do not. He also wakes Brett. On the path he shakes the arm. In the tub he pokes the shoulder. He never sees the princess. He has been talking the whole time. Sober ears hear a bear. In the state, the words are there, and he has opinions.</p>
+            <p><b>Want.</b> To stay beside Brett, to be heard, and to get the inspector out of the yard.</p>
+            <p><b>On the page.</b> Cartoon. He is not a white dog. A white dog showed up in two edits and was taken out.</p>
+          </article>
+          <article>
+            <h2>Fraser</h2>
+            <p><b>Look.</b> Grown bearded man in a yellow shirt, about the painter's height. Stand-in. No photograph. One story frame still draws him as a child. Every new drawing says grown.</p>
+            <p><b>Quirk.</b> He scrubs. He does not ask about the money. He takes the blank check and has no line for it yet.</p>
+            <p><b>Want.</b> The house looked after.</p>
+            <p><b>On the page.</b> He is not declared to be Odell Frasier Bullington. The plaque names the buyer. The face in the drawings is still a stand-in. He is the one who receives the check, because he is the house.</p>
+          </article>
+          <article>
+            <h2>Rizz</h2>
+            <p><b>Look.</b> The painter. Brush already in hand. A cream curtain he will not leave alone. The cast lock is intact blue work clothes covered in paint. The story frames, including the check, still show the ragged clothes: beanie, layered jacket, necklaces.</p>
+            <p><b>Quirk.</b> The curtain is the important part, and he fusses with it until it hangs like a person.</p>
+            <p><b>Want.</b> The trim, and the curtain, done his way.</p>
+            <p><b>On the page.</b> Eccentric artist. The ragged frames were drawn before the new clothes. They have not all been redrawn.</p>
+          </article>
+          <article>
+            <h2>The tall ghost</h2>
+            <p><b>Look.</b> Gaunt. Hollow eyes, gray-green skin, long dark coat, bare feet. Night shift. The footsteps.</p>
+            <p><b>Quirk.</b> Covers his mouth. Hates the job, which is scaring people. Clocks in at a blank wooden disk. Knows the physics. Reads the book without help. The writing is the glow. He would rather not dose the pitcher, and the dose happens anyway.</p>
+            <p><b>Want.</b> To be done with the scare, and to solve the thing in front of him.</p>
+            <p><b>On the page.</b> No name. Nice, and smart, and frightened. The footsteps are the Courier account. The job, the boss, and the book are cartoon. He is not George Morrison.</p>
+          </article>
+          <article>
+            <h2>The huge pale ghost</h2>
+            <p><b>Look.</b> Huge and pale. The other shift. The bang.</p>
+            <p><b>Quirk.</b> Hides in the curtain he was supposed to rattle. Same clock, same book, same fright. In the yard he is the one who draws the glow down into the pitcher, and his smile does not mean he likes it.</p>
+            <p><b>Want.</b> The same as the tall one. He wants the job to be over.</p>
+            <p><b>On the page.</b> The bang is the Courier account, one lodge resident who could not watch scary movies there anymore. The rest is cartoon. No name.</p>
+          </article>
+          <article>
+            <h2>The boss</h2>
+            <p><b>Look.</b> A shadow on the wall with nobody standing in it. An empty chair in a cold draft. No face.</p>
+            <p><b>Quirk.</b> Elusive. They dislike him and almost never see him. They look at the empty place anyway.</p>
+            <p><b>Want.</b> Unknown. He is not given one.</p>
+            <p><b>On the page.</b> No name. Not borrowed from any other Morrison legend.</p>
+          </article>
+          <article>
+            <h2>The inspector</h2>
+            <p><b>Look.</b> Once. Unnamed. Blank clipboard. Strict past reason, and off his own protocol.</p>
+            <p><b>Quirk.</b> He sees the popping water and will not let it pass. The bear's bad sheet sends him running.</p>
+            <p><b>Want.</b> A citation the yard does not earn. He does not get it.</p>
+            <p><b>On the page.</b> Invented. He never comes back.</p>
+          </article>
+          <article>
+            <h2>The well</h2>
+            <p><b>Look.</b> Water with faces, pushing out of the gravel. Lonely. Stagnant. It has been trying to leave the ground all day.</p>
+            <p><b>Quirk.</b> The pops on the walk are this well, catching up. It is not angry. It wants out, and it wants to be asked. The faces speak only when a human is in the state.</p>
+            <p><b>Want.</b> To move. When Brett asks, it lifts the skiff.</p>
+            <p><b>On the page.</b> Cartoon. The sources on this page do not describe a well at the lodge. The first wave was already Brett's gift, before he knew the name of it.</p>
+          </article>
+          <article>
+            <h2>The catch</h2>
+            <p><b>Look.</b> Stone crabs, softshells, blue crabs, and one silver fish in the hold, with the wire traps and the green buoys.</p>
+            <p><b>Quirk.</b> On land they follow like ducklings. In the tub they get stuck in the jet and the skimmer and think that is the whole problem.</p>
+            <p><b>Want.</b> Water that is theirs. The Gulf is too far.</p>
+            <p><b>On the page.</b> The school stays unnamed. Two crabs and the fish are pulled out below because the story treats them differently. No dolphins. The turkey in the yard is a different animal, and he is not part of this hold.</p>
+          </article>
+          <article>
+            <h2>The stone crab</h2>
+            <p><b>Look.</b> One crab on a white plate in the yard.</p>
+            <p><b>Quirk.</b> They say goodbye to him, fond and a little solemn, and then they eat him.</p>
+            <p><b>Want.</b> He is supper. That is the reason they give: the sea creatures were not well this far from the Gulf.</p>
+            <p><b>On the page.</b> He is not a lobster, and he is not the accountant. He does not come back for the check.</p>
+          </article>
+          <article>
+            <h2>The blue crab</h2>
+            <p><b>Look.</b> Bright blue. He follows with the others, and he is the one still on the traps at the seats.</p>
+            <p><b>Quirk.</b> He is the accountant. He brings the checkbook. He looks pleased when the paper changes hands.</p>
+            <p><b>Want.</b> The check written, and then the ride, or whatever an accountant wants after the paper is done. He survives supper.</p>
+            <p><b>On the page.</b> Cartoon job. No dollar amount lives on him. The checkbook he holds is blank.</p>
+          </article>
+          <article>
+            <h2>The silver fish</h2>
+            <p><b>Look.</b> One fish. He flops on the rock. He swims a circle in the tub.</p>
+            <p><b>Quirk.</b> He comes along. He has not been given a last scene.</p>
+            <p><b>Want.</b> Open. Home, maybe. The page does not decide it for him.</p>
+            <p><b>On the page.</b> His ending is a real gap. He is not supper, and he is not on the check board.</p>
+          </article>
+          <article>
+            <h2>The octopus</h2>
+            <p><b>Look.</b> Small, reddish, pale suckers, big clever eyes, about the size of the cap. No name. Often on the cap, or stuck to a cheek, or on the sunglasses.</p>
+            <p><b>Quirk.</b> He turns up where the water is, and he does not announce himself. He came up with the catch. He sees the first daydream from the cap and lets it go. He squeezes once at the seats, and that is why Brett remembers the check. On the bay he sits on the new crown. He can say the math out loud only in the state. The squeeze works either way.</p>
+            <p><b>Want.</b> The Gulf, and to have already done the math. He rides home on the skiff.</p>
+            <p><b>On the page.</b> The other brain. The ghosts know the physics and the book. He knows the water from the inside. Cartoon. He is not a fact about the boat, the Gulf, or the lodge, and he is not a species lecture.</p>
+          </article>
+          <article>
+            <h2>The book</h2>
+            <p><b>Look.</b> Thick, open on the gravel, pages glowing. To a sober eye the pages are blank. After the dose, faint lines of the house show, and still no words.</p>
+            <p><b>Quirk.</b> The writing is the glow. It is the cartoon's Akashic script, and it is not a human alphabet. The pages are the schematic designs for the whole place.</p>
+            <p><b>Who reads it.</b> The ghosts, always. A human, only in the state. The octopus follows the math either way and speaks it only then.</p>
+            <p><b>On the page.</b> Cartoon. Not a relic of the lodge. The Courier never mentioned a book. The lines stay geometry, because a real alphabet on the page would be invented, and the drawings garble writing.</p>
+          </article>
+          <article>
+            <h2>The state</h2>
+            <p><b>Look.</b> Soft eyes. The same faraway Brett already had on the walk and in the daydreams. This time the ghosts turn it on for the yard.</p>
+            <p><b>How.</b> A pinch of the book's glow in the pitcher, and a pinch in the pot. No name. No measure. It is not a recipe, and it is not a thing from a pharmacy.</p>
+            <p><b>What opens.</b> The bear's words. The schematics. The well's faces, talking. The octopus saying the math.</p>
+            <p><b>What stays either way.</b> The sheet, the hug, the paw that wakes him, the cooking, the turkey's gobble, the check, and the wave he raises. The princess stays his. The dose does not make her visible to the yard.</p>
+            <p><b>On the page.</b> Cartoon. The ghosts feel bad about it and do it anyway, because otherwise the plans cannot be shared and the bear cannot be answered.</p>
+          </article>
+          <article>
+            <h2>The princess</h2>
+            <p><b>Look.</b> No name. Long dark wet hair, warm brown skin, gold-green eyes, a knowing smile. A small crown of shell and copper. A copper scale bodice. A deep-teal tail with a pale fin. In the daydreams she is a little see-through. On the bay she is solid.</p>
+            <p><b>Quirk.</b> She turns up in the wrong place. On a trap. In a puddle. In the steam. Only Brett can see her, and the octopus, until the last board. Everyone else sees a man smiling at nothing.</p>
+            <p><b>Want.</b> Him. She already knows. In the cartoon she is his future wife, and the daydreams are the future leaking backward.</p>
+            <p><b>On the page.</b> Original. Cartoon. Not a person from his life, and not a famous mermaid. The king he becomes at the end is the same joke, and it is not a fact about Brett Wallin or his family.</p>
+          </article>
+          <article>
+            <h2>The turkey</h2>
+            <p><b>Look.</b> One bronze turkey. Pale blue head, red wattle, beak open. He lives on the property. No name. No costume.</p>
+            <p><b>Quirk.</b> He is the rooster. He gobbles in the morning, at supper, and whenever the next thing has no way in. The gobble is the cut. Then it is happening.</p>
+            <p><b>Want.</b> To be heard, and then to go back to the gravel. He is not a quest, and he is not supper.</p>
+            <p><b>On the page.</b> Cartoon. He is not a fact about the lodge. The morning at the house is still unwritten, and that dawn gobble is his when the beat exists. He does not see the princess. He stays off the plate. The stone crab is the meal.</p>
+          </article>
+          <article>
+            <h2>Open card</h2>
+            <p><b>Look.</b> Empty.</p>
+            <p><b>Quirk.</b> None yet.</p>
+            <p><b>Want.</b> None yet.</p>
+            <p><b>On the page.</b> Room for the next person or creature. Add the card here, add the beat under the outline, and add a board with a new id. Leave the numbered boards where they are.</p>
+          </article>
+        </div>
+        <div class="outline">
+          <h2>The outline</h2>
+          <p>Filled with what the reel already shows. The check is the promise. The cruise takes him home. The king is the last picture.</p>
+          <ol>
+            <li><b>Fishin' Blues.</b> Alone on the skiff. Whistling. The traps come up.</li>
+            <li><b>About to cook.</b> The hold is full. He is about to turn for the restaurant. The octopus is already on the cap. He came up with the catch and does not mention it.</li>
+            <li><b>The drift.</b> He smiles at nothing. She sits on the trap, see-through. The octopus watches from the cap and lets this one go.</li>
+            <li><b>The wave.</b> One wave lifts the hull, carries it across the country, and splashes it into the Red Rocks seats. The water he leaves is the Gulf. The octopus is not on this board. Neither is she.</li>
+            <li><b>The seats.</b> Woozy. The mountains are wrong.</li>
+            <li><b>Best friend.</b> The bear.</li>
+            <li><b>Ducklings.</b> The crabs follow. The fish flops on the rock.</li>
+            <li><b>Sea in the mountains.</b> He freaks out. A little ark, and nowhere for it to float.</li>
+            <li><b>Caps still on.</b> He throws full water bottles. The caps are still on. Idiot moment, and it is his.</li>
+            <li><b>Bear hug.</b> They make up. Everyone smells like fish.</li>
+            <li><b>The walk.</b> Downhill toward Morrison. Little bursts pop out of the dirt behind them. They do not look. He runs the last of the way. The bursts stay behind.</li>
+            <li><b>The puddle.</b> He stops. Her face is in the water at his feet. The bear shakes his arm and does not see her. He comes back embarrassed.</li>
+            <li><b>The door.</b> Fraser and Rizz. Hello. Rizz already has the brush. Nobody has looked back up the road.</li>
+            <li><b>The residents.</b> Two shifts. A blank clock. A boss who is a shadow and an empty chair. They open the book. The pages look blank. The writing is the glow, and the schematics of the place are in it. They can read it. The humans cannot, yet. The octopus is on the cap. The bear is already talking, and sober ears hear a bear.</li>
+            <li><b>He stays.</b> The patio tub. The fish swims. The crabs and the bear get in. The octopus stays on his face. The crabs get stuck. They think the tub is the whole problem.</li>
+            <li><b>The steam.</b> Same tub, a moment later. She stands in the steam. The bear pokes his shoulder. Third time. He still will not explain it.</li>
+            <li><b>The gobble.</b> A turkey lives on the property. He is the rooster. He gobbles, and they have not turned. A splash is just starting behind them. He is the door into the next thing.</li>
+            <li><b>It starts.</b> The pops arrive in the yard. They finally turn around. The water is on the house.</li>
+            <li><b>The arrival.</b> He gobbles again. The inspector is already in the yard. There was no walk-up.</li>
+            <li><b>The inspector.</b> Once. Blank clipboard. Off protocol. He sees the faces in the water. The bear's bad sheet sends him away forever. The ghosts stay frightened.</li>
+            <li><b>The well.</b> Same board as the inspector, the third frame. Lonely, stagnant, trying to come out. Brett understands the first wave was already his.</li>
+            <li><b>The line.</b> "I can't leave you here with this. We have to fix it."</li>
+            <li><b>The dose.</b> A pinch of the glow into the pitcher, and into the pot. No name, no measure. The state comes on for the yard. The bear's words land. Fraser hears the note about his scrubbing. The book shows the lines of the house and still no alphabet. The well can speak. The octopus can say the math. The princess stays unseen by everyone else.</li>
+            <li><b>The work.</b> They follow those plans. The older work frames still show blank paper. Rizz paints the trim and fusses with the curtain. Fraser scrubs, with the bear's notes in his ears. Brett and the bear haul. The house gets cared for. It is not the end.</li>
+            <li><b>The bell.</b> He gobbles. Brett keeps stirring. The turkey stays off the plate.</li>
+            <li><b>Supper.</b> He cooks. They say goodbye to the stone crab and they eat him. The blue crab stays off the plate.</li>
+            <li><b>The check.</b> Back in the seats, about to call the water. The octopus squeezes once. "Oh yeah. I almost forgot." The blue crab brings the checkbook. Brett writes a huge check and hands it to Fraser. The paper is blank. Then he calls the water.</li>
+            <li><b>Home.</b> Both gloves. The well rises because he asks. The hull lifts. The octopus rides on his cheek. Fraser, Rizz, and the bear stay on the aisle. No sail. He is whistling before the shore comes up. He cruises out.</li>
+            <li><b>The king.</b> Sarasota Bay. The tail is real. A crooked shell crown sits on the cap. She is in the boat, solid. The octopus sits on the crown. Nobody wakes him. In the cartoon he was the mermaid king the whole time, and she was his future wife. Fraser still has the check, back in the seats. Stop.</li>
+          </ol>
+          <h2>What the story is missing</h2>
+          <p>The opening want is dinner. The true want shows up late: stay, fix the house, leave the money, go home to her. The first wave is one plant. The daydreams are the other. He keeps seeing his future wife, and the people around him keep waking him up, because to them he is smiling at nothing. It pays off twice. He raises the second wave on purpose. Then, on the bay, the tail is real and she is in the boat.</p>
+          <p>The opposition leaves early. The inspector runs. The boss is never seen. The well is lonely, and it wants to help once it is asked. The feeling has to live in the spoken line, the work, and supper. The check comes after that feeling. It makes the promise solid. The wave takes him home. The king is what the home was for. A check in place of the supper would flatten the story, so the check stays small, and almost forgotten, and the love story gets the last picture.</p>
+          <p>The theme that holds: things out of place get put back kindly. The Gulf in the mountains. A well that wants out of the ground. Ghosts stuck in the wrong job. A fisherman who can move water, and who was always going to end in it. The check is him leaving the house with more than labor. The crown is him landing where the daydreams were pointing. The book was the missing conversation. It looked blank because a sober page cannot read it. Once the yard shares the state, the bear can be answered and the plans can be followed.</p>
+          <p>Left open on purpose. The amount. The payee line. What the money buys on the morning after. A number here would be invented, and the drawings garble writing, so the paper stays blank. Fraser and Rizz have no line about the money, and they have no line about her, because they never see her. She has no name. A wedding is not written. The silver fish has no ending. The ghosts are quiet about the daydreams. The octopus sees the first one and the crown, and he still does not make a speech.</p>
+          <p>Still thin on the reel. Fraser has no face from life. Rizz's story frames, including the check, are still the ragged clothes. Boards 04 through 09, the door, It starts, and The line are still one image. The morning at the house is still unwritten, and that dawn gobble is his when the beat exists. The middle of the walk does not yet show faces in the water. The proposal is this story. A second document would be a different thing.</p>
+          <h2>Open beat</h2>
+          <p>Nothing here yet. The next piece of story lands in this slot, with a card above it and a board of its own.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame title-frame" id="board-18" data-label="Notes">
+      <div class="title-board">
+        <p class="eyebrow">What this board is using</p>
+        <h1>Notes</h1>
+        <div class="notes">
+          <h2>The songs</h2>
+          <p>The skiff opens on Fishin' Blues, Taj Mahal, from <i>Giant Steps / De Old Folks at Home</i> (1969). He whistles it in D while he fishes. The pocket chart on the Songs board is for that whistle. It is not a published score, and this page prints none of the lyric.</p>
+          <p>Once the boat is in the seats, the tune in his mouth is Bear's Gone Fishin', Widespread Panic, from <i>'Til the Medicine Takes</i> (1999). Bell, Hermann, Houser, Nance, Ortiz, Schools. On this board he sings that one as Brett's Gone Fishing. Fishin' Blues and Bear's Gone Fishin' play from the audio files on the Songs board. Chilly Water, the Ball song Fishing, and the Red Rocks performance stay on the YouTube players. This page prints none of the lyric.</p>
+
+          <h2>The man and the boat</h2>
+          <p>The cartoon is drawn from Brett Wallin of Walt's Fish Market, Restaurant and Tiki Bar in Sarasota. The face follows the May 23, 2022 portrait by Spencer Fordin for <a href="https://www.yourobserver.com/news/2022/aug/20/walts-fish-market-plates-fresh-catch-with-meal-fit-for-a-captain/">Your Observer</a>. The skiff follows the October 15, 2020 opening-day photographs in the <a href="https://www.heraldtribune.com/picture-gallery/news/2020/10/15/opening-day-florida-stone-crab-season/3671010001/">Herald-Tribune gallery</a>: white Carolina Skiff, black bottom, wire traps, green buoys, backward cap, gray bibs, red gloves.</p>
+          <p>In this story the deck is his. The water is Sarasota Bay, on the Gulf. One wave carries the skiff across the country and sets it in the seats at Red Rocks. On the walk down, little bursts pop out of the ground behind them. They do not look. At the house those bursts are the old well, lonely and stagnant, trying to come out. He says he can't leave them with it. They fix the house. He cooks, they say goodbye to the stone crab, and they eat, because the crabs and the fish were not well this far from the Gulf. The blue crab stays. At the seats, before he calls the water, that crab brings the checkbook. Brett says he almost forgot, writes a huge check, and hands it to Fraser. The paper is blank. Then he raises that well into another wave and the skiff cruises home on it. There is no sail. On the bay the daydream catches up. He has a tail, a crooked crown on the cap, and the princess is in the boat. That ending is cartoon. It is not a fact about him.</p>
+
+          <h2>The house</h2>
+          <p>The door is the Cliff House on Stone Street in Morrison, George P. Morrison's 1873 sandstone house. From the street the front is two stories: reddish sandstone, white trim, a pediment, tall windows, an arched door, and a gravel yard. The side wall says Lodging. Morrison History prints 115 Stone Street. The lodge site prints 121. The 2025 photograph is the one the last cartoon follows.</p>
+          <p>The plaque by that door says Odell Frasier Bullington bought the lodge in 2006. Fraser in the cartoon is still a stand-in, the grown man in the yellow shirt. Rizz is the painter: gray beanie, long hair, paint on the cuffs, a brush, and a curtain he will not leave alone. The cartoon follows the photo supplied for this board. The lodge is eight cottages around the 1873 house. Six have a private outdoor hot tub on a patio. The cartoon tub is that kind of tub, beside the real front. The yes is inside the story. At the seats he hands Fraser a huge check, and the paper stays blank. The amount, the payee line, and the morning after are still open. There is no separate memo.</p>
+
+          <h2>The places</h2>
+          <p>The Places board is the location set, and each place has a map link, a satellite link, and a Google Earth link. The lodge pin is 121 Stone Street. Morrison History prints 115 for the same house. Red Rocks is Dough4872, own work, on Wikimedia Commons, looking east from the top of the amphitheatre. The wide park photograph is Lovemedead, own work, Wikimedia Commons. The Gulf photograph is Lido Key, and the bay photograph is Sarasota Bay. Both are Ryan Hodnett, own work, Wikimedia Commons. The Commons photographs are CC BY-SA 4.0 and were resized for this page. The restaurant picture is Brett under the Walt's sign, Spencer Fordin, Your Observer, May 23, 2022. The fishing picture is the skiff on Sarasota Bay, Herald-Tribune, October 15, 2020. He started fishing off the family dock on Big Pass. The Big Pass pin is the inlet between Lido Key and Siesta Key, from the USGS place name. That dock is not in these photographs, and no public pier is standing in for it.</p>
+          <p>No published photograph of the lodge owner, Odell Frasier Bullington, turned up, and the Photos library has no album or file under Fraser, Frasier, or Bullington. Fraser in the drawings stays the grown man in the yellow shirt, a stand-in, until a real photograph is in hand. Rizz's new cast picture is an intact blue work jacket and trousers covered in paint, with the brush and the cream curtain. The story frames drawn before that still show the ragged clothes. The Photos library has a Rizz album and other files with his name, and those originals are not downloaded on this Mac.</p>
+
+          <h2>The well and the inspector</h2>
+          <p>The popping water, in the cartoon, is an old well that has not been drawn from in so long. It is lonely, it has gone stagnant, and it is trying to come out of the ground. The sources on this page do not describe a well at the lodge. The first wave, in the cartoon, was Brett's before he knew it. The idea that his people could move water is the story. It is not a fact about the Wallin family. The inspector is invented. He has no name. He comes once, he is unreasonable, his clipboard is blank, and he does not follow protocol. The bear's sheet is a bad Halloween costume, and it is what sends him off. He does not come back. The two residents stay frightened. Scaring him is not their job. Before he calls the water, the blue crab brings the checkbook. Then the skiff goes home on a second wave Brett raises from that well.</p>
+
+          <h2>The octopus</h2>
+          <p>He has no name. He came up with the catch, and he is the other brain beside the two residents. They know the physics. He was in the water, so he already did the math. He prefers the cap, or a cheek, or the sunglasses, and he turns up where the water is: the hold, the tub, the book, the check, and the ride home. At the seats he squeezes once, and that is why Brett remembers. He goes back to the Gulf on the skiff. He is cartoon. He is not a fact about the boat, the Gulf, or the lodge.</p>
+
+          <h2>The princess</h2>
+          <p>She has no name. She is original, and she is not a famous mermaid. Long dark wet hair, a shell-and-copper crown, copper scales, a deep-teal tail. She appears where he drifts: on a trap, in a puddle on the walk, in the steam over the tub. Only he can see her, and the octopus. The bear wakes him and never sees her. On the bay she is solid, and he has the tail and the crooked crown. In the cartoon she is his future wife, and he was the mermaid king the whole time. That is not a fact about Brett Wallin, the boat, the Gulf, or the lodge.</p>
+
+          <h2>The check</h2>
+          <p>The story is the proposal. Right when he is about to call the water, he says he almost forgot. The blue crab is his accountant and brings the blank checkbook. Brett writes a huge check and hands it to Fraser, the grown man in yellow, who stands for the house. Then he calls the water and cruises out. The stone crab was supper and does not return. The paper has no amount and no payee, on purpose. What the money buys is still open, and it is written on the Script board with the rest of the gaps. Fraser and Rizz have no line about it yet.</p>
+
+          <h2>The residents</h2>
+          <p>The published haunting for this house is one newspaper account. On October 12, 2018, the Canyon Courier covered Joel Chirhart's Morrison Ghosts &amp; Legends Tour. The Cliff House Lodge was one of the last stops. Chirhart said former residents have been heard walking through the house at night. A lodge resident passing the tour said he hears loud unexplained banging, and said, "I can't watch scary movies here anymore."</p>
+          <p>Morrison History does not name a ghost here. George Morrison died in the house in 1895. That is a death record, not a haunting, and the cartoon does not make him either ghost. The tall one is the night shift, the footsteps. The big one is the other shift, the bang. In the cartoon they clock in for a job they hate, which is scaring people, and they are the frightened ones. They are also the brains of the house. They know the physics. The boss is a shadow and an empty chair. He is not drawn with a face, he is not named, and he is not a ghost from any other building. The book they open glows, and the pages look blank. In the cartoon the writing is that glow, a language in the manner of the Akashic records, and the pages are the schematic designs for the whole place. The ghosts can read it. A human reads it only in the psychedelic state. The ghosts stir a pinch of the glow into the drinks and the food so the yard can hear the bear, see the plans, hear the well, and hear the octopus say the math. There is no name and no measure. It is not a recipe. The bear has been talking the whole time, and sober ears hear a bear. None of this is a claim about the lodge. They are nice, and the glow is how they solve the problem in front of them. The page does not borrow the Cliff House at Pikes Peak, the Hatchet Lady at Red Rocks, or the ghosts told at the Holiday Bar, the Morrison Inn, and the Red Rocks Grill. Those are other buildings.</p>
+
+          <h2>The turkey</h2>
+          <p>A turkey lives on the property, in the cartoon. He has no name and no costume. He is the rooster: he gobbles in the morning, at supper, and whenever the next thing has no way in. The gobble is the cut, and then the thing is happening. He announces the water, he announces the inspector, who is already in the yard, and he is the dinner bell. He is not supper. The stone crab is the meal. The morning at the house is still unwritten, and that dawn is his job when the beat exists. He does not see the princess. None of this is a fact about the lodge.</p>
+
+          <h2>How to play it</h2>
+          <p>Arrow keys move the boards. A board with more than one drawing scrolls inside the picture. The Script board scrolls as a page: characters on top, the outline under them. Every photograph and every drawing is fit whole, edge to edge. Brett, House, Places, and Songs sit in front of the story. The Script board sits after King. King is the last story picture. The photographs are here so the board can be used as the collection, with the publication credit under each one.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const reel = document.getElementById("reel");
+    const frames = [...reel.querySelectorAll(".frame")];
+    const dots = document.querySelector(".dots");
+    const modeButton = document.getElementById("mode");
+
+    const buttons = frames.map((frame, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = frame.dataset.label;
+      button.setAttribute("aria-label", frame.dataset.label);
+      button.addEventListener("click", () => show(index));
+      dots.appendChild(button);
+      return button;
+    });
+
+    let index = 0;
+
+    function paint(next) {
+      index = next;
+      buttons.forEach((button, i) => {
+        button.setAttribute("aria-current", i === index ? "true" : "false");
+      });
+      const id = frames[index].id;
+      if (location.hash !== "#" + id) {
+        history.replaceState(null, "", "#" + id);
+      }
+    }
+
+    function wideReel() {
+      return window.matchMedia("(min-width: 861px)").matches && !document.body.classList.contains("wall");
+    }
+
+    function show(next, behavior) {
+      const frame = frames[Math.max(0, Math.min(frames.length - 1, next))];
+      const motion = behavior || (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+      if (wideReel()) {
+        reel.scrollTo({ left: frame.offsetLeft, behavior: motion });
+      } else {
+        frame.scrollIntoView({ block: "start", inline: "nearest", behavior: motion });
+      }
+    }
+
+    const watcher = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible) paint(frames.indexOf(visible.target));
+    }, { threshold: [0.55] });
+    frames.forEach((frame) => watcher.observe(frame));
+
+    document.getElementById("prev").addEventListener("click", () => show(index - 1));
+    document.getElementById("next").addEventListener("click", () => show(index + 1));
+    modeButton.addEventListener("click", () => {
+      const wall = document.body.classList.toggle("wall");
+      modeButton.textContent = wall ? "One board" : "Whole board";
+      show(index);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault();
+        show(index + 1);
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault();
+        show(index - 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        show(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        show(frames.length - 1);
+      }
+    });
+
+    const fromHash = frames.findIndex((frame) => "#" + frame.id === location.hash);
+    paint(Math.max(fromHash, 0));
+    window.addEventListener("load", () => {
+      if (fromHash > 0) show(fromHash, "auto");
+    });
+  </script>
+</body>
+</html>
