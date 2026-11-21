@@ -65,27 +65,37 @@ add(new THREE.PlaneGeometry(1.0, 0.38).translate(bays[0], 3.03, pz - 0.04), mat(
 add(box(door[0] + 0.03, 0.45, -6, door[2] - 0.03, 3.2, pz - 0.08), mat('interior', { realOnly: true }), 0, { parent: lodge, cast: false });
 K.slab(lodge, 2.75, 1.45, 0, 3.55, 2.15, 0.05, 'steel', 0x3a3326, 0.7); // plaque
 K.slab(lodge, door[0] - 0.2, 0, 0, door[2] + 0.2, 0.45, 0.9, 'stone', 0xb98e74, 0.9); // landing
-// pediment (F1 t124): stone tympanum, white raking cornice, mint/lilac trim, small vent
+// Flat mint cornice across the whole front, and a small CENTRAL pediment over the middle bay
+// (F1 t124, corrected after review): lilac tympanum with a dentil band, framed in mint and white.
+// Pitch ~20 deg: rake slopes in t124 are 0.58 (left) and 0.17 (right) of run because the camera is
+// turned; their mean 0.37 -> 20 deg. Span ~6.0 m (about 2.1 bay spacings of 2.9 m), rise ~1.1 m.
+K.slab(lodge, -0.3, EAVE + 0.22, -0.5, W + 0.3, EAVE + 0.5, 0.3, 'wood', MINT, 1.1);           // cornice
+{ const br = []; for (let x = 0.2; x < W - 0.1; x += 0.6) br.push(box(x, EAVE + 0.02, 0.2, x + 0.12, EAVE + 0.22, 0.3)); add(mergeGeometries(br), mat('wood', { color: MINT }), 0.4, { parent: lodge }); } // brackets
+const PW = 6.0, PR = 1.1, PB = EAVE + 0.5, PX0 = W / 2 - PW / 2;
 {
   const tri = (inset, z0, z1, color, kind = 'stone', lw = 1.0) => {
-    const s = new THREE.Shape([[inset, EAVE + 0.22], [W - inset, EAVE + 0.22], [W / 2, EAVE + 0.22 + RISE * (1 - 2 * inset / W)]].map((p) => new THREE.Vector2(...p)));
+    const s = new THREE.Shape([[PX0 + inset, PB], [PX0 + PW - inset, PB], [W / 2, PB + PR * (1 - 2 * inset / PW)]].map((p) => new THREE.Vector2(...p)));
     add(new THREE.ExtrudeGeometry(s, { depth: z1 - z0, bevelEnabled: false }).translate(0, 0, z0), mat(kind, { color }), lw, { parent: lodge });
   };
-  tri(-0.35, 0.08, 0.2, WHITE);
-  tri(0.0, 0.12, 0.24, MINT, 'wood', 0.6);
-  tri(0.35, 0.16, 0.26, LILAC, 'plaster', 0.6);
-  tri(0.6, 0.0, 0.28, ASHLAR[0]);
-  K.slab(lodge, W / 2 - 0.3, EAVE + 0.75, 0.28, W / 2 + 0.3, EAVE + 1.05, 0.33, 'wood', MINT, 0.6);
+  tri(-0.25, 0.1, 0.32, MINT, 'wood', 1.0);      // mint raking cornice
+  tri(0.05, 0.14, 0.34, WHITE, 'stone', 0.6);    // white bed moulding
+  tri(0.35, 0.1, 0.36, LILAC, 'plaster', 0.8);   // lilac tympanum
+  const dn = []; for (let x = PX0 + 0.5; x < PX0 + PW - 0.5; x += 0.22) dn.push(box(x, PB + 0.02, 0.33, x + 0.1, PB + 0.14, 0.38));
+  add(mergeGeometries(dn), mat('wood', { color: 0x6c5a86 }), 0.3, { parent: lodge }); // dentils
 }
-K.gableEnd(lodge, 0, W, EAVE + 0.22, RISE, -19, -0.45, { color: ROOF, over: 0.35 });
-[[2.0, -5], [7.3, -12]].forEach(([x, z]) => K.slab(lodge, x - 0.35, EAVE + 0.5, z - 0.35, x + 0.35, EAVE + RISE + 1.4, z + 0.35, 'brick', 0x9a4b38, 0.9)); // brick chimneys (F3)
+K.hip(lodge, 0, W, EAVE + 0.4, 2.0, -19, -0.2, { color: ROOF, over: 0.1 }); // main shingled roof behind (F3; pitch NOT measured)
+[[2.0, -5], [7.3, -12]].forEach(([x, z]) => K.slab(lodge, x - 0.35, EAVE + 0.5, z - 0.35, x + 0.35, EAVE + 3.2, z + 0.35, 'brick', 0x9a4b38, 0.9)); // brick chimneys (F3)
 add(box(0, 0, -19, W, EAVE, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: lodge });
 
 /* ---------- left: the rock-faced red sandstone wing (F1 t122 left edge, F3) ---------- */
 const left = new THREE.Group(); left.position.set(0, 0, -1.4); root.add(left);
 const LW0 = -6.2, LE = 6.7;
 const lOpen = [[-1.75, 0.45, -0.75, 3.0], [-4.5, 0.95, -3.5, 3.0], [-1.75, 4.25, -0.75, 6.2], [-4.5, 4.25, -3.5, 6.2]];
-K.wall(left, LW0, 0, 0, LE, lOpen, { tints: ROCK, course: 0.42, block: 0.75, rough: 0.05, seed: 1889 });
+// t122/t124: two storeys of rusticated (rock-faced) red sandstone in large blocks, eave slightly below
+// the main front, mint cornice; door with white crested surround on the ground floor, a window over it.
+// Its roof is not visible in F1 and only as a dark low roof in F3: drawn as a low hip, UNVERIFIED.
+K.wall(left, LW0, 0, 0, LE, lOpen, { tints: ROCK, course: 0.52, block: 0.95, rough: 0.09, seed: 1889 });
+K.slab(left, LW0 - 0.2, LE, -0.5, 0.0, LE + 0.25, 0.22, 'wood', MINT, 1.0);
 lOpen.forEach((o, i) => { if (i) K.sash(left, ...o, { frame: MINT }); K.slab(left, o[0] - 0.12, o[3], -0.1, o[2] + 0.12, o[3] + 0.22, 0.07, 'stone', WHITE, 0.7); });
 add(box(lOpen[0][0], 0.45, -0.3, lOpen[0][2], 2.6, -0.24), mat('wood', { color: 0x3c4a46 }), 0.7, { parent: left });
 K.hip(left, LW0, 0, LE, 1.6, -12, 0, { color: ROOF });
@@ -119,7 +129,7 @@ S.figure(3.3, 1.6, 1, true);
 S.aimSun(4, 5, 28);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.75', 'String course (est.)'], [EAVE, '+7.20', 'Eave (est.)'], [EAVE + RISE + 0.22, '+9.62', 'Ridge (est.)']]
+[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.75', 'String course (est.)'], [EAVE, '+7.20', 'Eave (est.)'], [8.8, '+8.80', 'Pediment apex (est.)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;
@@ -161,8 +171,8 @@ run(S, {
     { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; Relief</span><p>The pilasters, string course and eared surrounds stand proud of the ashlar. The red rock-faced wing steps back on the left, the low dark wing on the right.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; The stone</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. The ink turns into salmon sandstone ashlar, white trim and mint sashes, as photographed.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon, Morrison</span><p>The sun drops toward the plains, and the shadows slide across the stone.</p>' },
-    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A stone tympanum framed in white, mint and lilac, with a small vent at its centre.</p><div class="row"><div><span>Source</span>IMG_0949 t124s</div><div><span>Width</span>9.30 m ±0.3</div><div><span>Ridge</span>≈9.6 m (est.)</div></div>' },
-    { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; 1873</span><p>George P. Morrison built his house from local sandstone. Three bays, tall 2-over-2 sashes, a crest panel over every <em>opening.</em></p><div class="row"><div><span>Built</span>1873</div><div><span>Wing</span>1889</div><div><span>Stone</span>Local sandstone</div></div>' },
+    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the middle bay: a lilac tympanum with dentils, framed in white and mint, pitched about 20°.</p><div class="row"><div><span>Source</span>IMG_0949 t124s</div><div><span>Width</span>9.30 m ±0.3</div><div><span>Apex</span>≈8.8 m (est.)</div></div>' },
+    { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; 1873</span><p>Morrison&rsquo;s 1873 house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Three bays, tall 2-over-2 sashes, a crest panel over every <em>opening.</em></p><div class="row"><div><span>Built</span>1873</div><div><span>Wing</span>1889</div><div><span>Stone</span>Local sandstone</div></div>' },
     { from: 440, to: 540, html: '<span class="n">06 &nbsp;·&nbsp; Cliff House Lodge</span><p>After 1895 it became a rooming house, and today it is a lodge at 115 Stone Street. Across the yard is the <em>Stone Street Cottage.</em></p><a class="pill solid" href="../stone-street/">Stone Street Cottage</a>' },
   ],
 });

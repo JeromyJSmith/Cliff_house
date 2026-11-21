@@ -52,12 +52,12 @@ K.slab(g, 0.8, P_LO + 0.06, -0.1, 0.9, P_LO + 0.9, 0.0, 'steel', 0x8a8a8a, 0.5);
 const D0 = 0.2, D1 = STEP, DZ = 2.0;
 K.slab(g, D0, -0.12, 0, D1, 0.0, DZ, 'wood', 0x7d6a55, 0.8);                       // deck boards
 { const gw = new THREE.Group(); gw.position.z = DZ + 0.12; root.add(gw); K.wall(gw, D0 - 0.2, D1 + 0.1, 0, F - 0.12, [], { tints: STONE, course: 0.22, block: 0.5, rough: 0.07, seed: 121, T: 0.4, outline: true }); }
-K.slats(g, D0, D1, 0, 1.0, DZ, { color: GREEN, spacing: 0.16, w: 0.09 });
+K.slats(g, D0 + 1.95, D1, 0, 1.0, DZ, { color: GREEN, spacing: 0.16, w: 0.09 });
 [0.25, 2.35, 4.45, D1 - 0.12].forEach((x) => K.slab(g, x, 0, DZ - 0.16, x + 0.12, 2.95, DZ - 0.04, 'wood', GREEN, 0.7)); // posts
 K.slab(g, D0, 2.8, DZ - 0.2, D1, 2.98, DZ, 'wood', GREEN, 0.8);                    // beam (P5 ~3.0 m)
 { const r = []; for (let x = D0 + 0.1; x < D1; x += 0.6) r.push(box(x, 2.98, -0.1, x + 0.06, 3.14, DZ + 0.35)); add(mergeGeometries(r), mat('wood', { color: GREEN }), 0.5, { parent: g }); } // open rafters
-K.slab(g, D0 + 0.05, 1.0, DZ - 0.02, D0 + 1.9, 2.25, DZ + 0.04, 'plaster', 0xeeeae2, 0.9); // sign panel (P1 0001)
-K.slab(g, D0 - 0.02, 0.98, DZ - 0.03, D0 + 1.95, 1.04, DZ + 0.06, 'wood', GREEN, 0.5);
+K.slab(g, D0 + 0.08, 0.05, DZ + 0.01, D0 + 1.85, 1.5, DZ + 0.05, 'plaster', 0xeeeae2, 0.9); // sign panel, part of the railing at the south corner (P1 0001-0003, 0024-0025)
+[[D0, 0.0, D0 + 1.93, 0.08], [D0, 1.47, D0 + 1.93, 1.57], [D0, 0.0, D0 + 0.08, 1.57], [D0 + 1.85, 0.0, D0 + 1.93, 1.57]].forEach(([a, b, c, d]) => K.slab(g, a, b, DZ - 0.02, c, d, DZ + 0.07, 'wood', GREEN, 0.5)); // its green frame
 K.slab(g, 3.0, 0, -0.9, 3.7, 1.05, -0.3, 'plain', 0x3b4a45, 0.6);                  // trash cart (P3 0028-0032)
 
 /* ---------- the north entry porch under the brown shingle roof, hot tub (P5, P6, owner) ---------- */
@@ -83,6 +83,20 @@ K.slab(root, N1 + 0.3, 1.0, 2.2, N1 + 1.5, 1.75, 2.28, 'plaster', 0xefe8dc, 0.8)
   { const gp = new THREE.Group(); gp.position.z = 3.1; root.add(gp); K.wall(gp, -1.35, -0.75, 0, 1.3, [], { tints: STONE, course: 0.25, block: 0.3, rough: 0.05, seed: 10, T: 0.6 }); }
   K.slab(root, -2.0, 0, 2.95, -1.75, 8.5, 3.2, 'wood', 0x6b5643, 0.8);               // pole "10"
 }
+// planting spilling over the dry-stone wall (P1 0001-0009)
+{
+  const R = mulberry(3864), blobs = [], segs = [];
+  for (let i = 0; i < 22; i++) { const x = D0 + R() * (D1 - D0), r = 0.14 + R() * 0.22, y = F - 0.12 - R() * 0.3; blobs.push(new THREE.IcosahedronGeometry(r, 1).scale(1.3, 0.8, 0.6).translate(x, y, DZ + 0.4 + R() * 0.15)); segs.push(x - r * 1.2, y + r * 0.5, DZ + 0.75, x + r * 1.2, y + r * 0.5, DZ + 0.75); }
+  add(mergeGeometries(blobs), mat('foliage', { color: 0x7b8f6a }), 0, {});
+  lines(segs, 0.6);
+}
+// iron gate at the foot of the steps, standing half open (P2 0011-0012, 0018-0022)
+{
+  const gate = new THREE.Group(); gate.position.set(-0.45, 0, 2.7); gate.rotation.y = -0.7; root.add(gate);
+  const gb = []; for (let x = 0.0; x < 1.0; x += 0.11) gb.push(box(x, 0.05, -0.01, x + 0.02, 1.0, 0.01));
+  gb.push(box(0, 0.95, -0.015, 1.05, 1.0, 0.015), box(0, 0.08, -0.015, 1.05, 0.13, 0.015), box(0, 0.5, -0.015, 1.05, 0.54, 0.015));
+  add(mergeGeometries(gb), mat('steel', { color: 0x1d1d1d }), 0.45, { parent: gate });
+}
 S.street(-25, 35);
 S.tree(L + 1.5, -3.0, 8.5, 2.8);
 S.tree(-4.0, -4.5, 9.0, 2.9);
@@ -98,8 +112,8 @@ const pins = document.getElementById('pins');
   });
 
 const KEYS = [
-  { p: 0, t: [6.3, 3.0, 0], fh: 8.2, fov: 2, phone: { t: [6.3, 3.0, 0], minW: 17 } },
-  { p: 18, t: [6.3, 3.0, 0], fh: 8.2, fov: 2, phone: { t: [6.3, 3.0, 0], minW: 17 } },
+  { p: 0, t: [5.1, 3.4, 0], fh: 9.6, fov: 2, phone: { t: [5.4, 3.4, 0], minW: 17 } },
+  { p: 18, t: [5.1, 3.4, 0], fh: 9.6, fov: 2, phone: { t: [5.4, 3.4, 0], minW: 17 } },
   { p: 115, t: [6.3, 2.8, 0], fh: 8.0, fov: 16, yaw: -18, pitch: -6, phone: { minW: 16 } },
   { p: 228, t: [6.0, 2.6, 0], fh: 7.6, fov: 22, yaw: 16, pitch: -7, phone: { minW: 15 } },
   { p: 300, t: [12.0, 2.4, -1], fh: 4.6, fov: 32, yaw: -30, pitch: -6 },
