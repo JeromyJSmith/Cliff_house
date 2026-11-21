@@ -74,6 +74,17 @@ export function kit(S) {
     add(geo, mat('plain', { color: o.color || 0x4e4039 }), 1.2, { parent: g });
   }
 
+  // Hip roof with a ridge running in depth (z), from zr0 to zr1, over x0..x1 / z0..z1 (z1 = front).
+  function hipRidge(g, x0, x1, z0, z1, e, ridge, zr0, zr1, o = {}) {
+    const ov = o.over || 0.3, cx = (x0 + x1) / 2;
+    const a = [x0 - ov, e, z1 + ov], b = [x1 + ov, e, z1 + ov], c = [x1 + ov, e, z0 - ov], d = [x0 - ov, e, z0 - ov];
+    const f = [cx, ridge, zr1], r = [cx, ridge, zr0];
+    const tris = [a, b, f, b, c, r, b, r, f, c, d, r, d, a, f, d, f, r];
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3)); geo.computeVertexNormals();
+    const m = mat('plain', { color: o.color || 0x4e4039 }); m.side = THREE.DoubleSide;
+    add(geo, m, 1.2, { parent: g });
+  }
+
   function slab(g, x0, y0, z0, x1, y1, z1, kind, color, lw = 0.9) { return add(box(x0, y0, z0, x1, y1, z1), mat(kind, color ? { color } : {}), lw, { parent: g }); }
 
   // vertical-slat railing / board fence along x at depth z
@@ -84,5 +95,5 @@ export function kit(S) {
     add(mergeGeometries(geos), mat(o.kind || 'wood', { color: o.color }), o.lw ?? 0.5, { parent: g });
   }
 
-  return { wall, sash, gableEnd, hip, slab, slats };
+  return { wall, sash, gableEnd, hip, hipRidge, slab, slats };
 }

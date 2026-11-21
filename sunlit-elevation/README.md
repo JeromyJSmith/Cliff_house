@@ -26,8 +26,8 @@ v1 (schematic, from the written history only) is replaced. v2 is modelled from t
 | Wall top (cornice) | 7.1 m above the patio | M1: ODM 030 georeferenced point cloud, 95th percentile of points within 1 m of edge 8 minus the 5th percentile 1–4 m outside | ±0.5 m (sparse SfM cloud, GPS-only scale, tree contamination) |
 | Front top | flat bracketed mint cornice, 7.20–7.70 m | F1 t124 | ±10 % |
 | Central pediment | span ≈6.5 m (≈2.1 × the 3.15 m bay spacing), pitch ≈20°, rise ≈1.18 m, apex ≈8.78 m; lilac tympanum with dentils, framed in white and mint | F1 t124; rake slopes 0.58 (left) and 0.17 (right) of run because the camera is turned, mean 0.37 → 20° | ±3°, MEDIUM |
-| Main roof | shingled hip behind the front; pitch and ridge NOT measured (8.8 m is the pediment apex, not the main ridge) | F3 | LOW |
-| Left wing | 2 storeys of rusticated red sandstone in large blocks, mint cornice, door and window on the ground floor; eave ≈6.7 m; roof drawn as a low hip, UNVERIFIED | F1 t122, t124; F3 | eave ±10 %, roof LOW |
+| Main roof | shingled HIP, ridge running front to back, ridge 10.8 m above the patio; side facets ≈25° (cross-section), rear facet ≈22° down to ≈8.8 m at 15.5 m depth, then a lower rear section ≈5.6 m | M2 + orthophoto | ridge ±0.5 m; HIGH that it is a hip with a front-to-back ridge |
+| Left wing | front = edge 6 (9.30 m), set back 5.58 m (edge 7) behind the main front; 2 storeys of rusticated red sandstone (F1), wall top 5.5 m; low roof with the sunroom's glazed timber roof monitor parallel to the front, top ≈7.8 m | footprint + orthophoto (setback, monitor), M2 (heights), F1 (stone, openings), drone 06182 (monitor glazing) | setback ±0.3 m; heights ±0.5 m; opening positions LOW |
 | String course | 3.75 m | same | ±10 % |
 | Openings | 1.0 × 2.1 m | same | ±10 % |
 | Wing set-backs (1.4 m left, 2.2 m right) | estimated | F1, F3 | LOW |
@@ -82,3 +82,12 @@ The interior scan gives 3.53 m. That agrees within about ±0.3 m. Edge 0 include
 Note: the fitted 1.5° rotation is close to the 1.9° offset found between the Stone Street model axes and the
 real roof edges in the splat plan (stone-street HANDOFF §4). That points to a small systematic rotation in the
 site-v2 footprint regularisation rather than in ODM. Unresolved; the georeferenced 030 splat should settle it.
+
+## M2: roof cross-sections (2026-11-20)
+
+`roof_profile.py` (registered cloud). It takes height bands along and across the front, in a frame on edge 8
+(s along the front, t into the building). Outputs: `roof_profile.out` (main block) and `roof_profile_left.out`
+(left wing), both in `/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/measure/`.
+The orthophoto crop with the building-5 footprint is `…/evidence/ortho-lodge-front.png`. It shows the hip with
+a front-to-back ridge on the stone block, the 5.58 m set-back of the left wing, and the long roof monitor on it.
+The v2.1 left wing (1.4 m set-back, 6.7 m eave) was wrong and has been replaced.

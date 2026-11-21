@@ -83,23 +83,31 @@ const PW = 6.5, PR = 1.18, PB = EAVE + 0.5, PX0 = W / 2 - PW / 2;
   const dn = []; for (let x = PX0 + 0.5; x < PX0 + PW - 0.5; x += 0.22) dn.push(box(x, PB + 0.02, 0.33, x + 0.1, PB + 0.14, 0.38));
   add(mergeGeometries(dn), mat('wood', { color: 0x6c5a86 }), 0.3, { parent: lodge }); // dentils
 }
-K.hip(lodge, 0, W, EAVE + 0.4, 2.0, -19, -0.2, { color: ROOF, over: 0.1 }); // main shingled roof behind (F3; pitch NOT measured)
-[[2.0, -5], [7.3, -12]].forEach(([x, z]) => K.slab(lodge, x - 0.35, EAVE + 0.5, z - 0.35, x + 0.35, EAVE + 3.2, z + 0.35, 'brick', 0x9a4b38, 0.9)); // brick chimneys (F3)
-add(box(0, 0, -19, W, EAVE, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: lodge });
+// main shingled HIP roof, ridge running front to back (M2: ODM 030 cross-sections + orthophoto):
+// ridge 10.8 m, near-ridge from 2.5 m to 10.5 m behind the front, rear facet down to ~8.8 m at 15.5 m.
+K.hipRidge(lodge, 0, W, -17.0, -0.3, EAVE + 0.45, 10.8, -11.0, -3.0, { color: ROOF, over: 0.15 });
+[[2.0, -5], [7.3, -12]].forEach(([x, z]) => K.slab(lodge, x - 0.35, EAVE + 0.5, z - 0.35, x + 0.35, 11.2, z + 0.35, 'brick', 0x9a4b38, 0.9)); // brick chimneys (F3)
+add(box(0, 0, -17, W, EAVE, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: lodge });
 
-/* ---------- left: the rock-faced red sandstone wing (F1 t122 left edge, F3) ---------- */
-const left = new THREE.Group(); left.position.set(0, 0, -1.4); root.add(left);
-const LW0 = -6.2, LE = 6.7;
-const lOpen = [[-1.75, 0.45, -0.75, 3.0], [-4.5, 0.95, -3.5, 3.0], [-1.75, 4.25, -0.75, 6.2], [-4.5, 4.25, -3.5, 6.2]];
-// t122/t124: two storeys of rusticated (rock-faced) red sandstone in large blocks, eave slightly below
-// the main front, mint cornice; door with white crested surround on the ground floor, a window over it.
-// Its roof is not visible in F1 and only as a dark low roof in F3: drawn as a low hip, UNVERIFIED.
+/* ---------- left: the rusticated red sandstone wing (F1 t122/t124; M2) ---------- */
+// Front = site-v2 building 5 edge 6 (9.30 m), set back 5.58 m (edge 7) behind the main front (footprint + orthophoto).
+// Wall top 5.5 m (ODM 030 points, front band p90 5.2-5.9 m, +/-0.5). Two storeys of rusticated red sandstone,
+// mint cornice, door + window on the ground floor (F1). Roof: low, with the long glazed timber roof monitor of the
+// sunroom parallel to the front (orthophoto; drone 06182), monitor top ~7.8 m (ODM depth profile 10-11 m).
+const left = new THREE.Group(); left.position.set(0, 0, -5.58); root.add(left);
+const LW0 = -9.3, LE = 5.5;
+const lOpen = [[-1.55, 0.3, -0.55, 2.55], [-4.2, 0.85, -3.2, 2.45], [-1.55, 3.15, -0.55, 4.75], [-4.2, 3.15, -3.2, 4.75], [-7.6, 0.85, -6.6, 2.45], [-7.6, 3.15, -6.6, 4.75]];
 K.wall(left, LW0, 0, 0, LE, lOpen, { tints: ROCK, course: 0.52, block: 0.95, rough: 0.09, seed: 1889 });
 K.slab(left, LW0 - 0.2, LE, -0.5, 0.0, LE + 0.25, 0.22, 'wood', MINT, 1.0);
 lOpen.forEach((o, i) => { if (i) K.sash(left, ...o, { frame: MINT }); K.slab(left, o[0] - 0.12, o[3], -0.1, o[2] + 0.12, o[3] + 0.22, 0.07, 'stone', WHITE, 0.7); });
-add(box(lOpen[0][0], 0.45, -0.3, lOpen[0][2], 2.6, -0.24), mat('wood', { color: 0x3c4a46 }), 0.7, { parent: left });
-K.hip(left, LW0, 0, LE, 1.6, -12, 0, { color: ROOF });
-add(box(LW0, 0, -12, 0, LE, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: left });
+add(box(lOpen[0][0], 0.3, -0.3, lOpen[0][2], 2.45, -0.24), mat('wood', { color: 0x3c4a46 }), 0.7, { parent: left });
+K.hip(left, LW0, 0, LE + 0.25, 0.9, -12.5, 0, { color: ROOF, over: 0.3 });
+{ // the roof monitor: dark shed with a continuous strip of timber-framed clerestory glazing on its front
+  K.slab(left, -8.3, LE + 0.6, -6.5, -1.2, 7.8, -3.6, 'plain', 0x4a3f38, 1.0);
+  K.slab(left, -8.2, LE + 0.75, -3.6, -1.3, 7.55, -3.55, 'glass', null, 0.5);
+  for (let x = -8.2; x <= -1.25; x += 0.62) K.slab(left, x, LE + 0.75, -3.6, x + 0.07, 7.55, -3.5, 'wood', 0x9a7656, 0.3);
+}
+add(box(LW0, 0, -12.5, 0, LE, -0.5), mat('plain', { color: 0xd8cfc0 }), 0, { parent: left });
 
 /* ---------- right: the low dark shingled wing and the board fence (F1 t124-t128) ---------- */
 const right = new THREE.Group(); right.position.set(0, 0, -2.2); root.add(right);
@@ -129,7 +137,7 @@ S.figure(3.3, 1.6, 1, true);
 S.aimSun(4, 5, 28);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.70', 'String course (est.)'], [EAVE, '+7.10', 'Wall top (ODM ±0.5)'], [8.78, '+8.78', 'Pediment apex (est.)']]
+[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.70', 'String course (est.)'], [EAVE, '+7.10', 'Wall top (ODM ±0.5)'], [8.78, '+8.78', 'Pediment apex (est.)'], [10.8, '+10.80', 'Main ridge (ODM ±0.5)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;
