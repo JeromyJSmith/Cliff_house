@@ -21,6 +21,10 @@ Source package: `/Volumes/MARPA/_New_APP/data/projects/stone-street/handoff-mode
 | Long side / width | 9.9 × 6.3 m | handoff §4 (splat plan; ortho 9.5–9.9 × 6.1–6.8) | ±0.3 m |
 | Parapet | 3.53 m (north), 3.38 m (south) | handoff, P5 | splat scale not independently verified |
 | Roof step position | 6.6 m from the south end | P5 | ±0.5 m |
-| Floor above sidewalk, deck depth | 1.2 m, 2.0 m | P1, P2 | ±15 %, estimated |
+| Parapet above the Stone Street sidewalk | 4.55 m | M1: ODM 030 point cloud, edge 2 (9.41 m, the street side): 95th percentile within 1 m of the wall minus the 5th percentile 1–4 m outside | ±0.5 m |
+| Floor above sidewalk | 1.0 m (was 1.2 m) | 4.55 − 3.53 | ±0.5 m |
+| Deck depth | 2.0 m | P1, P5 | ±15 %, estimated |
 | North porch length | 3.9 m | site-plan footprint 14.44 m − 9.9 m, P5 | ±0.5 m |
 | East windows | 2, ≈1.1 × 1.2 m | P1 (partly hidden by the pergola) | LOW |
+
+M1 method and files: see ../sunlit-elevation/README.md, section M1.

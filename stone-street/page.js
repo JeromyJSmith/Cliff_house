@@ -29,7 +29,7 @@ const { add, box, mat, lines, root } = S;
 const K = kit(S);
 
 const TEAL = 0x7f9a8f, GREEN = 0x5f7f6c, FASCIA = 0x55433a, SHINGLE = 0x5a4234, STONE = [0xc9b79c, 0xb9a487, 0xd6c6ab, 0xa89377];
-const F = 1.2;          // cottage floor above the sidewalk (estimate, P1/P2)
+const F = 1.0;          // cottage floor above the sidewalk: ODM 030 point cloud parapet 4.55 m above the sidewalk minus the 3.53 m parapet (see README)
 const L = 9.9, STEP = 6.6, P_LO = 3.38, P_HI = 3.53; // P5, handoff
 const g = new THREE.Group(); g.position.set(0, F, 0); root.add(g);
 
@@ -79,7 +79,7 @@ K.slab(root, N1 + 0.3, 1.0, 2.2, N1 + 1.5, 1.75, 2.28, 'plaster', 0xefe8dc, 0.8)
   for (let x = -0.6; x < N1 + 2; x += 0.13) if (x < -0.45 || x > 0.6) bars.push(box(x, 0, 2.68, x + 0.02, 1.0, 2.7));
   bars.push(box(-0.6, 0.92, 2.66, N1 + 2, 0.96, 2.72), box(-0.6, 0.1, 2.66, N1 + 2, 0.14, 2.72));
   add(mergeGeometries(bars), mat('steel', { color: 0x1d1d1d }), 0.45, {});
-  for (let i = 0; i < 6; i++) add(box(-0.4, i * 0.2, 2.7 - (i + 1) * 0.32, 0.25 + 0 * i, (i + 1) * 0.2, 2.7 - i * 0.32), mat('stone', { color: 0xb8ab98 }), 0.7, {}); // steps up (P2 0023-0024)
+  for (let i = 0; i < 5; i++) add(box(-0.4, i * 0.2, 2.7 - (i + 1) * 0.32, 0.25 + 0 * i, (i + 1) * 0.2, 2.7 - i * 0.32), mat('stone', { color: 0xb8ab98 }), 0.7, {}); // steps up (P2 0023-0024)
   { const gp = new THREE.Group(); gp.position.z = 3.1; root.add(gp); K.wall(gp, -1.35, -0.75, 0, 1.3, [], { tints: STONE, course: 0.25, block: 0.3, rough: 0.05, seed: 10, T: 0.6 }); }
   K.slab(root, -2.0, 0, 2.95, -1.75, 8.5, 3.2, 'wood', 0x6b5643, 0.8);               // pole "10"
 }
@@ -104,7 +104,7 @@ S.figure(4.0, F + 1.0, 1, true);
 S.aimSun(5, 3, 20);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Sidewalk'], [F, '+1.20', 'Cottage floor (est.)'], [F + 3.0, '+4.20', 'Fascia / pergola beam'], [F + P_HI, '+4.73', 'Parapet, north part']]
+[[0, '±0.00', 'Sidewalk'], [F, '+1.00', 'Cottage floor (derived)'], [F + 3.0, '+4.00', 'Fascia / pergola beam'], [F + P_HI, '+4.53', 'Parapet (ODM 4.55)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;

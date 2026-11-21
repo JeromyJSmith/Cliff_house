@@ -22,10 +22,10 @@ v1 (schematic, from the written history only) is replaced. v2 is modelled from t
 
 | Quantity | Value | Source | Confidence |
 |---|---|---|---|
-| Gable width | 9.30 m | F4 edge 6 | ±0.3 m; edge-to-gable assignment MEDIUM |
-| Eave | 7.2 m | F1 t124 proportion × 9.30 m | ±10 % (low camera, perspective) |
+| Front width | 10.11 m (v2.1; was 9.30 m from edge 6) | site-v2 building 5 edge 8. The ODM point cloud shows the tall 2-storey block inside edges 8–9 (points 8.4–9.4 m) and only ~6.0 m inside edge 6; edge 8 also faces the patio with building 7 to its right, as in F1 | ±0.3 m; MEDIUM-HIGH |
+| Wall top (cornice) | 7.1 m above the patio | M1: ODM 030 georeferenced point cloud, 95th percentile of points within 1 m of edge 8 minus the 5th percentile 1–4 m outside | ±0.5 m (sparse SfM cloud, GPS-only scale, tree contamination) |
 | Front top | flat bracketed mint cornice, 7.20–7.70 m | F1 t124 | ±10 % |
-| Central pediment | span ≈6.0 m (≈2.1 × the 2.9 m bay spacing), pitch ≈20°, rise ≈1.1 m, apex ≈8.8 m; lilac tympanum with dentils, framed in white and mint | F1 t124; rake slopes 0.58 (left) and 0.17 (right) of run because the camera is turned, mean 0.37 → 20° | ±3°, MEDIUM |
+| Central pediment | span ≈6.5 m (≈2.1 × the 3.15 m bay spacing), pitch ≈20°, rise ≈1.18 m, apex ≈8.78 m; lilac tympanum with dentils, framed in white and mint | F1 t124; rake slopes 0.58 (left) and 0.17 (right) of run because the camera is turned, mean 0.37 → 20° | ±3°, MEDIUM |
 | Main roof | shingled hip behind the front; pitch and ridge NOT measured (8.8 m is the pediment apex, not the main ridge) | F3 | LOW |
 | Left wing | 2 storeys of rusticated red sandstone in large blocks, mint cornice, door and window on the ground floor; eave ≈6.7 m; roof drawn as a low hip, UNVERIFIED | F1 t122, t124; F3 | eave ±10 %, roof LOW |
 | String course | 3.75 m | same | ±10 % |
@@ -46,3 +46,13 @@ heights with the metric flight-030 splat (EPSG:32613) when it is trained.
 The page uses 1873 (the register date) and says on screen that the assessor and catalog dates differ. The
 assessor years probably describe later improvements, but that hasn't been checked against the assessor cards.
 Note the NRHP text says three storeys; the photographed front shows two.
+
+## M1: metric heights from the ODM 030 solve (added v2.1)
+
+`/Volumes/MARPA/_New_APP/data/projects/cliff-house/02_reality_capture/drone-2026-11-09/ortho/odm_030/odm_georeferencing/odm_georeferenced_model.laz`
+(358,805 points, EPSG:32613, GPS-only, no GCPs; 1158/1158 nadir frames registered). Scripts and full outputs:
+`/Volumes/MARPA/_New_APP/data/projects/cliff-house/05_presentation/sunlit-elevation-2026-11-20/measure/`
+(`pc_edges.py` → `pc_edges.output.txt`; `dsm_edges.py` → `dsm_edges.output.txt`). The DSM (`odm_dem/dsm.tif`) is
+heavily interpolated, so it under-reads wall tops; the point-cloud numbers are the ones used. Heights are relative
+to the ground next to each wall, because the drone's GPS altitude datum differs from the 1 m DEM's.
+The 030 Gaussian splat (in progress, nixos-msi-51) should replace these.

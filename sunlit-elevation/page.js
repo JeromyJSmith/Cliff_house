@@ -29,11 +29,11 @@ const ASHLAR = [0xc9907a, 0xc28a74, 0xcf9a82, 0xbf8670, 0xd3a588]; // salmon wit
 const ROCK = [0xa65a43, 0x9a5240, 0xb06248, 0x8f4b3a];             // rock-faced red wing (F1 left)
 const WHITE = 0xf1ede4, MINT = 0x8fb3a0, LILAC = 0xa995c4, ROOF = 0x4a3c36;
 
-const W = 9.3, EAVE = 7.2, RISE = 2.2, STR = 3.75; // F4 width; heights from F1 proportions
+const W = 10.11, EAVE = 7.1, RISE = 2.2, STR = 3.7; // W: site-v2 building 5 edge 8; EAVE: ODM 030 point cloud (see README); STR: F1 proportion
 const lodge = new THREE.Group(); root.add(lodge);
 
 /* ---------- the gable front (F1 t122, t124) ---------- */
-const bays = [1.75, 4.65, 7.55], ww = 1.0;
+const bays = [1.9, 5.05, 8.2], ww = 1.05; // bay spacing 3.15 m = F1 proportions scaled to W
 const door = [bays[0] - 0.55, 0.45, bays[0] + 0.55, 3.25];
 const openings = [door,
   [bays[1] - ww / 2, 0.95, bays[1] + ww / 2, 3.05], [bays[2] - ww / 2, 0.95, bays[2] + ww / 2, 3.05],
@@ -63,7 +63,7 @@ add(box(0.12, 1.55, 0.0, 0.88, 2.6, 0.02), mat('glass'), 0.4, { parent: doorPivo
 add(box(door[0], 2.75, pz - 0.06, door[2], 2.82, pz), mat('wood', { color: MINT }), 0.5, { parent: lodge });
 add(new THREE.PlaneGeometry(1.0, 0.38).translate(bays[0], 3.03, pz - 0.04), mat('glass'), 0, { parent: lodge, cast: false });
 add(box(door[0] + 0.03, 0.45, -6, door[2] - 0.03, 3.2, pz - 0.08), mat('interior', { realOnly: true }), 0, { parent: lodge, cast: false });
-K.slab(lodge, 2.75, 1.45, 0, 3.55, 2.15, 0.05, 'steel', 0x3a3326, 0.7); // plaque
+K.slab(lodge, 3.05, 1.45, 0, 3.9, 2.15, 0.05, 'steel', 0x3a3326, 0.7); // plaque
 K.slab(lodge, door[0] - 0.2, 0, 0, door[2] + 0.2, 0.45, 0.9, 'stone', 0xb98e74, 0.9); // landing
 // Flat mint cornice across the whole front, and a small CENTRAL pediment over the middle bay
 // (F1 t124, corrected after review): lilac tympanum with a dentil band, framed in mint and white.
@@ -71,7 +71,7 @@ K.slab(lodge, door[0] - 0.2, 0, 0, door[2] + 0.2, 0.45, 0.9, 'stone', 0xb98e74, 
 // turned; their mean 0.37 -> 20 deg. Span ~6.0 m (about 2.1 bay spacings of 2.9 m), rise ~1.1 m.
 K.slab(lodge, -0.3, EAVE + 0.22, -0.5, W + 0.3, EAVE + 0.5, 0.3, 'wood', MINT, 1.1);           // cornice
 { const br = []; for (let x = 0.2; x < W - 0.1; x += 0.6) br.push(box(x, EAVE + 0.02, 0.2, x + 0.12, EAVE + 0.22, 0.3)); add(mergeGeometries(br), mat('wood', { color: MINT }), 0.4, { parent: lodge }); } // brackets
-const PW = 6.0, PR = 1.1, PB = EAVE + 0.5, PX0 = W / 2 - PW / 2;
+const PW = 6.5, PR = 1.18, PB = EAVE + 0.5, PX0 = W / 2 - PW / 2;
 {
   const tri = (inset, z0, z1, color, kind = 'stone', lw = 1.0) => {
     const s = new THREE.Shape([[PX0 + inset, PB], [PX0 + PW - inset, PB], [W / 2, PB + PR * (1 - 2 * inset / PW)]].map((p) => new THREE.Vector2(...p)));
@@ -129,7 +129,7 @@ S.figure(3.3, 1.6, 1, true);
 S.aimSun(4, 5, 28);
 
 const pins = document.getElementById('pins');
-[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.75', 'String course (est.)'], [EAVE, '+7.20', 'Eave (est.)'], [8.8, '+8.80', 'Pediment apex (est.)']]
+[[0, '±0.00', 'Grade'], [0.45, '+0.45', 'Ground floor (est.)'], [STR, '+3.70', 'String course (est.)'], [EAVE, '+7.10', 'Wall top (ODM ±0.5)'], [8.78, '+8.78', 'Pediment apex (est.)']]
   .forEach(([y, a, b]) => {
     const el = pins.appendChild(document.createElement('div'));
     el.className = 'lv'; el.innerHTML = `<em></em><i></i><b>${a}</b><span>${b}</span>`;
@@ -137,12 +137,12 @@ const pins = document.getElementById('pins');
   });
 
 const KEYS = [
-  { p: 0, t: [3.6, 5.6, 0], fh: 13.5, fov: 2, phone: { t: [4.65, 5.6, 0], minW: 12 } },
-  { p: 18, t: [3.6, 5.6, 0], fh: 13.5, fov: 2, phone: { t: [4.65, 5.6, 0], minW: 12 } },
-  { p: 115, t: [4.0, 5.0, 0], fh: 12.5, fov: 16, yaw: -16, pitch: -5, phone: { minW: 12 } },
-  { p: 228, t: [4.4, 4.8, 0], fh: 12.0, fov: 22, yaw: 14, pitch: -6, phone: { minW: 11 } },
-  { p: 300, t: [4.65, 8.3, 0], fh: 3.6, fov: 30, yaw: -8, pitch: -4 },
-  { p: 360, t: [4.65, 3.6, 0], fh: 5.5, fov: 34, yaw: 20, pitch: -3 },
+  { p: 0, t: [4.3, 5.4, 0], fh: 14.0, fov: 2, phone: { t: [5.05, 5.4, 0], minW: 12.5 } },
+  { p: 18, t: [4.3, 5.4, 0], fh: 14.0, fov: 2, phone: { t: [5.05, 5.4, 0], minW: 12.5 } },
+  { p: 115, t: [4.6, 5.0, 0], fh: 13.0, fov: 16, yaw: -16, pitch: -5, phone: { minW: 12 } },
+  { p: 228, t: [5.0, 4.8, 0], fh: 12.5, fov: 22, yaw: 14, pitch: -6, phone: { minW: 11 } },
+  { p: 300, t: [5.05, 8.2, 0], fh: 3.6, fov: 30, yaw: -8, pitch: -4 },
+  { p: 360, t: [5.05, 3.6, 0], fh: 5.5, fov: 34, yaw: 20, pitch: -3 },
   { p: 430, t: [1.9, 2.2, 0], fh: 4.4, fov: 44, yaw: 10, pitch: -2 },
   { p: 500, t: [1.8, 1.9, 0], fh: 3.6, fov: 50, yaw: 2, pitch: -2 },
 ];
@@ -171,7 +171,7 @@ run(S, {
     { from: 72, to: 128, html: '<span class="n">01 &nbsp;·&nbsp; Relief</span><p>The pilasters, string course and eared surrounds stand proud of the ashlar. The red rock-faced wing steps back on the left, the low dark wing on the right.</p>' },
     { from: 140, to: 222, html: '<span class="n">02 &nbsp;·&nbsp; The stone</span><p>Every shadow was hatched at 45 degrees. So is <em>this</em> sun. The ink turns into salmon sandstone ashlar, white trim and mint sashes, as photographed.</p>' },
     { from: 236, to: 300, html: '<span class="n">03 &nbsp;·&nbsp; Late afternoon, Morrison</span><p>The sun drops toward the plains, and the shadows slide across the stone.</p>' },
-    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the middle bay: a lilac tympanum with dentils, framed in white and mint, pitched about 20°.</p><div class="row"><div><span>Source</span>IMG_0949 t124s</div><div><span>Width</span>9.30 m ±0.3</div><div><span>Apex</span>≈8.8 m (est.)</div></div>' },
+    { from: 300, to: 360, html: '<span class="n">04 &nbsp;·&nbsp; The pediment</span><p>A small central pediment over the middle bay: a lilac tympanum with dentils, framed in white and mint, pitched about 20°.</p><div class="row"><div><span>Source</span>IMG_0949 t124s</div><div><span>Width</span>10.11 m ±0.3</div><div><span>Wall top</span>7.1 m (ODM)</div></div>' },
     { from: 362, to: 428, html: '<span class="n">05 &nbsp;·&nbsp; c. 1873</span><p>Morrison&rsquo;s 1873 house per the NPS register and Morrison History (assessor records say 1934; one archive catalog says 1864). Three bays, tall 2-over-2 sashes, a crest panel over every <em>opening.</em></p><div class="row"><div><span>Built</span>c. 1873 (conflicts)</div><div><span>Wing</span>1889</div><div><span>Stone</span>Local sandstone</div></div>' },
     { from: 440, to: 540, html: '<span class="n">06 &nbsp;·&nbsp; Cliff House Lodge</span><p>After 1895 it became a rooming house, and today it is a lodge at 115 Stone Street. Across the yard is the <em>Stone Street Cottage.</em></p><a class="pill solid" href="../stone-street/">Stone Street Cottage</a>' },
   ],
