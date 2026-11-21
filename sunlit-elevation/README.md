@@ -78,3 +78,7 @@ Both changes are under 0.3 m, so the edge-8 call and the heights stand. The figu
 the parapet reads **3.41 m** unshifted and **3.19 m** registered, and the roof interior p95 reads 3.70 / 3.69 m.
 The interior scan gives 3.53 m. That agrees within about ±0.3 m. Edge 0 includes the north porch and trees
 (its max is 16.8 m), which adds noise.
+
+Note: the fitted 1.5° rotation is close to the 1.9° offset found between the Stone Street model axes and the
+real roof edges in the splat plan (stone-street HANDOFF §4). That points to a small systematic rotation in the
+site-v2 footprint regularisation rather than in ODM. Unresolved; the georeferenced 030 splat should settle it.
