@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" class="locked">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stone Street Cottage</title>
+  <meta name="description" content="Stone Street Cottage at Cliff House Lodge, Morrison CO, as a sunlit elevation drawn from the photos and the grounds splat." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../sunlit-elevation/engine/page.css" />
+  <style>
+    #cad-map { display: none !important; }
+    .credit { position: fixed; left: 16px; bottom: 12px; z-index: 6; font: 500 10px/1.4 'IBM Plex Mono', monospace; color: #6d685f; max-width: 46ch; }
+    .credit a { color: inherit; }
+  </style>
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="loader" id="loader">
+    <p>DWG // SS-201 &nbsp;·&nbsp; Stone Street Cottage</p>
+    <p class="soft">Plotting east elevation 1:50 &nbsp;<span id="loadPct">0%</span></p>
+  </div>
+
+  <header class="topbar">
+    <a class="mark" href="../sunlit-elevation/">Stone Street<small>Cliff House Lodge · SS-201</small></a>
+    <a class="pill" href="../sunlit-elevation/">The lodge</a>
+  </header>
+
+  <section class="hero" aria-label="Cliff House, front elevation">
+    <p class="kicker mono">Stone Street Cottage <span class="soft">&nbsp;·&nbsp; East Elevation 1:50</span></p>
+    <h1><span class="mask"><span>Teal walls, a flat roof.</span></span><span class="mask"><span>A deck on <em>Stone Street.</em></span></span></h1>
+  </section>
+
+  <div class="pins" id="pins" aria-hidden="true"></div>
+
+  <div class="tb" aria-hidden="true">
+    <div><span>Project</span>Stone Street</div>
+    <div><span>Drawing</span>East elevation</div>
+    <div><span>Scale</span>1 : 50</div>
+    <div><span>Status</span>Photo-scaled</div>
+  </div>
+
+  <div class="hint" aria-hidden="true">Scroll <i></i></div>
+  <div id="beats"></div>
+  <main class="track" id="track"></main>
+  <p class="credit">Modelled from the photos and the grounds splat; heights ±10 %, not survey-grade. Technique: <a href="https://github.com/Sam1983Aing/flat-to-3d">Flat to 3D · Sunlit Elevation</a> (MIT).</p>
+
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"
+    } }
+  </script>
+  <script type="module" src="page.js"></script>
+</body>
+</html>

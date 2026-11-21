@@ -1,18 +1,33 @@
-# Cliff House · Sunlit Elevation
+# Cliff House Lodge · Sunlit Elevation (v2, 2026-11-20)
 
-Live: https://jeromyjsmith.github.io/Cliff_house/sunlit-elevation/
+Live: https://jeromyjsmith.github.io/Cliff_house/sunlit-elevation/ · Stone Street Cottage: `../stone-street/`
 
-The Cliff House (George P. Morrison's 1873 residence, 115 Stone Street, Morrison CO) shown with the
-"Sunlit Elevation" technique from [Flat to 3D](https://github.com/Sam1983Aing/flat-to-3d) by Samnang Aing
-(MIT, see `LICENSE-flat-to-3d`). The front elevation is drawn in ink with 45° hatching; the hatching is
-the real shadow map, and a sweep turns the drawing into red and buff sandstone.
+The lodge's stone gable front (115 Stone Street, Morrison CO) drawn in ink with 45° hatching; the hatching is the
+real shadow map, and a sweep turns the drawing into the photographed materials. Technique and engine (`engine/`,
+unchanged): [Flat to 3D · Sunlit Elevation](https://github.com/Sam1983Aing/flat-to-3d) by Samnang Aing, MIT
+(`LICENSE-flat-to-3d`). Model: `page.js` + `kit.js`.
 
-- `engine/` is the upstream engine, unchanged.
-- `page.js` builds the Cliff House: the three-storey 1873 block in alternating red/buff courses, the
-  1889 east wing in red sandstone with buff quoins, French casements, the rocks behind.
+v1 (schematic, from the written history only) is replaced. v2 is modelled from the photos and 3D below.
 
-**Schematic.** Massing follows the historical record (Morrison History, the Morrison Historic District
-NRHP nomination; see `docs/reconnaissance-20261111/BRIEF.md` on main). Dimensions, opening layout and
-roof form are not yet from the measured scan and should be replaced once that baseline is accepted.
+## Evidence (every element cites one)
 
-`?skip` skips the intro, `?at=300` jumps to a scroll position.
+| Id | Source (MacBook paths) | What it gives |
+|---|---|---|
+| F1 | IMG_0949 t118–t128 s, `/Volumes/MARPA/_New_APP/data/projects/cliff-house/03_bim/site-model/building-names-evidence/cmp_0949_E.jpg` | the gable front: 3 bays × 2 storeys; 2-over-2 sashes, mint frames; white eared surrounds with lilac crest panels; white string course and corner pilasters; pediment with white/mint/lilac trim and a vent; entrance with transom and historic-site plaque in the left bay; rock-faced red wing to the left; low dark shingled wing and redwood board fence to the right |
+| F2 | drone 030 nadir frames 06045, 06182, 06286, 06615, 06729, `/Volumes/MARPA/_New_APP/data/projects/cliff-house/02_reality_capture/drone-2026-11-09/nadir/frames_2400_100fov/` | stone colour (salmon ashlar with buff blocks, buff quoins), white stone lintels, mint sashes, brown shingle roof, red brick parapet, glazed timber roof monitor (sunroom, not on this elevation) |
+| F3 | `/Users/jero/Documents/cliffhouse2.mp4` (27 s dusk aerial orbit, smeared like a splat render) | massing, brick chimneys, low roofs of the side wings |
+| F4 | `cliff-house-site-v2.site-plan.json`, building 5, edge 6 | gable width 9.30 m ±0.3 (SAM 3 trace of the 2024 aerial, EPSG:32613) |
+
+## Numbers and confidence
+
+| Quantity | Value | Source | Confidence |
+|---|---|---|---|
+| Gable width | 9.30 m | F4 edge 6 | ±0.3 m; edge-to-gable assignment MEDIUM |
+| Eave | 7.2 m | F1 t124 proportion × 9.30 m | ±10 % (low camera, perspective) |
+| Ridge | 9.62 m | same | ±10 % |
+| String course | 3.75 m | same | ±10 % |
+| Openings | 1.0 × 2.1 m | same | ±10 % |
+| Wing set-backs (1.4 m left, 2.2 m right) | estimated | F1, F3 | LOW |
+
+Not measured in 3D: the site IFC heights are assumptions and the published `.sog` is not scaled. Replace the
+heights with the metric flight-030 splat (EPSG:32613) when it is trained.
