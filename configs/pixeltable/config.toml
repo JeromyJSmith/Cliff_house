@@ -1,0 +1,8 @@
+# Cliff House's Pixeltable settings for local runs in the machine's one Pixeltable home (~/MARPA/.pixeltable).
+# Cliff House is its own project, not a MARPA one; it shares that home and database but not MARPA's config.toml, which
+# carries an option (`enable_mps`) that only MARPA's patched Pixeltable accepts. Point Pixeltable here with
+# PIXELTABLE_CONFIG. Home and database come from the one home's pixeltable.env; MPS is set with PIXELTABLE_ENABLE_MPS.
+# The project's main Pixeltable runs in molab, which does not read this file.
+[pixeltable]
+file_cache_size_g = 20.0
+hide_warnings = false
